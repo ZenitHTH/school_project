@@ -329,3 +329,25 @@ def test_booth_get_copy_found(booth_adapter):
     res = json.loads(adapter.getCopyByBarcode("SCAN-01"))
     assert res["ok"] is True
     assert res["data"]["barcode"] == "SCAN-01"
+
+
+def test_student_adapter_first_launch_flow(tmp_path):
+    conn = get_connection(str(tmp_path / "blank_first_launch.sqlite"), pin="123456")
+    apply_migrations(conn)
+    adapter = StudentAdminAdapter(conn)
+
+    assert adapter.isFirstLaunch() is True
+
+    init_res = json.loads(adapter.initializeBlankDatabase(actor="TestAdmin"))
+    assert init_res["ok"] is True
+    assert adapter.isFirstLaunch() is False
+
+    logs = json.loads(adapter.getActivityLogs())
+    assert any(log["action"] == "system.init_blank_db" for log in logs)
+    conn.close()
+
+
+def test_student_adapter_first_launch_false_when_students_exist(student_adapter):
+    adapter, _ = student_adapter
+    assert adapter.isFirstLaunch() is False
+

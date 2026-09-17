@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import datetime
 from typing import Any, Dict, List, Optional
 
 try:
@@ -57,6 +58,45 @@ class StudentAdminAdapter(QObject):
         self.conn = conn
         self.student_svc = StudentService(conn)
         self.enrollment_svc = EnrollmentService(conn)
+
+    @Slot(result=bool)
+    def isFirstLaunch(self) -> bool:
+        """Return True if no students exist and first-launch setup has not been completed."""
+        try:
+            cur = self.conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM students;")
+            st_count = cur.fetchone()[0]
+            if st_count > 0:
+                return False
+            cur.execute("SELECT value FROM sync_state WHERE key = 'first_launch_done';")
+            row = cur.fetchone()
+            return row is None or row[0] != "1"
+        except Exception:
+            return False
+
+    @Slot(str, result=str)
+    def initializeBlankDatabase(self, actor: str = "Admin") -> str:
+        """Confirm blank database initialization and mark first-launch complete."""
+        try:
+            cur = self.conn.cursor()
+            now = datetime.datetime.now().isoformat()
+            cur.execute(
+                "INSERT OR REPLACE INTO sync_state (key, value, updated_at) VALUES ('first_launch_done', '1', ?);",
+                (now,)
+            )
+            self.conn.commit()
+            from core.shared.log_service import record_activity
+            record_activity(
+                self.conn,
+                action="system.init_blank_db",
+                entity_type="system",
+                entity_id=0,
+                detail="Initialized blank database following table rules.",
+                actor=actor,
+            )
+            return json.dumps({"ok": True, "message": "Initialized blank database successfully."})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
 
     @Slot(str, result=str)
     def searchStudents(self, query: str) -> str:
@@ -147,6 +187,17 @@ class StudentAdminAdapter(QObject):
         # 3. Import roster into active connection
         res = import_roster(xlsx_path, conn=self.conn)
         if res.ok:
+            try:
+                cur = self.conn.cursor()
+                now = datetime.datetime.now().isoformat()
+                cur.execute(
+                    "INSERT OR REPLACE INTO sync_state (key, value, updated_at) VALUES ('first_launch_done', '1', ?);",
+                    (now,)
+                )
+                self.conn.commit()
+            except Exception:
+                pass
+
             from core.shared.log_service import record_activity
             record_activity(
                 self.conn,

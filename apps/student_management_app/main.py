@@ -6,6 +6,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+import json
 from data.db import get_connection
 from data.migrate import apply_migrations
 from apps.student_management_app.adapters.student_admin_adapter import StudentAdminAdapter
@@ -18,6 +19,35 @@ except ImportError:
     HAVE_QT = False
 
 
+def run_cli_first_launch(adapter: StudentAdminAdapter) -> None:
+    """Handle first launch interactively in terminal mode."""
+    print("=" * 60)
+    print("🎓 Student Management System — First Launch Setup")
+    print("=" * 60)
+    print("No student records found in database.")
+    try:
+        ans = input("Do you have an xlsx student database file? (y/N): ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        ans = "n"
+    if ans == "y":
+        try:
+            path = input("Enter path to xlsx file: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            path = ""
+        if path and os.path.exists(path):
+            res = json.loads(adapter.importXlsx(path, force=False, actor="CLI"))
+            if res.get("ok"):
+                print(f"✓ Imported {res.get('data', {}).get('students', 0)} students successfully.")
+            else:
+                print(f"✗ Import failed: {res.get('error')}")
+        else:
+            print("File not found or empty path. Initializing blank database instead.")
+            adapter.initializeBlankDatabase("CLI")
+    else:
+        adapter.initializeBlankDatabase("CLI")
+        print("✓ Created blank database following table rules.")
+
+
 def main():
     db_path = os.environ.get("STUDENT_DB_PATH", "student.sqlite")
     pin = os.environ.get("STUDENT_DB_PIN", "123456")
@@ -27,12 +57,18 @@ def main():
 
     adapter = StudentAdminAdapter(conn)
 
-    if not HAVE_QT:
-        print("[Student Management] PySide6 not installed. Running in CLI verification mode.")
-        res = adapter.searchStudents("")
-        print(f"Sample query result: {res[:100]}...")
-        conn.close()
-        return
+    if "--cli" in sys.argv or not HAVE_QT:
+        if adapter.isFirstLaunch():
+            if sys.stdin.isatty() and "--cli" in sys.argv:
+                run_cli_first_launch(adapter)
+            else:
+                adapter.initializeBlankDatabase("CLI")
+        if not HAVE_QT or "--cli" in sys.argv:
+            print("[Student Management] Running in CLI mode.")
+            res = adapter.searchStudents("")
+            print(f"Students in database: {len(json.loads(res))}")
+            conn.close()
+            return
 
     from PySide6.QtQuickControls2 import QQuickStyle
     QQuickStyle.setStyle("Basic")

@@ -554,3 +554,55 @@ def test_load_logs_populates_log_model(ui):
     model = find(window, "logModel")
     assert model is not None
     assert model.property("count") >= 0
+
+
+def test_first_launch_dialog_opens_on_blank_db(qapp, tmp_path):
+    """When app opens with empty DB, firstLaunchDialog opens automatically."""
+    db_file = str(tmp_path / "first_launch_ui.sqlite")
+    conn = get_connection(db_file, pin="123456")
+    apply_migrations(conn)
+
+    adapter = StudentAdminAdapter(conn)
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("studentAdmin", adapter)
+
+    qml_path = os.path.abspath("apps/student_management_app/qml/Main.qml")
+    engine.load(qml_path)
+    qapp.processEvents()
+
+    window = engine.rootObjects()[0]
+    dlg = find(window, "firstLaunchDialog")
+    assert dlg is not None, "firstLaunchDialog not found"
+    assert dlg.property("visible") is True, "firstLaunchDialog should open on blank DB"
+
+    # Click create blank database button
+    blank_btn = find(window, "firstLaunchBlankBtn")
+    assert blank_btn is not None
+    blank_btn.clicked.emit()
+    qapp.processEvents()
+
+    assert dlg.property("visible") is False, "Dialog should close after blank db init"
+    feedback = find(window, "actionFeedback")
+    assert "สร้างฐานข้อมูลเปล่า" in feedback.property("text")
+
+    # Verify state saved
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM sync_state WHERE key = 'first_launch_done';")
+    assert cur.fetchone()[0] == "1"
+
+    conn.close()
+    engine.deleteLater()
+
+
+def test_manual_open_wizard_button(ui):
+    """Clicking openWizardBtn opens the first launch wizard manually."""
+    window = ui["window"]
+    btn = find(window, "openWizardBtn")
+    assert btn is not None
+    btn.clicked.emit()
+    process(ui["app"])
+
+    dlg = find(window, "firstLaunchDialog")
+    assert dlg is not None
+    assert dlg.property("visible") is True
+
