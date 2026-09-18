@@ -269,6 +269,39 @@ def test_booth_all_objectnames_present(booth_ui):
         "btnReturn",
         "feedbackBanner",
         "btnLogout",
+        "emptyDbWarningBanner",
     ]
     missing = [name for name in required if find(window, name) is None]
     assert not missing, f"Missing objectNames in Booth QML: {missing}"
+
+
+def test_booth_warning_banner_hidden_when_seeded(booth_ui):
+    """When students and books exist, emptyDbWarningBanner is not visible."""
+    window = booth_ui["window"]
+    banner = find(window, "emptyDbWarningBanner")
+    assert banner is not None
+    assert banner.property("visible") is False
+
+
+def test_booth_warning_banner_visible_on_empty_db(qapp, tmp_path):
+    """When DB is empty, emptyDbWarningBanner is visible."""
+    db_file = str(tmp_path / "empty_booth_ui.sqlite")
+    conn = get_connection(db_file, pin="123456")
+    apply_migrations(conn)
+
+    adapter = BoothAdapter(conn)
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("boothAdapter", adapter)
+
+    qml_path = os.path.abspath("apps/booth_app/qml/Main.qml")
+    engine.load(qml_path)
+    qapp.processEvents()
+
+    window = engine.rootObjects()[0]
+    banner = find(window, "emptyDbWarningBanner")
+    assert banner is not None
+    assert banner.property("visible") is True
+
+    conn.close()
+    engine.deleteLater()
+

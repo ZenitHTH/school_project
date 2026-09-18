@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import QtQuick.Dialogs
 
 ApplicationWindow {
     id: window
@@ -91,6 +92,22 @@ ApplicationWindow {
                 }
 
                 Item { Layout.fillHeight: true }
+
+                Button {
+                    id: openWizardBtn
+                    objectName: "openWizardBtn"
+                    Layout.fillWidth: true
+                    text: "⚙️ ตัวช่วยสร้างฐานข้อมูล"
+                    font.pixelSize: 11
+                    flat: true
+                    contentItem: Text {
+                        text: openWizardBtn.text
+                        font: openWizardBtn.font
+                        color: "#94a3b8"
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    onClicked: firstLaunchDialog.open()
+                }
 
                 Text {
                     text: "สถานะ: ฐานข้อมูลพร้อมใช้งาน"
@@ -561,7 +578,145 @@ ApplicationWindow {
         applySyncBtn.enabled = false
     }
 
+    FileDialog {
+        id: firstLaunchFileDialog
+        objectName: "firstLaunchFileDialog"
+        title: "เลือกไฟล์ข้อมูลนักเรียน (.sqlite Snapshot หรือ .xlsx Excel)"
+        nameFilters: ["Student Data (*.sqlite *.xlsx *.xls *.db)", "All files (*)"]
+        onAccepted: {
+            var path = selectedFile.toString()
+            if (path.indexOf("file://") === 0) {
+                path = decodeURIComponent(path.substring(7))
+            }
+            firstLaunchStatusText.text = "กำลังนำเข้าข้อมูลจาก: " + path + "..."
+            var res = JSON.parse(librarianAdmin.importRoster(path, "Librarian"))
+            if (res.ok) {
+                firstLaunchStatusText.text = "✓ นำเข้าข้อมูลนักเรียนสำเร็จเรียบร้อยแล้ว"
+                searchBooks()
+                firstLaunchTimer.start()
+            } else {
+                firstLaunchStatusText.text = "✗ เกิดข้อผิดพลาด: " + res.error
+            }
+        }
+    }
+
+    Timer {
+        id: firstLaunchTimer
+        interval: 1200
+        repeat: false
+        onTriggered: {
+            firstLaunchDialog.close()
+        }
+    }
+
+    Dialog {
+        id: firstLaunchDialog
+        objectName: "firstLaunchDialog"
+        title: "🎉 เริ่มต้นใช้งานระบบห้องสมุด (Library Setup Wizard)"
+        modal: true
+        anchors.centerIn: parent
+        width: 520
+        standardButtons: Dialog.NoButton
+        closePolicy: Popup.CloseOnEscape
+
+        ColumnLayout {
+            spacing: 16
+            width: parent.width
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 70
+                color: "#eff6ff"
+                radius: 8
+                border.color: "#bfdbfe"
+
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 12
+                    Text {
+                        text: "📚"
+                        font.pixelSize: 32
+                    }
+                    ColumnLayout {
+                        spacing: 4
+                        Text {
+                            text: "ยินดีต้อนรับสู่ระบบห้องสมุดโรงเรียน"
+                            font.bold: true
+                            font.pixelSize: 15
+                            color: "#1e3a8a"
+                        }
+                        Text {
+                            text: "ยังไม่พบข้อมูลในระบบห้องสมุด หรือเป็นการเริ่มต้นใช้งานครั้งแรก"
+                            font.pixelSize: 12
+                            color: "#3b82f6"
+                        }
+                    }
+                }
+            }
+
+            Text {
+                text: "คุณมีไฟล์ข้อมูลนักเรียนเพื่อนำเข้าหรือไม่?"
+                font.bold: true
+                font.pixelSize: 14
+                color: "#1e293b"
+            }
+
+            Text {
+                text: "• หากมีไฟล์ Snapshot / Excel: ระบบจะซิงค์บัญชีรายชื่อนักเรียนเพื่อเริ่มระบบยืม-คืนทันที\n• หากไม่มีไฟล์: ระบบจะสร้างฐานข้อมูลเปล่าตามกฎตาราง เพื่อให้พร้อมจัดการแคตตาล็อกหนังสือ"
+                font.pixelSize: 12
+                color: "#64748b"
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+
+            Text {
+                id: firstLaunchStatusText
+                objectName: "firstLaunchStatusText"
+                text: ""
+                font.pixelSize: 12
+                color: text.indexOf("✗") !== -1 ? "#ef4444" : "#10b981"
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+                visible: text !== ""
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                Button {
+                    id: firstLaunchImportBtn
+                    objectName: "firstLaunchImportBtn"
+                    Layout.fillWidth: true
+                    text: "📥 มีไฟล์ Snapshot / Excel — เลือกไฟล์นำเข้า"
+                    highlighted: true
+                    onClicked: {
+                        firstLaunchFileDialog.open()
+                    }
+                }
+
+                Button {
+                    id: firstLaunchBlankBtn
+                    objectName: "firstLaunchBlankBtn"
+                    Layout.fillWidth: true
+                    text: "🆕 ไม่มีไฟล์ — สร้างฐานข้อมูลเปล่า"
+                    onClicked: {
+                        var res = JSON.parse(librarianAdmin.initializeBlankDatabase("Librarian"))
+                        firstLaunchDialog.close()
+                        searchBooks()
+                    }
+                }
+            }
+        }
+    }
+
     Component.onCompleted: {
-        searchBooks()
+        if (typeof librarianAdmin !== "undefined" && librarianAdmin !== null) {
+            searchBooks()
+            if (librarianAdmin.isFirstLaunch()) {
+                firstLaunchDialog.open()
+            }
+        }
     }
 }

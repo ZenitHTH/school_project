@@ -27,6 +27,42 @@ ApplicationWindow {
             Layout.alignment: Qt.AlignHCenter
         }
 
+        // Empty DB Warning Banner
+        Rectangle {
+            id: emptyDbWarningBanner
+            objectName: "emptyDbWarningBanner"
+            Layout.fillWidth: true
+            height: 60
+            color: "#451a03"
+            radius: 8
+            border.color: "#b45309"
+            visible: (typeof boothAdapter !== "undefined" && boothAdapter !== null) ? boothAdapter.isDatabaseEmpty() : false
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 10
+                Text {
+                    text: "⚠️"
+                    font.pixelSize: 22
+                }
+                ColumnLayout {
+                    spacing: 2
+                    Text {
+                        text: "ยังไม่มีข้อมูลในระบบ หรือฐานข้อมูลว่าง"
+                        color: "#fde047"
+                        font.bold: true
+                        font.pixelSize: 13
+                    }
+                    Text {
+                        text: "กรุณาติดต่อบรรณารักษ์เพื่อทำการ Sync ข้อมูลนักเรียน/หนังสือเข้าระบบก่อนเริ่มใช้งาน"
+                        color: "#fef08a"
+                        font.pixelSize: 11
+                    }
+                }
+            }
+        }
+
         // Student Card
         Rectangle {
             Layout.fillWidth: true

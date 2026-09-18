@@ -372,6 +372,58 @@ def test_librarian_all_objectnames_present(lib_ui):
         "fineModel",
         "logList",
         "logModel",
+        "openWizardBtn",
+        "firstLaunchDialog",
     ]
     missing = [name for name in required if find(window, name) is None]
     assert not missing, f"Missing objectNames in Librarian QML: {missing}"
+
+
+def test_librarian_first_launch_dialog_opens_on_blank_db(qapp, tmp_path):
+    """When librarian app opens with empty DB, firstLaunchDialog opens automatically."""
+    db_file = str(tmp_path / "first_launch_lib_ui.sqlite")
+    conn = get_connection(db_file, pin="123456")
+    apply_migrations(conn)
+
+    adapter = LibrarianAdminAdapter(conn)
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("librarianAdmin", adapter)
+
+    qml_path = os.path.abspath("apps/librarian_management_app/qml/Main.qml")
+    engine.load(qml_path)
+    qapp.processEvents()
+
+    window = engine.rootObjects()[0]
+    dlg = find(window, "firstLaunchDialog")
+    assert dlg is not None, "firstLaunchDialog not found"
+    assert dlg.property("visible") is True, "firstLaunchDialog should open on blank DB"
+
+    # Click create blank database button
+    blank_btn = find(window, "firstLaunchBlankBtn")
+    assert blank_btn is not None
+    blank_btn.clicked.emit()
+    qapp.processEvents()
+
+    assert dlg.property("visible") is False, "Dialog should close after blank db init"
+
+    # Verify state saved
+    cur = conn.cursor()
+    cur.execute("SELECT value FROM sync_state WHERE key = 'library_first_launch_done';")
+    assert cur.fetchone()[0] == "1"
+
+    conn.close()
+    engine.deleteLater()
+
+
+def test_librarian_manual_open_wizard_button(lib_ui):
+    """Clicking openWizardBtn opens the first launch wizard manually."""
+    window = lib_ui["window"]
+    btn = find(window, "openWizardBtn")
+    assert btn is not None
+    btn.clicked.emit()
+    process(lib_ui["app"])
+
+    dlg = find(window, "firstLaunchDialog")
+    assert dlg is not None
+    assert dlg.property("visible") is True
+

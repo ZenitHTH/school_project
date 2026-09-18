@@ -351,3 +351,42 @@ def test_student_adapter_first_launch_false_when_students_exist(student_adapter)
     adapter, _ = student_adapter
     assert adapter.isFirstLaunch() is False
 
+
+def test_librarian_adapter_first_launch_flow(tmp_path):
+    conn = get_connection(str(tmp_path / "blank_library.sqlite"), pin="123456")
+    apply_migrations(conn)
+    adapter = LibrarianAdminAdapter(conn)
+
+    assert adapter.isFirstLaunch() is True
+
+    init_res = json.loads(adapter.initializeBlankDatabase(actor="TestLibrarian"))
+    assert init_res["ok"] is True
+    assert adapter.isFirstLaunch() is False
+
+    logs = json.loads(adapter.getActivityLogs())
+    assert any(log["action"] == "system.init_blank_library_db" for log in logs)
+    conn.close()
+
+
+def test_librarian_adapter_first_launch_false_when_data_exists(librarian_adapter):
+    adapter, _ = librarian_adapter
+    # Has student 2001
+    assert adapter.isFirstLaunch() is False
+
+
+def test_booth_adapter_is_database_empty_detection(tmp_path, booth_adapter):
+    conn = get_connection(str(tmp_path / "blank_booth.sqlite"), pin="123456")
+    apply_migrations(conn)
+    empty_adapter = BoothAdapter(conn)
+    assert empty_adapter.isDatabaseEmpty() is True
+    conn.close()
+
+    adapter, _ = booth_adapter
+    # booth_adapter fixture has student 3001, but no books yet:
+    # Adding a book makes it not empty
+    from data.repositories import book_repo
+    _, conn_booth = booth_adapter
+    bk = book_repo.add_book(conn_booth, title="Test Book")
+    assert adapter.isDatabaseEmpty() is False
+
+

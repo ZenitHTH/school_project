@@ -27,6 +27,9 @@ def main():
 
     adapter = BoothAdapter(conn)
 
+    if adapter.isDatabaseEmpty():
+        print("[Self-Service Booth] Warning: Database is empty. Please sync student records in Librarian App.")
+
     if not HAVE_QT:
         print("[Self-Service Booth] PySide6 not installed. Running in CLI verification mode.")
         res = adapter.searchStudents("")

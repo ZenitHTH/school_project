@@ -1201,9 +1201,11 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        doSearch()
-        if (studentAdmin.isFirstLaunch()) {
-            firstLaunchDialog.open()
+        if (typeof studentAdmin !== "undefined" && studentAdmin !== null) {
+            doSearch()
+            if (studentAdmin.isFirstLaunch()) {
+                firstLaunchDialog.open()
+            }
         }
     }
 }

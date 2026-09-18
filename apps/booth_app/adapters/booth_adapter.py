@@ -47,6 +47,19 @@ class BoothAdapter(QObject):
         self.student_svc = StudentService(conn)
         self.loan_svc = LoanService(conn, student_service=self.student_svc)
 
+    @Slot(result=bool)
+    def isDatabaseEmpty(self) -> bool:
+        """Return True if students or books table has 0 records."""
+        try:
+            cur = self.conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM students;")
+            st_count = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM books;")
+            bk_count = cur.fetchone()[0]
+            return st_count == 0 or bk_count == 0
+        except Exception:
+            return True
+
     @Slot(str, result=str)
     def searchStudents(self, query: str) -> str:
         """Student self-identification lookup."""

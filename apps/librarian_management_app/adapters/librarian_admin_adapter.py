@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import datetime
 from typing import Any, Dict, List, Optional
 
 try:
@@ -62,6 +63,84 @@ class LibrarianAdminAdapter(QObject):
         self.res_svc = ReservationService(conn)
         self.student_svc = StudentService(conn)
         self.loan_svc = LoanService(conn, fine_service=self.fine_svc, reservation_service=self.res_svc, student_service=self.student_svc)
+
+    @Slot(result=bool)
+    def isFirstLaunch(self) -> bool:
+        """Return True if no students and no books exist and setup has not been completed."""
+        try:
+            cur = self.conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM students;")
+            st_count = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM books;")
+            bk_count = cur.fetchone()[0]
+            if st_count > 0 or bk_count > 0:
+                return False
+            cur.execute("SELECT value FROM sync_state WHERE key = 'library_first_launch_done';")
+            row = cur.fetchone()
+            return row is None or row[0] != "1"
+        except Exception:
+            return False
+
+    @Slot(str, result=str)
+    def initializeBlankDatabase(self, actor: str = "Librarian") -> str:
+        """Confirm blank library database initialization and mark first-launch complete."""
+        try:
+            self._mark_first_launch_done()
+            from core.shared.log_service import record_activity
+            record_activity(
+                self.conn,
+                action="system.init_blank_library_db",
+                entity_type="system",
+                entity_id=0,
+                detail="Initialized blank library database following table rules.",
+                actor=actor,
+            )
+            return json.dumps({"ok": True, "message": "Initialized blank library database successfully."})
+        except Exception as e:
+            return json.dumps({"ok": False, "error": str(e)})
+
+    @Slot(str, str, result=str)
+    def importRoster(self, file_path: str, actor: str = "Librarian") -> str:
+        """Import or sync student records from .sqlite snapshot or .xlsx roster."""
+        from urllib.parse import unquote, urlparse
+        if file_path.startswith("file://"):
+            parsed = urlparse(file_path)
+            file_path = unquote(parsed.path)
+
+        if file_path.endswith(".sqlite") or file_path.endswith(".db"):
+            res = apply_sync(file_path, self.conn)
+            if res.ok:
+                self._mark_first_launch_done()
+            return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        elif file_path.endswith(".xlsx") or file_path.endswith(".xls"):
+            from core.importers.build_db import import_roster
+            res = import_roster(file_path, conn=self.conn)
+            if res.ok:
+                self._mark_first_launch_done()
+                from core.shared.log_service import record_activity
+                record_activity(
+                    self.conn,
+                    action="library.import_roster_xlsx",
+                    entity_type="system",
+                    entity_id=0,
+                    detail=f"Imported roster xlsx: {file_path}",
+                    actor=actor,
+                )
+            return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        else:
+            return json.dumps({"ok": False, "error": "Unsupported file format. Please select .sqlite snapshot or .xlsx file."})
+
+    def _mark_first_launch_done(self) -> None:
+        try:
+            cur = self.conn.cursor()
+            now = datetime.datetime.now().isoformat()
+            cur.execute(
+                "INSERT OR REPLACE INTO sync_state (key, value, updated_at) VALUES ('library_first_launch_done', '1', ?);",
+                (now,)
+            )
+            self.conn.commit()
+        except Exception:
+            pass
 
     @Slot(str, result=str)
     def searchStudents(self, query: str) -> str:
@@ -199,6 +278,8 @@ class LibrarianAdminAdapter(QObject):
             parsed = urlparse(snapshot_path)
             snapshot_path = unquote(parsed.path)
         res = apply_sync(snapshot_path, self.conn)
+        if res.ok:
+            self._mark_first_launch_done()
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
     @Slot(result=str)
