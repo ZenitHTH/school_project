@@ -7,11 +7,32 @@ import json
 import os
 import pytest
 
+import sys
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtCore import QObject, Qt, QMetaObject
+
 from data.db import get_connection
 from data.migrate import apply_migrations
 from apps.student_management_app.adapters.student_admin_adapter import StudentAdminAdapter
 from apps.librarian_management_app.adapters.librarian_admin_adapter import LibrarianAdminAdapter
 from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    app = QGuiApplication.instance()
+    if app is None:
+        app = QGuiApplication(sys.argv)
+    return app
+
+
+def find(window, name):
+    return window.findChild(QObject, name)
+
+
+def invoke(window, method):
+    QMetaObject.invokeMethod(window, method, Qt.DirectConnection)
 
 
 def test_in_memory_db_creates_no_disk_files():
@@ -98,3 +119,73 @@ def test_fresh_librarian_and_booth_launch(tmp_path):
 
     assert booth_adapter.isDatabaseEmpty() is False
     conn_lib.close()
+
+
+def test_student_management_full_memory_flow(qapp, tmp_path):
+    """Verify Student Management App runs full lifecycle directly on :memory: DB."""
+    conn = get_connection(":memory:", pin="123456")
+    apply_migrations(conn)
+
+    adapter = StudentAdminAdapter(conn)
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("studentAdmin", adapter)
+
+    qml_path = os.path.abspath("apps/student_management_app/qml/Main.qml")
+    engine.load(qml_path)
+    qapp.processEvents()
+
+    window = engine.rootObjects()[0]
+    dlg = find(window, "firstLaunchDialog")
+    assert dlg is not None
+    assert dlg.property("visible") is True, "First launch dialog must show on empty in-memory DB"
+
+    # 1. Click blank database button
+    blank_btn = find(window, "firstLaunchBlankBtn")
+    assert blank_btn is not None
+    blank_btn.clicked.emit()
+    qapp.processEvents()
+
+    assert dlg.property("visible") is False
+    assert adapter.isFirstLaunch() is False
+
+    # 2. Insert student into memory DB
+    conn.execute(
+        "INSERT INTO students (student_id, national_id, prefix, first_name, last_name, full_name, status) "
+        "VALUES (7001, '1234567890123', 'นาย', 'สมปอง', 'มีสุข', 'นายสมปอง มีสุข', 'active');"
+    )
+    conn.execute(
+        "INSERT INTO enrollments (student_id, academic_year, semester, grade_level, room) "
+        "VALUES (7001, 2567, 1, 'ม.4', 1);"
+    )
+    conn.commit()
+
+    # 3. Search in UI
+    search_input = find(window, "searchInput")
+    search_input.setProperty("text", "สมปอง")
+    invoke(window, "doSearch")
+    qapp.processEvents()
+
+    model = find(window, "searchResultsModel")
+    assert model.property("count") == 1
+
+    # 4. Modify student name via adapter
+    update_res = json.loads(adapter.updateName(7001, "นาย", "สมปอง", "เจริญพร", "แก้ไขนามสกุล", "Admin"))
+    assert update_res["ok"] is True
+
+    st_detail = json.loads(adapter.getStudent(7001))
+    assert st_detail["last_name"] == "เจริญพร"
+
+    # 5. Export snapshot from in-memory DB
+    snap_path = str(tmp_path / "memory_snapshot.sqlite")
+    snap_res = json.loads(adapter.exportSnapshot(snap_path, "Admin"))
+    assert snap_res["ok"] is True
+    assert os.path.exists(snap_path)
+
+    # 6. Verify activity logs recorded in memory DB
+    logs = json.loads(adapter.getActivityLogs())
+    assert len(logs) > 0
+
+    # 7. Clean up
+    conn.close()
+    engine.deleteLater()
+
