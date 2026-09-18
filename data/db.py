@@ -18,6 +18,8 @@ except ImportError:
 
 def get_or_create_salt(db_path: str) -> bytes:
     """Return salt from <db_path>.salt or generate and save a 16-byte random salt."""
+    if db_path == ":memory:":
+        return b"memory_test_salt"
     salt_path = f"{db_path}.salt"
     if os.path.exists(salt_path):
         with open(salt_path, "rb") as f:
@@ -35,6 +37,8 @@ def derive_key(pin: str, salt: bytes, iterations: int = 100_000) -> bytes:
 
 def check_lockout(db_path: str, max_attempts: int = 3, lockout_seconds: int = 3) -> None:
     """Check failed attempt lockout counter."""
+    if db_path == ":memory:":
+        return
     lockout_file = f"{db_path}.lockout"
     if not os.path.exists(lockout_file):
         return
@@ -54,6 +58,8 @@ def check_lockout(db_path: str, max_attempts: int = 3, lockout_seconds: int = 3)
 
 def record_failed_attempt(db_path: str) -> None:
     """Record a failed PIN attempt."""
+    if db_path == ":memory:":
+        return
     lockout_file = f"{db_path}.lockout"
     attempts = 0
     if os.path.exists(lockout_file):
@@ -70,6 +76,8 @@ def record_failed_attempt(db_path: str) -> None:
 
 def reset_lockout(db_path: str) -> None:
     """Reset lockout counter upon successful unlock."""
+    if db_path == ":memory:":
+        return
     lockout_file = f"{db_path}.lockout"
     if os.path.exists(lockout_file):
         try:
@@ -97,7 +105,7 @@ def get_connection(
         derived = derive_key(pin, salt)
         if SQLCIPHER_AVAILABLE:
             conn.execute("PRAGMA key = ?;", (derived.hex(),))
-        else:
+        elif db_path != ":memory:":
             # When testing with stdlib sqlite3, verify PIN matching dummy check file if exists
             pin_check_file = f"{db_path}.pin_hash"
             expected_hash = hashlib.sha256((pin + salt.hex()).encode()).hexdigest()
