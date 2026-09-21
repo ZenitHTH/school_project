@@ -15,6 +15,18 @@ ApplicationWindow {
 
     property var selectedStudent: null
     property string selectedXlsxPath: ""
+    
+    // Responsive font scaling based on window width
+    property real baseFontSize: Math.max(11, Math.min(14, (window.width - 240) / 130))
+
+    // Pagination properties
+    property bool __initialSearch__: true
+    property int currentOffset: 0
+    property int currentPage: 1
+    property int pageSize: 50
+    property int totalStudentsCount: 0
+    property int totalPages: Math.max(1, Math.ceil(totalStudentsCount / pageSize))
+
 
     RowLayout {
         anchors.fill: parent
@@ -69,7 +81,7 @@ ApplicationWindow {
                             Text {
                                 text: modelData.text
                                 color: stackLayout.currentIndex === modelData.index ? "#ffffff" : "#cbd5e1"
-                                font.pixelSize: 14
+                                font.pixelSize: Math.max(13, baseFontSize)
                                 font.bold: stackLayout.currentIndex === modelData.index
                                 Layout.fillWidth: true
                             }
@@ -147,7 +159,7 @@ ApplicationWindow {
                             objectName: "searchInput"
                             placeholderText: "พิมพ์ชื่อ, นามสกุล, เลขประจำตัว หรือเลขประจำตัวประชาชน..."
                             Layout.fillWidth: true
-                            font.pixelSize: 14
+                            font.pixelSize: Math.max(13, baseFontSize)
                             onAccepted: doSearch()
                         }
 
@@ -156,7 +168,7 @@ ApplicationWindow {
                             objectName: "searchButton"
                             text: "🔍 ค้นหา"
                             font.bold: true
-                            font.pixelSize: 14
+                            font.pixelSize: Math.max(13, baseFontSize)
                             contentItem: Text {
                                 text: searchBtn.text
                                 font: searchBtn.font
@@ -174,103 +186,316 @@ ApplicationWindow {
                         }
                     }
 
-                    ListView {
-                        id: studentList
-                        objectName: "studentList"
+                    // Student Results Table Area
+                    ColumnLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        clip: true
-                        spacing: 6
-                        model: ListModel { id: searchResultsModel; objectName: "searchResultsModel" }
-                        delegate: Rectangle {
-                            id: studentRow
-                            width: studentList.width
-                            height: 64
-                            color: rowMouse.containsMouse ? "#eff6ff" : "#ffffff"
-                            border.color: rowMouse.containsMouse ? "#3b82f6" : "#e2e8f0"
-                            border.width: rowMouse.containsMouse ? 1.5 : 1
-                            radius: 8
+                        spacing: 8
 
-                            MouseArea {
-                                id: rowMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    loadStudentDetail(model.student_id)
-                                    stackLayout.currentIndex = 1
-                                }
-                            }
+                        // Table Header
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 38
+                            color: "#f8fafc"
+                            border.color: "#e2e8f0"
+                            border.width: 1
+                            radius: 6
 
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 16
                                 anchors.rightMargin: 16
-                                spacing: 16
+                                spacing: 12
 
                                 Text {
-                                    text: model.student_id
-                                    font.bold: true
-                                    font.pixelSize: 15
-                                    color: "#2563eb"
-                                    Layout.preferredWidth: 70
-                                }
-
-                                Text {
-                                    text: model.full_name
-                                    font.pixelSize: 15
-                                    font.bold: true
-                                    color: "#0f172a"
-                                    Layout.preferredWidth: 220
-                                    elide: Text.ElideRight
-                                }
-
-                                Text {
-                                    text: (model.grade_level || "-") + "/" + (model.room || "-")
-                                    font.pixelSize: 14
-                                    color: "#475569"
-                                    Layout.preferredWidth: 70
-                                }
-
-                                Rectangle {
-                                    Layout.preferredWidth: 90
-                                    height: 28
-                                    radius: 14
-                                    color: model.status === "active" ? "#dcfce7" : (model.status === "on_leave" ? "#fef9c3" : "#fee2e2")
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: model.status === "active" ? "ปกติ" : (model.status === "on_leave" ? "พักการเรียน" : "จำหน่าย")
-                                        color: model.status === "active" ? "#166534" : (model.status === "on_leave" ? "#854d0e" : "#991b1b")
-                                        font.pixelSize: 12
-                                        font.bold: true
-                                    }
-                                }
-
-                                Item { Layout.fillWidth: true }
-
-                                Button {
-                                    id: rowDetailBtn
-                                    objectName: "btnViewDetail"
-                                    text: "👁️ ดูรายละเอียด"
+                                    text: "รหัสประจำตัว"
                                     font.bold: true
                                     font.pixelSize: 13
-                                    contentItem: Text {
-                                        text: rowDetailBtn.text
-                                        font: rowDetailBtn.font
-                                        color: "#ffffff"
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
-                                    }
-                                    background: Rectangle {
-                                        implicitWidth: 124
-                                        implicitHeight: 34
-                                        color: rowDetailBtn.down ? "#1d4ed8" : (rowDetailBtn.hovered ? "#2563eb" : "#3b82f6")
-                                        radius: 6
-                                    }
+                                    color: "#475569"
+                                    Layout.preferredWidth: 110
+                                }
+
+                                Text {
+                                    text: "ชื่อ - นามสกุล"
+                                    font.bold: true
+                                    font.pixelSize: 13
+                                    color: "#475569"
+                                    Layout.fillWidth: true
+                                }
+
+                                Text {
+                                    text: "ระดับชั้น/ห้อง"
+                                    font.bold: true
+                                    font.pixelSize: 13
+                                    color: "#475569"
+                                    Layout.preferredWidth: 100
+                                }
+
+                                Text {
+                                    text: "สถานะ"
+                                    font.bold: true
+                                    font.pixelSize: 13
+                                    color: "#475569"
+                                    Layout.preferredWidth: 90
+                                    horizontalAlignment: Text.AlignHCenter
+                                }
+
+                                Text {
+                                    text: "จัดการ"
+                                    font.bold: true
+                                    font.pixelSize: 13
+                                    color: "#475569"
+                                    Layout.preferredWidth: 110
+                                    horizontalAlignment: Text.AlignHCenter
+                                }
+                            }
+                        }
+
+                        // Student ListView
+                        ListView {
+                            id: studentTable
+                            objectName: "studentList"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            spacing: 6
+                            model: ListModel { id: searchResultsModel; objectName: "searchResultsModel" }
+
+                            delegate: Rectangle {
+                                id: studentRow
+                                width: studentTable.width
+                                height: 48
+                                color: rowMouse.containsMouse ? "#eff6ff" : "#ffffff"
+                                border.color: rowMouse.containsMouse ? "#3b82f6" : "#e2e8f0"
+                                border.width: rowMouse.containsMouse ? 1.5 : 1
+                                radius: 8
+
+                                MouseArea {
+                                    id: rowMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         loadStudentDetail(model.student_id)
                                         stackLayout.currentIndex = 1
                                     }
+                                }
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 16
+                                    anchors.rightMargin: 16
+                                    spacing: 12
+
+                                    Text {
+                                        text: model.student_id || ""
+                                        font.bold: true
+                                        font.pixelSize: 13
+                                        color: "#2563eb"
+                                        Layout.preferredWidth: 110
+                                    }
+
+                                    Text {
+                                        text: model.full_name || ""
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                        color: "#0f172a"
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Text {
+                                        text: (model.grade_level || "-") + "/" + (model.room || "-")
+                                        font.pixelSize: 13
+                                        color: "#475569"
+                                        Layout.preferredWidth: 100
+                                    }
+
+                                    Rectangle {
+                                        Layout.preferredWidth: 90
+                                        height: 28
+                                        radius: 14
+                                        color: model.status === "active" ? "#dcfce7" : (model.status === "on_leave" ? "#fef9c3" : "#fee2e2")
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: model.status === "active" ? "ปกติ" : (model.status === "on_leave" ? "พักการเรียน" : "จำหน่าย")
+                                            color: model.status === "active" ? "#166534" : (model.status === "on_leave" ? "#854d0e" : "#991b1b")
+                                            font.pixelSize: 11
+                                            font.bold: true
+                                        }
+                                    }
+
+                                    Button {
+                                        id: rowDetailBtn
+                                        objectName: "btnViewDetail"
+                                        text: "👁️ ดูข้อมูล"
+                                        font.bold: true
+                                        font.pixelSize: 12
+                                        Layout.preferredWidth: 110
+                                        implicitHeight: 32
+                                        contentItem: Text {
+                                            text: rowDetailBtn.text
+                                            font: rowDetailBtn.font
+                                            color: "#ffffff"
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+                                        background: Rectangle {
+                                            color: rowDetailBtn.down ? "#1d4ed8" : (rowDetailBtn.hovered ? "#2563eb" : "#3b82f6")
+                                            radius: 6
+                                        }
+                                        onClicked: {
+                                            loadStudentDetail(model.student_id)
+                                            stackLayout.currentIndex = 1
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bottom Pagination Bar (always visible when totalPages > 1)
+                        Rectangle {
+                            Layout.fillWidth: true
+                            height: 48
+                            color: "#f8fafc"
+                            border.color: "#e2e8f0"
+                            border.width: 1
+                            radius: 6
+                            visible: window.totalPages > 1
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 8
+
+                                // First page button
+                                Button {
+                                    id: btnFirstPage
+                                    enabled: window.currentPage > 1
+                                    implicitWidth: 36
+                                    implicitHeight: 32
+                                    contentItem: Text {
+                                        text: "«"
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                        color: btnFirstPage.enabled ? "#334155" : "#94a3b8"
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        color: btnFirstPage.down ? "#e2e8f0" : (btnFirstPage.hovered ? "#f1f5f9" : "#ffffff")
+                                        border.color: "#cbd5e1"
+                                        radius: 6
+                                    }
+                                    onClicked: goToPage(1)
+                                }
+
+                                // Prev page button
+                                Button {
+                                    id: btnPrevPage
+                                    enabled: window.currentPage > 1
+                                    implicitWidth: 70
+                                    implicitHeight: 32
+                                    contentItem: Text {
+                                        text: "‹ ก่อนหน้า"
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                        color: btnPrevPage.enabled ? "#334155" : "#94a3b8"
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        color: btnPrevPage.down ? "#e2e8f0" : (btnPrevPage.hovered ? "#f1f5f9" : "#ffffff")
+                                        border.color: "#cbd5e1"
+                                        radius: 6
+                                    }
+                                    onClicked: goToPage(window.currentPage - 1)
+                                }
+
+                                // Numbered pages + Ellipsis
+                                Repeater {
+                                    model: getPaginationPages(window.currentPage, window.totalPages)
+
+                                    delegate: Rectangle {
+                                        id: pageBtnRect
+                                        implicitWidth: modelData === "..." ? 28 : 34
+                                        implicitHeight: 32
+                                        radius: 6
+                                        color: modelData === window.currentPage.toString() ? "#2563eb" : (pageMouse.containsMouse && modelData !== "..." ? "#eff6ff" : "#ffffff")
+                                        border.color: modelData === window.currentPage.toString() ? "#2563eb" : (modelData === "..." ? "transparent" : "#cbd5e1")
+                                        border.width: 1
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData
+                                            font.bold: modelData === window.currentPage.toString()
+                                            font.pixelSize: 12
+                                            color: modelData === window.currentPage.toString() ? "#ffffff" : (modelData === "..." ? "#64748b" : "#334155")
+                                        }
+
+                                        MouseArea {
+                                            id: pageMouse
+                                            anchors.fill: parent
+                                            hoverEnabled: modelData !== "..."
+                                            cursorShape: modelData !== "..." ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                            onClicked: {
+                                                if (modelData !== "...") {
+                                                    goToPage(parseInt(modelData))
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // Next page button
+                                Button {
+                                    id: btnNextPage
+                                    enabled: window.currentPage < window.totalPages
+                                    implicitWidth: 70
+                                    implicitHeight: 32
+                                    contentItem: Text {
+                                        text: "ถัดไป ›"
+                                        font.pixelSize: 12
+                                        font.bold: true
+                                        color: btnNextPage.enabled ? "#334155" : "#94a3b8"
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        color: btnNextPage.down ? "#e2e8f0" : (btnNextPage.hovered ? "#f1f5f9" : "#ffffff")
+                                        border.color: "#cbd5e1"
+                                        radius: 6
+                                    }
+                                    onClicked: goToPage(window.currentPage + 1)
+                                }
+
+                                // Last page button
+                                Button {
+                                    id: btnLastPage
+                                    enabled: window.currentPage < window.totalPages
+                                    implicitWidth: 36
+                                    implicitHeight: 32
+                                    contentItem: Text {
+                                        text: "»"
+                                        font.pixelSize: 14
+                                        font.bold: true
+                                        color: btnLastPage.enabled ? "#334155" : "#94a3b8"
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    background: Rectangle {
+                                        color: btnLastPage.down ? "#e2e8f0" : (btnLastPage.hovered ? "#f1f5f9" : "#ffffff")
+                                        border.color: "#cbd5e1"
+                                        radius: 6
+                                    }
+                                    onClicked: goToPage(window.totalPages)
+                                }
+
+                                // Page Summary Info Text
+                                Text {
+                                    text: "หน้า " + window.currentPage + " จาก " + window.totalPages + " (" + window.totalStudentsCount + " รายการ)"
+                                    color: "#64748b"
+                                    font.pixelSize: 12
+                                    Layout.leftMargin: 8
                                 }
                             }
                         }
@@ -340,7 +565,7 @@ ApplicationWindow {
                             Text {
                                 text: "ท่านสามารถไปที่หน้าค้นหาแล้วกดปุ่ม 'ดูรายละเอียด' หรือพิมพ์รหัส/ชื่อนักเรียนด้านล่างนี้ได้เลย:"
                                 color: "#64748b"
-                                font.pixelSize: 14
+                                font.pixelSize: Math.max(13, baseFontSize)
                                 Layout.alignment: Qt.AlignHCenter
                             }
                             RowLayout {
@@ -349,7 +574,7 @@ ApplicationWindow {
                                 TextField {
                                     id: directIdInput
                                     placeholderText: "พิมพ์รหัสนักเรียน หรือชื่อ..."
-                                    font.pixelSize: 14
+                                    font.pixelSize: Math.max(13, baseFontSize)
                                     Layout.preferredWidth: 260
                                     onAccepted: {
                                         if (directIdInput.text) {
@@ -454,7 +679,7 @@ ApplicationWindow {
                                         anchors.centerIn: parent
                                         text: window.selectedStudent ? (window.selectedStudent.status === "active" ? "ปกติ" : (window.selectedStudent.status === "on_leave" ? "พักการเรียน" : "จำหน่าย")) : ""
                                         color: window.selectedStudent && window.selectedStudent.status === "active" ? "#166534" : (window.selectedStudent && window.selectedStudent.status === "on_leave" ? "#854d0e" : "#991b1b")
-                                        font.pixelSize: 12
+                                        font.pixelSize: Math.max(10, baseFontSize)
                                         font.bold: true
                                     }
                                 }
@@ -471,7 +696,7 @@ ApplicationWindow {
                                            + "   |   แผนการเรียน: " + (window.selectedStudent.track || "-"))
                                         : ""
                                     color: "#475569"
-                                    font.pixelSize: 14
+                                    font.pixelSize: Math.max(13, baseFontSize)
                                 }
                             }
 
@@ -504,7 +729,7 @@ ApplicationWindow {
                             objectName: "btnChangeRoom"
                             text: "🏫 เปลี่ยนห้องเรียน"
                             font.bold: true
-                            font.pixelSize: 14
+                            font.pixelSize: Math.max(13, baseFontSize)
                             enabled: window.selectedStudent !== null
                             contentItem: Text {
                                 text: btnRoom.text
@@ -531,7 +756,7 @@ ApplicationWindow {
                             objectName: "btnChangeStatus"
                             text: "📋 เปลี่ยนสถานะ"
                             font.bold: true
-                            font.pixelSize: 14
+                            font.pixelSize: Math.max(13, baseFontSize)
                             enabled: window.selectedStudent !== null
                             contentItem: Text {
                                 text: btnStatus.text
@@ -557,7 +782,7 @@ ApplicationWindow {
                             objectName: "btnEditName"
                             text: "✏️ แก้ไขชื่อ-นามสกุล"
                             font.bold: true
-                            font.pixelSize: 14
+                            font.pixelSize: Math.max(13, baseFontSize)
                             enabled: window.selectedStudent !== null
                             contentItem: Text {
                                 text: btnName.text
@@ -586,7 +811,7 @@ ApplicationWindow {
                             objectName: "btnChangeId"
                             text: "🔢 เปลี่ยนรหัสนักเรียน"
                             font.bold: true
-                            font.pixelSize: 14
+                            font.pixelSize: Math.max(13, baseFontSize)
                             enabled: window.selectedStudent !== null
                             contentItem: Text {
                                 text: btnId.text
@@ -623,7 +848,7 @@ ApplicationWindow {
                             anchors.centerIn: parent
                             text: ""
                             color: isError ? "#991b1b" : "#166534"
-                            font.pixelSize: 14
+                            font.pixelSize: Math.max(13, baseFontSize)
                             font.bold: true
                         }
                     }
@@ -668,7 +893,7 @@ ApplicationWindow {
                     Text {
                         id: promoteResultText
                         objectName: "promoteResultText"
-                        font.pixelSize: 15
+                        font.pixelSize: Math.max(13, baseFontSize)
                         color: "#059669"
                     }
 
@@ -708,7 +933,7 @@ ApplicationWindow {
                     Text {
                         id: exportStatusText
                         objectName: "exportStatusText"
-                        font.pixelSize: 15
+                        font.pixelSize: Math.max(13, baseFontSize)
                         color: "#2563eb"
                     }
 
@@ -789,7 +1014,7 @@ ApplicationWindow {
                             Button {
                                 objectName: "selectFileButton"
                                 text: "📁 เลือกไฟล์ Excel (.xlsx)..."
-                                font.pixelSize: 14
+                                font.pixelSize: Math.max(13, baseFontSize)
                                 font.bold: true
                                 highlighted: !window.selectedXlsxPath
                                 onClicked: excelFileDialog.open()
@@ -988,13 +1213,59 @@ ApplicationWindow {
         }
     }
 
-    function doSearch() {
-        searchResultsModel.clear()
-        var results = JSON.parse(studentAdmin.searchStudents(searchInput.text))
-        for (var i = 0; i < results.length; i++) {
-            searchResultsModel.append(results[i])
+    function getPaginationPages(current, total) {
+        if (total <= 1) return []
+        if (total <= 7) {
+            var all = []
+            for (var i = 1; i <= total; i++) all.push(i.toString())
+            return all
         }
+        var pages = ["1"]
+        if (current <= 4) {
+            for (var a = 2; a <= 5; a++) pages.push(a.toString())
+            pages.push("...")
+            pages.push(total.toString())
+        } else if (current >= total - 3) {
+            pages.push("...")
+            for (var b = total - 4; b <= total; b++) pages.push(b.toString())
+        } else {
+            pages.push("...")
+            pages.push((current - 1).toString())
+            pages.push(current.toString())
+            pages.push((current + 1).toString())
+            pages.push("...")
+            pages.push(total.toString())
+        }
+        return pages
     }
+
+    function goToPage(page) {
+        if (page < 1 || page > window.totalPages) return
+        window.currentPage = page
+        window.currentOffset = (page - 1) * window.pageSize
+        loadSearchResults()
+    }
+
+    function doSearch() {
+        window.currentPage = 1
+        window.currentOffset = 0
+        window.totalStudentsCount = studentAdmin.countStudents ? studentAdmin.countStudents(searchInput.text) : 0
+        loadSearchResults()
+    }
+
+    function loadSearchResults() {
+        searchResultsModel.clear()
+        var results = JSON.parse(studentAdmin.searchStudents(searchInput.text, window.currentOffset))
+        if (results.length === 0 && window.__initialSearch__) {
+            searchResultsModel.append({"_empty": true})
+        } else if (results.length > 0) {
+            for (var i = 0; i < results.length; i++) {
+                searchResultsModel.append(results[i])
+            }
+        }
+        window.__initialSearch__ = false
+    }
+    function loadMoreStudents() { goToPage(window.currentPage + 1) }
 
     FileDialog {
         id: excelFileDialog
@@ -1098,7 +1369,7 @@ ApplicationWindow {
                         Text {
                             text: "ยินดีต้อนรับสู่ระบบงานทะเบียนนักเรียน"
                             font.bold: true
-                            font.pixelSize: 15
+                            font.pixelSize: Math.max(13, baseFontSize)
                             color: "#1e3a8a"
                         }
                         Text {
@@ -1113,7 +1384,7 @@ ApplicationWindow {
             Text {
                 text: "คุณมีไฟล์บัญชีรายชื่อนักเรียน (.xlsx) หรือไม่?"
                 font.bold: true
-                font.pixelSize: 14
+                font.pixelSize: Math.max(13, baseFontSize)
                 color: "#1e293b"
             }
 

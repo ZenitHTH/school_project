@@ -3,25 +3,7 @@ import sqlite3
 import datetime
 from typing import Any, Dict, List, Optional
 
-try:
-    from PySide6.QtCore import QObject, Signal, Slot, Property
-    HAVE_QT = True
-except ImportError:
-    class QObject:
-        def __init__(self, *args, **kwargs):
-            pass
-
-    def Slot(*types, **kwargs):
-        def decorator(fn):
-            return fn
-        return decorator
-
-    def Signal(*types):
-        class _MockSignal:
-            def emit(self, *args, **kwargs):
-                pass
-        return _MockSignal()
-    HAVE_QT = False
+from core.shared.mock_qt import QObject, Signal, Slot, HAVE_QT
 
 from core.importers.xlsx_validator import validate_xlsx_structure, check_live_data_exists
 from core.importers.build_db import import_roster
@@ -98,12 +80,18 @@ class StudentAdminAdapter(QObject):
         except Exception as e:
             return json.dumps({"ok": False, "error": str(e)})
 
-    @Slot(str, result=str)
-    def searchStudents(self, query: str) -> str:
+    @Slot(str, int, result=str)
+    def searchStudents(self, query: str, offset: int = 0) -> str:
         """Search students and return JSON string for QML ListModel."""
-        res = self.student_svc.search(query=query)
+        res = self.student_svc.search(query=query, limit=50, offset=offset)
         data = _sanitize_for_qml(res.data) if res.ok else []
         return json.dumps(data)
+
+    @Slot(str, result=int)
+    def countStudents(self, query: str) -> int:
+        """Count total students matching query for pagination."""
+        res = self.student_svc.count(query=query)
+        return res.data if res.ok else 0
 
     @Slot(int, result=str)
     def getStudent(self, student_id: int) -> str:

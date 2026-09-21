@@ -34,6 +34,26 @@ class StudentService:
         except Exception as e:
             return Result.fail(f"Search failed: {e}")
 
+    def count(
+        self,
+        query: str,
+        grade_level: Optional[str] = None,
+        room: Optional[int] = None,
+        status: Optional[str] = None,
+    ) -> Result:
+        """Count total students matching query and optional filters."""
+        try:
+            total = student_repo.count_students(
+                self.conn,
+                query=query,
+                grade_level=grade_level,
+                room=room,
+                status=status,
+            )
+            return Result.success(total)
+        except Exception as e:
+            return Result.fail(f"Count failed: {e}")
+
     def get(self, student_id: int) -> Result:
         """Fetch student details by student_id."""
         try:

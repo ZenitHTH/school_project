@@ -326,10 +326,8 @@ def import_roster(xlsx_path: str, conn: Optional[sqlite3.Connection] = None, db_
             return Result.success(counts)
         except Exception as e:
             return Result.fail(f"Failed to import roster: {e}")
-        finally:
-            # Always restore FK enforcement regardless of success or failure
-            conn.execute("PRAGMA foreign_keys = ON;")
     finally:
+        conn.execute("PRAGMA foreign_keys = ON;")
         if close_after:
             conn.close()
 

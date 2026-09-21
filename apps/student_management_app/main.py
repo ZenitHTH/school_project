@@ -76,6 +76,7 @@ def main():
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("studentAdmin", adapter)
+    engine.rootContext().setContextProperty("searchStudents", adapter.searchStudents)
 
     qml_file = os.path.join(os.path.dirname(__file__), "qml", "Main.qml")
     engine.load(qml_file)

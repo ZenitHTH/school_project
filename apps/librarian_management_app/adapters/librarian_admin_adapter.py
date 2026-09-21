@@ -3,25 +3,7 @@ import sqlite3
 import datetime
 from typing import Any, Dict, List, Optional
 
-try:
-    from PySide6.QtCore import QObject, Signal, Slot, Property
-    HAVE_QT = True
-except ImportError:
-    class QObject:
-        def __init__(self, *args, **kwargs):
-            pass
-
-    def Slot(*types, **kwargs):
-        def decorator(fn):
-            return fn
-        return decorator
-
-    def Signal(*types):
-        class _MockSignal:
-            def emit(self, *args, **kwargs):
-                pass
-        return _MockSignal()
-    HAVE_QT = False
+from core.shared.mock_qt import QObject, Signal, Slot, HAVE_QT
 
 from core.library.services.catalog_service import CatalogService
 from core.library.services.fine_service import FineService

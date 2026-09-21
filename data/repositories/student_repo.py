@@ -74,6 +74,59 @@ def search_students(
     return conn.execute(sql, params).fetchall()
 
 
+def count_students(
+    conn: sqlite3.Connection,
+    query: str,
+    grade_level: Optional[str] = None,
+    room: Optional[int] = None,
+    status: Optional[str] = None,
+) -> int:
+    """Count total students matching search query and filters."""
+    conditions = []
+    params: List[Any] = []
+
+    clean_query = query.strip()
+    if clean_query:
+        like_term = f"%{clean_query}%"
+        if clean_query.isdigit():
+            conditions.append("(s.student_id = ? OR s.national_id LIKE ? OR s.full_name LIKE ?)")
+            params.extend([int(clean_query), like_term, like_term])
+        else:
+            clean_fts = clean_query.replace('"', '""')
+            fts_query = f'"{clean_fts}"*' if " " not in clean_fts else f'"{clean_fts}"'
+            conditions.append(
+                "(s.student_id IN (SELECT rowid FROM students_fts WHERE students_fts MATCH ?) "
+                "OR s.full_name LIKE ? OR s.first_name LIKE ? OR s.last_name LIKE ?)"
+            )
+            params.extend([fts_query, like_term, like_term, like_term])
+
+    if grade_level is not None:
+        conditions.append("e.grade_level = ?")
+        params.append(grade_level)
+
+    if room is not None:
+        conditions.append("e.room = ?")
+        params.append(room)
+
+    if status is not None:
+        conditions.append("s.status = ?")
+        params.append(status)
+
+    where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+    sql = f"""
+        SELECT COUNT(DISTINCT s.student_id)
+        FROM students s
+        LEFT JOIN enrollments e ON e.student_id = s.student_id
+            AND e.id = (
+                SELECT max(e2.id) FROM enrollments e2 WHERE e2.student_id = s.student_id
+            )
+        {where_clause}
+    """
+    row = conn.execute(sql, params).fetchone()
+    return int(row[0]) if row else 0
+
+
 def get_student(conn: sqlite3.Connection, student_id: int) -> Optional[sqlite3.Row]:
     """Fetch single student with current enrollment info."""
     sql = """
