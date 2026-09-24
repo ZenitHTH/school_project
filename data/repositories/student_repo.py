@@ -13,24 +13,37 @@ def search_students(
     limit: int = 50,
     offset: int = 0,
 ) -> List[sqlite3.Row]:
-    """Search students using FTS5 with optional grade, room, and status filters."""
+    """Search students using FTS5 trigram on full_name, suffix ID, excluding national_id."""
     conditions = []
     params: List[Any] = []
 
     clean_query = query.strip()
+    order_clause = "ORDER BY s.student_id ASC"
+
     if clean_query:
-        like_term = f"%{clean_query}%"
         if clean_query.isdigit():
-            conditions.append("(s.student_id = ? OR s.national_id LIKE ? OR s.full_name LIKE ?)")
-            params.extend([int(clean_query), like_term, like_term])
+            # ID suffix matching, national_id strictly excluded
+            conditions.append("CAST(s.student_id AS TEXT) LIKE ?")
+            params.append(f"%{clean_query}")
+        elif len(clean_query) < 3:
+            # Short query fallback: LIKE on full_name
+            conditions.append("s.full_name LIKE ?")
+            params.append(f"%{clean_query}%")
         else:
+            # FTS5 trigram query on full_name
             clean_fts = clean_query.replace('"', '""')
-            fts_query = f'"{clean_fts}"*' if " " not in clean_fts else f'"{clean_fts}"'
+            fts_query = f'"{clean_fts}"'
             conditions.append(
                 "(s.student_id IN (SELECT rowid FROM students_fts WHERE students_fts MATCH ?) "
-                "OR s.full_name LIKE ? OR s.first_name LIKE ? OR s.last_name LIKE ?)"
+                "OR s.full_name LIKE ?)"
             )
-            params.extend([fts_query, like_term, like_term, like_term])
+            params.extend([fts_query, f"%{clean_query}%"])
+            order_clause = (
+                "ORDER BY CASE WHEN s.student_id IN (SELECT rowid FROM students_fts WHERE students_fts MATCH ?) "
+                "THEN (SELECT rank FROM students_fts WHERE students_fts MATCH ? AND rowid = s.student_id) "
+                "ELSE 999 END ASC, s.student_id ASC"
+            )
+            params.extend([fts_query, fts_query])
 
     if grade_level is not None:
         conditions.append("e.grade_level = ?")
@@ -67,7 +80,7 @@ def search_students(
                 SELECT max(e2.id) FROM enrollments e2 WHERE e2.student_id = s.student_id
             )
         {where_clause}
-        ORDER BY s.student_id ASC
+        {order_clause}
         LIMIT ? OFFSET ?
     """
     params.extend([limit, offset])
@@ -87,18 +100,20 @@ def count_students(
 
     clean_query = query.strip()
     if clean_query:
-        like_term = f"%{clean_query}%"
         if clean_query.isdigit():
-            conditions.append("(s.student_id = ? OR s.national_id LIKE ? OR s.full_name LIKE ?)")
-            params.extend([int(clean_query), like_term, like_term])
+            conditions.append("CAST(s.student_id AS TEXT) LIKE ?")
+            params.append(f"%{clean_query}")
+        elif len(clean_query) < 3:
+            conditions.append("s.full_name LIKE ?")
+            params.append(f"%{clean_query}%")
         else:
             clean_fts = clean_query.replace('"', '""')
-            fts_query = f'"{clean_fts}"*' if " " not in clean_fts else f'"{clean_fts}"'
+            fts_query = f'"{clean_fts}"'
             conditions.append(
                 "(s.student_id IN (SELECT rowid FROM students_fts WHERE students_fts MATCH ?) "
-                "OR s.full_name LIKE ? OR s.first_name LIKE ? OR s.last_name LIKE ?)"
+                "OR s.full_name LIKE ?)"
             )
-            params.extend([fts_query, like_term, like_term, like_term])
+            params.extend([fts_query, f"%{clean_query}%"])
 
     if grade_level is not None:
         conditions.append("e.grade_level = ?")

@@ -5,6 +5,9 @@ from core.student.models import LEGAL_STATUS_TRANSITIONS, Student
 from data.repositories import student_repo
 
 
+from core.student.services.search_parser import clean_query, parse_grade_room
+
+
 class StudentService:
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
@@ -20,9 +23,16 @@ class StudentService:
     ) -> Result:
         """Search students matching query and optional filters."""
         try:
+            q = clean_query(query)
+            if not grade_level and not room and q:
+                parsed = parse_grade_room(q)
+                if parsed:
+                    grade_level, room = parsed
+                    q = ""
+
             rows = student_repo.search_students(
                 self.conn,
-                query=query,
+                query=q,
                 grade_level=grade_level,
                 room=room,
                 status=status,
@@ -43,9 +53,16 @@ class StudentService:
     ) -> Result:
         """Count total students matching query and optional filters."""
         try:
+            q = clean_query(query)
+            if not grade_level and not room and q:
+                parsed = parse_grade_room(q)
+                if parsed:
+                    grade_level, room = parsed
+                    q = ""
+
             total = student_repo.count_students(
                 self.conn,
-                query=query,
+                query=q,
                 grade_level=grade_level,
                 room=room,
                 status=status,
