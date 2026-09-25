@@ -14,3 +14,4 @@ class LibraryPolicy:
 
 
 DEFAULT_POLICY = LibraryPolicy()
+BARCODE_PREFIX = "SMTE"

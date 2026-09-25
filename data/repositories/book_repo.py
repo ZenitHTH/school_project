@@ -253,3 +253,25 @@ def get_copy_by_barcode(conn: sqlite3.Connection, barcode: str) -> Optional[sqli
 def get_copies_for_book(conn: sqlite3.Connection, book_id: int) -> List[sqlite3.Row]:
     """List all physical copies for a book."""
     return conn.execute("SELECT * FROM book_copies WHERE book_id = ? ORDER BY copy_id ASC", (book_id,)).fetchall()
+
+
+def count_copies_ever(conn: sqlite3.Connection, book_id: int) -> int:
+    """Count all copies ever registered for this book (including lost, damaged, retired, disposed)."""
+    row = conn.execute("SELECT count(*) FROM book_copies WHERE book_id = ?", (book_id,)).fetchone()
+    return row[0] if row else 0
+
+
+def insert_copy(conn: sqlite3.Connection, book_id: int, barcode: str, status: str = "available") -> int:
+    """Insert a single copy and update book total_copies."""
+    with conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO book_copies (book_id, barcode, status) VALUES (?, ?, ?)",
+            (book_id, barcode.strip(), status),
+        )
+        copy_id = cur.lastrowid
+        cur.execute(
+            "UPDATE books SET total_copies = (SELECT count(*) FROM book_copies WHERE book_id = ?) WHERE book_id = ?",
+            (book_id, book_id),
+        )
+        return copy_id

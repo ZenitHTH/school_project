@@ -390,3 +390,76 @@ def test_booth_adapter_is_database_empty_detection(tmp_path, booth_adapter):
     assert adapter.isDatabaseEmpty() is False
 
 
+def test_student_adapter_diff_slots(tmp_path, student_adapter):
+    adapter, conn = student_adapter
+    # Create sample workbook for diff
+    import openpyxl
+    wb = openpyxl.Workbook()
+    for g in ["ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"]:
+        if g not in wb.sheetnames:
+            wb.create_sheet(title=g)
+    ws = wb["ม.1"]
+    ws.cell(row=1, column=1, value="ชั้น ม.1/2 ภาคเรียนที่ 1 ปีการศึกษา 2568")
+    ws.cell(row=2, column=1, value="ที่")
+    ws.cell(row=2, column=2, value="รหัสนักเรียน")
+    ws.cell(row=2, column=3, value="ชื่อ - สกุล")
+    ws.cell(row=2, column=4, value="เลขประจำตัวประชาชน")
+    # Row for existing student 1001 with new grade/room (promotion)
+    ws.cell(row=3, column=1, value=1)
+    ws.cell(row=3, column=2, value=1001)
+    ws.cell(row=3, column=3, value="นายสมชาย มั่นคง")
+    ws.cell(row=3, column=4, value="1100100200300")
+    # Row for new student 5555
+    ws.cell(row=4, column=1, value=2)
+    ws.cell(row=4, column=2, value=5555)
+    ws.cell(row=4, column=3, value="เด็กชายใหม่ สดใส")
+    ws.cell(row=4, column=4, value="1100100200555")
+
+    xlsx_file = str(tmp_path / "roster_diff.xlsx")
+    wb.save(xlsx_file)
+
+    # Test previewXlsxDiff
+    prev_raw = adapter.previewXlsxDiff(xlsx_file)
+    prev = json.loads(prev_raw)
+    assert prev["ok"] is True
+    assert len(prev["data"]["new_students"]) == 1
+    assert prev["data"]["new_students"][0]["student_id"] == 5555
+
+    # Test applyXlsxDiff
+    apply_raw = adapter.applyXlsxDiff(xlsx_file, 2568, 1, "Admin")
+    applied = json.loads(apply_raw)
+    assert applied["ok"] is True
+    assert applied["data"]["new_added"] == 1
+
+    # Verify student 5555 exists
+    st_res = json.loads(adapter.getStudent(5555))
+    assert st_res["student_id"] == 5555
+
+
+def test_librarian_adapter_barcodes_and_labels(tmp_path, librarian_adapter):
+    adapter, conn = librarian_adapter
+    # Add book with copy_count="2"
+    add_res = json.loads(adapter.addBook(
+        title="ชีววิทยา ม.2",
+        barcodes_csv="2"
+    ))
+    assert add_res["ok"] is True
+    book_id = add_res["data"]["book_id"]
+    barcodes = add_res["data"]["barcodes"]
+    assert len(barcodes) == 2
+    assert barcodes[0] == f"SMTE-{book_id:05d}-01"
+
+    # Add 1 copy via addCopies
+    add_copies_res = json.loads(adapter.addCopies(book_id, "1"))
+    assert add_copies_res["ok"] is True
+    assert add_copies_res["data"]["barcodes"] == [f"SMTE-{book_id:05d}-03"]
+
+    # Export PDF via exportLabelsPdf
+    out_pdf = str(tmp_path / "lib_labels.pdf")
+    all_b = barcodes + add_copies_res["data"]["barcodes"]
+    pdf_res = json.loads(adapter.exportLabelsPdf(json.dumps(all_b), out_pdf))
+    assert pdf_res["ok"] is True
+    assert pdf_res["data"]["output_path"] == out_pdf
+
+
+
