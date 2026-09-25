@@ -41,7 +41,11 @@ def apply_migrations(
     Returns the number of migrations applied.
     """
     if migrations_dir is None:
-        migrations_dir = os.path.join(os.path.dirname(__file__), "migrations")
+        import sys as _sys
+        if getattr(_sys, "frozen", False):
+            migrations_dir = os.path.join(_sys._MEIPASS, "data", "migrations")
+        else:
+            migrations_dir = os.path.join(os.path.dirname(__file__), "migrations")
 
     current_ver = get_current_version(conn)
     migrations = get_migrations(migrations_dir)

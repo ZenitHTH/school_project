@@ -163,3 +163,33 @@ uv run pytest -q
 - **PIN Verification & Lockout**: ตรวจสอบรหัสผ่านผ่าน Salted SHA-256 พร้อมระบบระงับการเข้าถึงชั่วคราวหากกรอกรหัสผิดติดต่อกันเกินจำนวนครั้งที่กำหนด
 - **Foreign Key Integrity**: บังคับใช้ `PRAGMA foreign_keys = ON` เพื่อป้องกันข้อมูลสูญหายหรือข้อมูลอ้างอิงไม่ตรงกัน
 - **Audit Logging**: บันทึกประวัติกิจกรรมสำคัญ (การแก้ไขประวัตินักเรียน, การยืม-คืนหนังสือ, การคิดค่าปรับ) ลงในตาราง `activity_log` เสมอ
+
+---
+
+## 📦 ติดตั้งสำหรับผู้ใช้ทั่วไป (สำหรับบรรณารักษ์ — ไม่ต้องติดตั้ง Python)
+
+### ดาวน์โหลด .exe จาก GitHub Releases
+
+1. ไปที่ [Releases](https://github.com/ZenitHTH/school_project/releases)
+2. คลิก **LibrarianManagement.exe** ใต้ Assets
+3. วางไฟล์ไว้ในโฟลเดอร์ที่ต้องการ เช่น `C:\Library\`
+4. ดับเบิลคลิก `LibrarianManagement.exe` — ไม่ต้องติดตั้งเพิ่มเติม
+
+```
+C:\Library\
+├── LibrarianManagement.exe   ← โปรแกรม (ดาวน์โหลดจาก Releases)
+└── library.sqlite            ← ฐานข้อมูล (สร้างอัตโนมัติในครั้งแรก)
+```
+
+> **สำรองข้อมูล**: copy ไฟล์ `library.sqlite` ไว้ที่อื่นเป็นประจำ
+
+### ย้ายข้อมูลไป PC เครื่องใหม่
+
+1. copy `library.sqlite` จากเครื่องเดิม
+2. วาง `.exe` และ `library.sqlite` ในโฟลเดอร์เดียวกันบนเครื่องใหม่
+3. เปิดโปรแกรมได้เลย — ข้อมูลครบทุกอย่าง
+
+### GitHub Actions Auto-Build
+
+ทุกครั้งที่ push ไปยัง `main` → GitHub Actions จะ build `.exe` ใหม่โดยอัตโนมัติ  
+ไปดูผลได้ที่ **Actions → Build Installers → Artifacts → LibrarianManagement-Windows**
