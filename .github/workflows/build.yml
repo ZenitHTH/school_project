@@ -148,11 +148,10 @@ jobs:
           path: LibrarianManagement-Linux-Fedora.tar.gz
           retention-days: 30
 
-  release-assets:
-    name: Attach to GitHub Release
+  publish-release:
+    name: Publish to GitHub Releases
     needs: [build-windows, build-macos, build-ubuntu, build-fedora]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release'
 
     steps:
       - uses: actions/download-artifact@v4
@@ -162,11 +161,23 @@ jobs:
       - name: List downloaded artifacts
         run: ls -laR all-artifacts
 
-      - name: Upload all assets to release
+      - name: Publish or Update Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
+          name: ${{ github.event_name == 'release' && github.event.release.name || 'Latest Multi-Platform Build' }}
+          prerelease: ${{ github.event_name != 'release' }}
+          body: |
+            Automated multi-platform standalone builds for School Library Management.
+
+            ### 📥 Download by Operating System:
+            - **Windows**: `LibrarianManagement-Windows.exe` (run directly, no install required)
+            - **macOS**: `LibrarianManagement-macOS.zip` (unzip and open `LibrarianManagement.app`)
+            - **Linux (Ubuntu / Debian)**: `LibrarianManagement-Linux-Ubuntu.tar.gz`
+            - **Linux (Fedora / RHEL)**: `LibrarianManagement-Linux-Fedora.tar.gz`
           files: |
             all-artifacts/LibrarianManagement-Windows/LibrarianManagement-Windows.exe
             all-artifacts/LibrarianManagement-macOS/LibrarianManagement-macOS.zip
             all-artifacts/LibrarianManagement-Linux-Ubuntu/LibrarianManagement-Linux-Ubuntu.tar.gz
             all-artifacts/LibrarianManagement-Linux-Fedora/LibrarianManagement-Linux-Fedora.tar.gz
+
