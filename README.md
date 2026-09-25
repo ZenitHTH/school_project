@@ -166,30 +166,62 @@ uv run pytest -q
 
 ---
 
-## 📦 ติดตั้งสำหรับผู้ใช้ทั่วไป (สำหรับบรรณารักษ์ — ไม่ต้องติดตั้ง Python)
+---
 
-### ดาวน์โหลด .exe จาก GitHub Releases
+## 📦 ติดตั้งสำหรับผู้ใช้ทั่วไป (ไม่ต้องติดตั้ง Python)
 
-1. ไปที่ [Releases](https://github.com/ZenitHTH/school_project/releases)
-2. คลิก **LibrarianManagement.exe** ใต้ Assets
-3. วางไฟล์ไว้ในโฟลเดอร์ที่ต้องการ เช่น `C:\Library\`
-4. ดับเบิลคลิก `LibrarianManagement.exe` — ไม่ต้องติดตั้งเพิ่มเติม
+ระบบมีตัวติดตั้งแบบ Standalone Pre-built สำหรับทุกระบบปฏิบัติการผ่าน **GitHub Releases**:
+
+### 1. ดาวน์โหลดตามระบบปฏิบัติการของคุณ
+
+ไปที่ [Releases](https://github.com/ZenitHTH/school_project/releases) แล้วดาวน์โหลดไฟล์ตาม OS:
+
+| ระบบปฏิบัติการ | ไฟล์ที่ต้องดาวน์โหลด | วิธีเปิดใช้งาน |
+|---|---|---|
+| **Windows** | `LibrarianManagement-Windows.exe` | ดับเบิลคลิกไฟล์ `.exe` เปิดใช้งานได้ทันที |
+| **macOS** | `LibrarianManagement-macOS.zip` | แตก zip แล้วดับเบิลคลิก `LibrarianManagement.app` |
+| **Linux (Ubuntu / Debian)** | `LibrarianManagement-Linux-Ubuntu.tar.gz` | ดูวิธีแตกไฟล์ด้านล่าง |
+| **Linux (Fedora / RHEL)** | `LibrarianManagement-Linux-Fedora.tar.gz` | ดูวิธีแตกไฟล์ด้านล่าง |
+
+#### วิธีเปิดบน Linux (Ubuntu / Fedora)
+```bash
+# แตกไฟล์
+tar -xzvf LibrarianManagement-Linux-*.tar.gz
+
+# ให้สิทธิ์และเปิดใช้งาน
+chmod +x LibrarianManagement
+./LibrarianManagement
+```
+
+---
+
+### 2. การจัดการฐานข้อมูล
+
+ไฟล์ฐานข้อมูล `library.sqlite` จะถูกสร้างโดยอัตโนมัติในโฟลเดอร์เดียวกับโปรแกรมเมื่อเปิดใช้งานครั้งแรก:
 
 ```
-C:\Library\
-├── LibrarianManagement.exe   ← โปรแกรม (ดาวน์โหลดจาก Releases)
-└── library.sqlite            ← ฐานข้อมูล (สร้างอัตโนมัติในครั้งแรก)
+โฟลเดอร์โปรแกรม/
+├── LibrarianManagement (หรือ .exe / .app)  ← ตัวโปรแกรม
+└── library.sqlite                        ← ฐานข้อมูล (สร้างอัตโนมัติ)
 ```
 
-> **สำรองข้อมูล**: copy ไฟล์ `library.sqlite` ไว้ที่อื่นเป็นประจำ
+> 💡 **การสำรองข้อมูล (Backup)**: แนะนำให้คัดลอกไฟล์ `library.sqlite` เก็บไว้ที่แฟลชไดรฟ์หรือ Cloud Drive เป็นประจำ
 
-### ย้ายข้อมูลไป PC เครื่องใหม่
+### ย้ายข้อมูลไปเครื่องใหม่
 
-1. copy `library.sqlite` จากเครื่องเดิม
-2. วาง `.exe` และ `library.sqlite` ในโฟลเดอร์เดียวกันบนเครื่องใหม่
-3. เปิดโปรแกรมได้เลย — ข้อมูลครบทุกอย่าง
+1. คัดลอกไฟล์ `library.sqlite` จากเครื่องเดิม
+2. วางไว้ในโฟลเดอร์เดียวกับโปรแกรมบนเครื่องใหม่ (ใช้ข้ามระหว่าง Windows / macOS / Linux ได้ทันที)
+3. เปิดโปรแกรม ข้อมูลและประวัติการยืม-คืนจะมาครบถ้วน
 
-### GitHub Actions Auto-Build
+---
 
-ทุกครั้งที่ push ไปยัง `main` → GitHub Actions จะ build `.exe` ใหม่โดยอัตโนมัติ  
-ไปดูผลได้ที่ **Actions → Build Installers → Artifacts → LibrarianManagement-Windows**
+### 🚀 GitHub Actions Multi-Platform CI/CD
+
+ทุกครั้งที่มีการ push ขึ้นสู่ branch `main`:
+GitHub Actions จะรัน Matrix Build และสร้าง Binary สำหรับทั้ง 4 แพลตฟอร์มโดยอัตโนมัติ:
+- **Windows x64** (`.exe`)
+- **macOS** (`.app` & binary)
+- **Linux Ubuntu 22.04+** (`.tar.gz`)
+- **Linux Fedora** (`.tar.gz` via Fedora container)
+
+สามารถดาวน์โหลดตัวล่าสุดได้ที่แท็บ **Actions → Build Installers → Artifacts**
