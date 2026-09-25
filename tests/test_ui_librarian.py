@@ -347,7 +347,7 @@ def test_librarian_all_objectnames_present(lib_ui):
         "catalogSearchInput",
         "catalogList",
         "catalogModel",
-        "btnAddBookDialog",
+        "btnOpenGeneratorPage",
         "addBookDialog",
         "newBookTitle",
         "newBookIsbn",
@@ -426,4 +426,49 @@ def test_librarian_manual_open_wizard_button(lib_ui):
     dlg = find(window, "firstLaunchDialog")
     assert dlg is not None
     assert dlg.property("visible") is True
+
+
+def test_barcode_generator_page_preview_and_save(lib_ui):
+    """Test dedicated barcode generator GUI page: preview and save new book with deterministic barcodes."""
+    window = lib_ui["window"]
+    stack = find(window, "librarianStack")
+    nav_btn = find(window, "navBtnGenerator")
+    assert nav_btn is not None
+    nav_btn.clicked.emit()
+    process(lib_ui["app"])
+
+    assert stack.property("currentIndex") == 6
+
+    # Test previewing
+    title_input = find(window, "genBookTitle")
+    assert title_input is not None
+    title_input.setProperty("text", "ชีววิทยาน่ารู้ ม.3")
+
+    count_input = find(window, "genCopyCountInput")
+    count_input.setProperty("text", "2")
+    process(lib_ui["app"])
+
+    model = find(window, "genBarcodesModel")
+    assert model is not None
+    assert model.property("count") == 2
+
+    # Save and commit
+    save_btn = find(window, "btnExecuteGenerate")
+    assert save_btn is not None
+    save_btn.clicked.emit()
+    process(lib_ui["app"])
+
+    status_msg = find(window, "genStatusMessage")
+    assert "✓" in status_msg.property("text")
+
+    # Export PDF
+    pdf_btn = find(window, "btnExportPdfSheet")
+    assert pdf_btn is not None
+    assert pdf_btn.property("enabled") is True
+    pdf_btn.clicked.emit()
+    process(lib_ui["app"])
+
+    pdf_status = find(window, "genPdfStatusText")
+    assert "✓" in pdf_status.property("text")
+
 
