@@ -1282,16 +1282,54 @@ ApplicationWindow {
 
     Dialog {
         id: confirmImportDialog
-        title: "⚠️ คำเตือนการนำเข้าข้อมูลซ้ำ (Re-import Warning)"
-        standardButtons: Dialog.Yes | Dialog.No
-        Text {
-            id: confirmImportMsg
-            text: ""
-            wrapMode: Text.Wrap
-            width: 400
+        title: "ตรวจสอบการเปรียบเทียบข้อมูลและการเลื่อนชั้น (Diff Preview)"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        width: 500
+        ColumnLayout {
+            spacing: 12
+            Text {
+                id: confirmImportMsg
+                text: "พบข้อมูลในระบบ ระบบจะทำการเลื่อนชั้นและเพิ่มนักเรียนใหม่โดยไม่ลบประวัติเดิม:"
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+                font.bold: true
+            }
+            Rectangle {
+                Layout.fillWidth: true
+                height: 120
+                color: "#f8fafc"
+                border.color: "#cbd5e1"
+                radius: 6
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 6
+                    Text { id: diffNewText; text: "• นักเรียนใหม่: 0 คน"; color: "#059669"; font.bold: true }
+                    Text { id: diffPromoteText; text: "• นักเรียนที่เลื่อนชั้น/เปลี่ยนห้อง: 0 คน"; color: "#0284c7"; font.bold: true }
+                    Text { id: diffMissingText; text: "• นักเรียนที่ไม่มีในไฟล์ใหม่: 0 คน (คงสถานะเดิม)"; color: "#64748b" }
+                    Text { id: diffConflictText; text: "• รายชื่อที่สะกดต่างจากเดิม: 0 คน"; color: "#d97706" }
+                }
+            }
+            RowLayout {
+                spacing: 8
+                Text { text: "ปีการศึกษา:" }
+                TextField { id: diffYearInput; text: "2568"; Layout.preferredWidth: 80 }
+                Text { text: "ภาคเรียน:" }
+                TextField { id: diffSemInput; text: "1"; Layout.preferredWidth: 60 }
+            }
         }
         onAccepted: {
-            doImportXlsx(true)
+            var yr = parseInt(diffYearInput.text) || 2568
+            var sem = parseInt(diffSemInput.text) || 1
+            var res = JSON.parse(studentAdmin.applyXlsxDiff(window.selectedXlsxPath, yr, sem, "Admin"))
+            if (res.ok) {
+                importStatusText.text = "นำเข้าและเลื่อนชั้นสำเร็จ!\n" +
+                    "นักเรียนใหม่: " + res.data.new_added + " คน\n" +
+                    "เลื่อนชั้นเรียน: " + res.data.promoted + " คน"
+                doSearch()
+            } else {
+                importStatusText.text = "เกิดข้อผิดพลาด: " + res.error
+            }
         }
     }
 
@@ -1446,14 +1484,19 @@ ApplicationWindow {
             importStatusText.text = "กรุณาเลือกไฟล์ Excel ก่อนนำเข้า"
             return
         }
-        importStatusText.text = "กำลังประมวลผลไฟล์..."
-        var res = JSON.parse(studentAdmin.importXlsx(window.selectedXlsxPath, force, "Admin"))
-        if (res.need_confirm) {
-            confirmImportMsg.text = res.warning
+        importStatusText.text = "กำลังตรวจสอบโครงสร้างและเปรียบเทียบข้อมูล..."
+        var diffRes = JSON.parse(studentAdmin.previewXlsxDiff(window.selectedXlsxPath))
+        if (diffRes.ok) {
+            diffNewText.text = "• นักเรียนใหม่: " + diffRes.data.new_students.length + " คน"
+            diffPromoteText.text = "• นักเรียนที่เลื่อนชั้น/เปลี่ยนห้อง: " + diffRes.data.grade_room_changes.length + " คน"
+            diffMissingText.text = "• นักเรียนที่ไม่มีในไฟล์ใหม่: " + diffRes.data.missing_students.length + " คน (คงสถานะเดิม ไม่ลบ)"
+            diffConflictText.text = "• รายชื่อที่สะกดต่างจากเดิม: " + diffRes.data.identity_conflicts.length + " คน"
             confirmImportDialog.open()
-            importStatusText.text = "รอการยืนยันจากผู้ใช้..."
+            importStatusText.text = "รอการยืนยันการนำเข้าและเลื่อนชั้น..."
             return
         }
+
+        var res = JSON.parse(studentAdmin.importXlsx(window.selectedXlsxPath, force, "Admin"))
         if (res.ok) {
             importStatusText.text = "นำเข้าสำเร็จ!\n" +
                 "นักเรียน: " + res.data.students + " คน\n" +

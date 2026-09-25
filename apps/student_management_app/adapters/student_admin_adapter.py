@@ -197,6 +197,38 @@ class StudentAdminAdapter(QObject):
             )
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
+    @Slot(str, result=str)
+    def previewXlsxDiff(self, xlsx_path: str) -> str:
+        """Preview categorized diff for recurring xlsx re-import / promotion."""
+        from urllib.parse import unquote, urlparse
+        if xlsx_path.startswith("file://"):
+            parsed = urlparse(xlsx_path)
+            xlsx_path = unquote(parsed.path)
+
+        val_res = validate_xlsx_structure(xlsx_path)
+        if not val_res.ok:
+            return json.dumps({"ok": False, "error": val_res.error})
+
+        from core.importers.xlsx_diff_importer import calculate_xlsx_diff
+        res = calculate_xlsx_diff(self.conn, xlsx_path)
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+
+    @Slot(str, int, int, str, result=str)
+    def applyXlsxDiff(self, xlsx_path: str, academic_year: int, semester: int, actor: str = "Admin") -> str:
+        """Apply xlsx diff atomically inside one transaction."""
+        from urllib.parse import unquote, urlparse
+        if xlsx_path.startswith("file://"):
+            parsed = urlparse(xlsx_path)
+            xlsx_path = unquote(parsed.path)
+
+        from core.importers.xlsx_diff_importer import calculate_xlsx_diff, apply_xlsx_diff
+        diff_res = calculate_xlsx_diff(self.conn, xlsx_path)
+        if not diff_res.ok:
+            return json.dumps({"ok": False, "error": diff_res.error})
+
+        res = apply_xlsx_diff(self.conn, diff_res.data, academic_year, semester, actor=actor)
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+
     @Slot(result=str)
     def getActivityLogs(self) -> str:
         """Fetch local activity log entries."""
