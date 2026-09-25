@@ -312,6 +312,25 @@ class LibrarianAdminAdapter(QObject):
         res = self.catalog_svc.add_category(name)
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
+    @Slot(int, str, result=str)
+    def renameCategory(self, category_id: int, new_name: str) -> str:
+        """Rename category."""
+        res = self.catalog_svc.rename_category(category_id, new_name)
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+
+    @Slot(int, result=str)
+    def getBooksInCategory(self, category_id: int) -> str:
+        """Get books assigned to a category."""
+        res = self.catalog_svc.get_books_in_category(category_id)
+        return json.dumps(res.data if res.ok else [])
+
+    @Slot(int, str, result=str)
+    def deleteCategory(self, category_id: int, reassign_to_id_str: str = "") -> str:
+        """Delete category with optional book reassignment."""
+        reassign_id = int(reassign_to_id_str) if reassign_to_id_str.strip() else None
+        res = self.catalog_svc.delete_category(category_id, reassign_id)
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+
     @Slot(str, result=str)
     def previewSync(self, snapshot_path: str) -> str:
         """Calculate and return diff preview from incoming snapshot."""

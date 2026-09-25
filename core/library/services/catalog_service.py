@@ -28,6 +28,32 @@ class CatalogService:
         except Exception as e:
             return Result.fail(f"Failed to add category: {e}")
 
+    def rename_category(self, category_id: int, new_name: str) -> Result:
+        """Rename category with non-empty validation."""
+        if not new_name or not new_name.strip():
+            return Result.fail("Category name cannot be empty")
+        try:
+            book_repo.rename_category(self.conn, category_id, new_name.strip())
+            return Result.success({"category_id": category_id, "name": new_name.strip()})
+        except Exception as e:
+            return Result.fail(f"Failed to rename category: {e}")
+
+    def get_books_in_category(self, category_id: int) -> Result:
+        """Fetch books assigned to category."""
+        try:
+            rows = book_repo.get_books_by_category(self.conn, category_id)
+            return Result.success([dict(r) for r in rows])
+        except Exception as e:
+            return Result.fail(f"Failed to fetch books in category: {e}")
+
+    def delete_category(self, category_id: int, reassign_to_id: Optional[int] = None) -> Result:
+        """Delete category with optional book reassignment."""
+        try:
+            book_repo.delete_category(self.conn, category_id, reassign_to_id)
+            return Result.success({"deleted": category_id, "reassigned_to": reassign_to_id})
+        except Exception as e:
+            return Result.fail(f"Failed to delete category: {e}")
+
     def add_book(
         self,
         title: str,

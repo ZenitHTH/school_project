@@ -20,6 +20,40 @@ def add_category(conn: sqlite3.Connection, name: str) -> int:
         return row[0]
 
 
+def rename_category(conn: sqlite3.Connection, category_id: int, new_name: str) -> None:
+    """Rename category and update books table textual column."""
+    clean = new_name.strip()
+    with conn:
+        conn.execute("UPDATE categories SET name = ? WHERE category_id = ?", (clean, category_id))
+        conn.execute("UPDATE books SET category = ? WHERE category_id = ?", (clean, category_id))
+
+
+def get_books_by_category(conn: sqlite3.Connection, category_id: int) -> List[sqlite3.Row]:
+    """Retrieve all books assigned to a category."""
+    return conn.execute(
+        "SELECT book_id, title, author, isbn FROM books WHERE category_id = ?",
+        (category_id,),
+    ).fetchall()
+
+
+def delete_category(conn: sqlite3.Connection, category_id: int, reassign_to_id: Optional[int] = None) -> None:
+    """Delete category, reassigning existing books or setting them to NULL."""
+    with conn:
+        if reassign_to_id is not None:
+            row = conn.execute("SELECT name FROM categories WHERE category_id = ?", (reassign_to_id,)).fetchone()
+            new_name = row[0] if row else None
+            conn.execute(
+                "UPDATE books SET category_id = ?, category = ? WHERE category_id = ?",
+                (reassign_to_id, new_name, category_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE books SET category_id = NULL, category = NULL WHERE category_id = ?",
+                (category_id,),
+            )
+        conn.execute("DELETE FROM categories WHERE category_id = ?", (category_id,))
+
+
 def add_book(
     conn: sqlite3.Connection,
     title: str,

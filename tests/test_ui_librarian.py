@@ -88,8 +88,11 @@ def find(window, name):
     return window.findChild(QObject, name)
 
 
-def invoke(window, method):
-    QMetaObject.invokeMethod(window, method, Qt.DirectConnection)
+def invoke(window, method, *args):
+    if args:
+        QMetaObject.invokeMethod(window, method, Qt.DirectConnection, *args)
+    else:
+        QMetaObject.invokeMethod(window, method, Qt.DirectConnection)
 
 
 def process(app):
@@ -470,5 +473,102 @@ def test_barcode_generator_page_preview_and_save(lib_ui):
 
     pdf_status = find(window, "genPdfStatusText")
     assert "✓" in pdf_status.property("text")
+
+
+def test_category_management_screen(lib_ui):
+    window = lib_ui["window"]
+    stack = find(window, "librarianStack")
+    nav_btn = find(window, "navBtnCategories")
+    assert nav_btn is not None
+    nav_btn.clicked.emit()
+    process(lib_ui["app"])
+
+    assert stack.property("currentIndex") == 7
+
+    cat_input = find(window, "categoryNameInput")
+    add_btn = find(window, "btnAddCategory")
+    status_text = find(window, "categoryStatusText")
+    cat_model = find(window, "categoryListModel")
+
+    assert cat_input is not None
+    assert add_btn is not None
+    assert cat_model is not None
+
+    # Empty validation
+    cat_input.setProperty("text", "")
+    add_btn.clicked.emit()
+    process(lib_ui["app"])
+    assert "กรุณากรอกชื่อหมวดหมู่" in status_text.property("text")
+
+    # Add valid category
+    cat_input.setProperty("text", "จิตวิทยาและการพัฒนาตนเอง")
+    add_btn.clicked.emit()
+    process(lib_ui["app"])
+
+    assert "เพิ่มหมวดหมู่สำเร็จ" in status_text.property("text") or "✓" in status_text.property("text")
+    assert cat_input.property("text") == ""
+    assert cat_model.property("count") >= 1
+
+
+def test_category_rename_and_delete_with_reassign(lib_ui):
+    window = lib_ui["window"]
+    find(window, "navBtnCategories").clicked.emit()
+    process(lib_ui["app"])
+
+    # 1. Add two test categories
+    invoke(window, "addNewCategory")  # empty
+    cat_input = find(window, "categoryNameInput")
+    add_btn = find(window, "btnAddCategory")
+
+    cat_input.setProperty("text", "หมวดทดสอบ 1")
+    add_btn.clicked.emit()
+    process(lib_ui["app"])
+
+    cat_input.setProperty("text", "หมวดทดสอบ 2")
+    add_btn.clicked.emit()
+    process(lib_ui["app"])
+
+    # 2. Test Rename
+    cat_model = find(window, "categoryListModel")
+    assert cat_model.property("count") >= 2
+    first_cat = cat_model.get(0)
+    cat_id = first_cat.property("category_id").toInt()
+
+    invoke(window, "openRenameCategoryDialog", Q_ARG("QVariant", cat_id), Q_ARG("QVariant", "หมวดทดสอบ 1 ที่แก้ไขแล้ว"))
+    process(lib_ui["app"])
+
+    rename_input = find(window, "renameCategoryInput")
+    assert rename_input.property("text") == "หมวดทดสอบ 1 ที่แก้ไขแล้ว"
+    find(window, "btnSubmitRename").clicked.emit()
+    process(lib_ui["app"])
+
+    # 3. Test Delete Empty Category (Simple Delete Dialog)
+    invoke(window, "requestDeleteCategory", Q_ARG("QVariant", cat_id), Q_ARG("QVariant", "หมวดทดสอบ 1 ที่แก้ไขแล้ว"))
+    process(lib_ui["app"])
+
+    simple_dlg = find(window, "simpleDeleteCategoryDialog")
+    assert simple_dlg.property("visible") is True
+    find(window, "btnConfirmSimpleDelete").clicked.emit()
+    process(lib_ui["app"])
+    assert simple_dlg.property("visible") is False
+
+    # 4. Test Delete Category with Books Assigned (Reassign Dialog)
+    # Assign a book to the remaining test category
+    second_cat = cat_model.get(0)
+    cat_id_2 = second_cat.property("category_id").toInt()
+    conn = lib_ui["conn"]
+    conn.execute("UPDATE books SET category_id = ? WHERE book_id = 1", (cat_id_2,))
+    conn.commit()
+
+    invoke(window, "requestDeleteCategory", Q_ARG("QVariant", cat_id_2), Q_ARG("QVariant", "หมวดทดสอบ 2"))
+    process(lib_ui["app"])
+
+    reassign_dlg = find(window, "reassignCategoryDialog")
+    assert reassign_dlg.property("visible") is True
+    find(window, "btnConfirmReassignDelete").clicked.emit()
+    process(lib_ui["app"])
+    assert reassign_dlg.property("visible") is False
+
+
 
 

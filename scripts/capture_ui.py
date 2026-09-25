@@ -111,6 +111,46 @@ def main():
     img_desk.save(str(out_dir / "05_desk_checkout.png"))
     print("Saved 05_desk_checkout.png")
 
+    # 5. Category Management Screen (Index 7)
+    cat1_id = book_repo.add_category(conn, "วิทยาศาสตร์และเทคโนโลยี")
+    book_repo.add_category(conn, "วรรณกรรมเยาวชน")
+    book_repo.add_category(conn, "ประวัติศาสตร์และสังคม")
+
+    # Link books b1 and b2 to category 1
+    conn.execute("UPDATE books SET category_id = ?, category = 'วิทยาศาสตร์และเทคโนโลยี' WHERE book_id IN (?, ?)", (cat1_id, b1, b2))
+
+    stack.setProperty("currentIndex", 7)
+    app.processEvents()
+    QMetaObject.invokeMethod(window, "loadCategoriesList")
+    app.processEvents()
+
+    cat_input = find(window, "categoryNameInput")
+    if cat_input:
+        cat_input.setProperty("text", "คอมพิวเตอร์และปัญญาประดิษฐ์")
+    app.processEvents()
+
+    img_cat = window.grabWindow()
+    img_cat.save(str(out_dir / "06_category_management.png"))
+    print("Saved 06_category_management.png")
+
+    # 6. Rename Dialog Preview
+    QMetaObject.invokeMethod(window, "openRenameCategoryDialog", Q_ARG("QVariant", cat1_id), Q_ARG("QVariant", "วิทยาศาสตร์และนวัตกรรมใหม่"))
+    app.processEvents()
+    img_rename = window.grabWindow()
+    img_rename.save(str(out_dir / "07_rename_category_dialog.png"))
+    print("Saved 07_rename_category_dialog.png")
+    rename_dlg = find(window, "renameCategoryDialog")
+    if rename_dlg:
+        rename_dlg.close()
+    app.processEvents()
+
+    # 7. Reassign & Delete Dialog Preview (with books b1 and b2)
+    QMetaObject.invokeMethod(window, "requestDeleteCategory", Q_ARG("QVariant", cat1_id), Q_ARG("QVariant", "วิทยาศาสตร์และเทคโนโลยี"))
+    app.processEvents()
+    img_reassign = window.grabWindow()
+    img_reassign.save(str(out_dir / "08_reassign_delete_dialog.png"))
+    print("Saved 08_reassign_delete_dialog.png")
+
 
 if __name__ == "__main__":
     main()
