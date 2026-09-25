@@ -28,19 +28,25 @@ jobs:
           pip install pyinstaller
           pip install -r requirements.txt
 
-      - name: Build LibrarianManagement.exe
-        run: pyinstaller packaging/librarian_management.spec
+      - name: Build Windows Apps
+        run: |
+          pyinstaller packaging/librarian_management.spec
+          pyinstaller packaging/student_management.spec
+          pyinstaller packaging/booth_app.spec
         working-directory: ${{ github.workspace }}
 
-      - name: Prepare Windows artifact
+      - name: Prepare Windows artifacts
         run: |
-          copy dist\LibrarianManagement.exe LibrarianManagement-Windows.exe
+          mkdir windows-artifacts
+          copy dist\LibrarianManagement.exe windows-artifacts\LibrarianManagement-Windows.exe
+          copy dist\StudentManagement.exe windows-artifacts\StudentManagement-Windows.exe
+          copy dist\BoothApp.exe windows-artifacts\BoothApp-Windows.exe
 
-      - name: Upload Windows artifact
+      - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: LibrarianManagement-Windows
-          path: LibrarianManagement-Windows.exe
+          name: Apps-Windows
+          path: windows-artifacts/*
           retention-days: 30
 
   build-macos:
@@ -61,21 +67,27 @@ jobs:
           pip install pyinstaller
           pip install -r requirements.txt
 
-      - name: Build macOS app
-        run: pyinstaller packaging/librarian_management.spec
+      - name: Build macOS Apps
+        run: |
+          pyinstaller packaging/librarian_management.spec
+          pyinstaller packaging/student_management.spec
+          pyinstaller packaging/booth_app.spec
         working-directory: ${{ github.workspace }}
 
-      - name: Package macOS zip
+      - name: Package macOS zips
         run: |
+          mkdir macos-artifacts
           cd dist
-          zip -r ../LibrarianManagement-macOS.zip LibrarianManagement.app LibrarianManagement
+          zip -r ../macos-artifacts/LibrarianManagement-macOS.zip LibrarianManagement.app LibrarianManagement
+          zip -r ../macos-artifacts/StudentManagement-macOS.zip StudentManagement.app StudentManagement
+          zip -r ../macos-artifacts/BoothApp-macOS.zip BoothApp.app BoothApp
           cd ..
 
-      - name: Upload macOS artifact
+      - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: LibrarianManagement-macOS
-          path: LibrarianManagement-macOS.zip
+          name: Apps-macOS
+          path: macos-artifacts/*
           retention-days: 30
 
   build-ubuntu:
@@ -105,20 +117,26 @@ jobs:
           pip install pyinstaller
           pip install -r requirements.txt
 
-      - name: Build Ubuntu binary
-        run: pyinstaller packaging/librarian_management.spec
+      - name: Build Ubuntu binaries
+        run: |
+          pyinstaller packaging/librarian_management.spec
+          pyinstaller packaging/student_management.spec
+          pyinstaller packaging/booth_app.spec
         working-directory: ${{ github.workspace }}
 
       - name: Package Ubuntu tar.gz
         run: |
-          chmod +x dist/LibrarianManagement
-          tar -czvf LibrarianManagement-Linux-Ubuntu.tar.gz -C dist LibrarianManagement
+          mkdir ubuntu-artifacts
+          chmod +x dist/LibrarianManagement dist/StudentManagement dist/BoothApp
+          tar -czvf ubuntu-artifacts/LibrarianManagement-Linux-Ubuntu.tar.gz -C dist LibrarianManagement
+          tar -czvf ubuntu-artifacts/StudentManagement-Linux-Ubuntu.tar.gz -C dist StudentManagement
+          tar -czvf ubuntu-artifacts/BoothApp-Linux-Ubuntu.tar.gz -C dist BoothApp
 
-      - name: Upload Ubuntu artifact
+      - name: Upload Ubuntu artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: LibrarianManagement-Linux-Ubuntu
-          path: LibrarianManagement-Linux-Ubuntu.tar.gz
+          name: Apps-Linux-Ubuntu
+          path: ubuntu-artifacts/*
           retention-days: 30
 
   build-fedora:
@@ -137,15 +155,20 @@ jobs:
             pip install pyinstaller
             pip install -r requirements.txt
             pyinstaller packaging/librarian_management.spec
-            chmod +x dist/LibrarianManagement
-            tar -czvf LibrarianManagement-Linux-Fedora.tar.gz -C dist LibrarianManagement
+            pyinstaller packaging/student_management.spec
+            pyinstaller packaging/booth_app.spec
+            mkdir -p fedora-artifacts
+            chmod +x dist/LibrarianManagement dist/StudentManagement dist/BoothApp
+            tar -czvf fedora-artifacts/LibrarianManagement-Linux-Fedora.tar.gz -C dist LibrarianManagement
+            tar -czvf fedora-artifacts/StudentManagement-Linux-Fedora.tar.gz -C dist StudentManagement
+            tar -czvf fedora-artifacts/BoothApp-Linux-Fedora.tar.gz -C dist BoothApp
           "
 
-      - name: Upload Fedora artifact
+      - name: Upload Fedora artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: LibrarianManagement-Linux-Fedora
-          path: LibrarianManagement-Linux-Fedora.tar.gz
+          name: Apps-Linux-Fedora
+          path: fedora-artifacts/*
           retention-days: 30
 
   publish-release:
@@ -168,16 +191,24 @@ jobs:
           name: ${{ github.event_name == 'release' && github.event.release.name || 'Latest Multi-Platform Build' }}
           prerelease: ${{ github.event_name != 'release' }}
           body: |
-            Automated multi-platform standalone builds for School Library Management.
+            Automated multi-platform standalone builds for School Library & Student Management System.
 
-            ### 📥 Download by Operating System:
-            - **Windows**: `LibrarianManagement-Windows.exe` (run directly, no install required)
-            - **macOS**: `LibrarianManagement-macOS.zip` (unzip and open `LibrarianManagement.app`)
-            - **Linux (Ubuntu / Debian)**: `LibrarianManagement-Linux-Ubuntu.tar.gz`
-            - **Linux (Fedora / RHEL)**: `LibrarianManagement-Linux-Fedora.tar.gz`
+            ### 📚 Librarian Management App (ระบบจัดการห้องสมุด)
+            - **Windows**: `LibrarianManagement-Windows.exe`
+            - **macOS**: `LibrarianManagement-macOS.zip`
+            - **Linux (Ubuntu)**: `LibrarianManagement-Linux-Ubuntu.tar.gz`
+            - **Linux (Fedora)**: `LibrarianManagement-Linux-Fedora.tar.gz`
+
+            ### 🎓 Student Management App (ระบบงานทะเบียนนักเรียน)
+            - **Windows**: `StudentManagement-Windows.exe`
+            - **macOS**: `StudentManagement-macOS.zip`
+            - **Linux (Ubuntu)**: `StudentManagement-Linux-Ubuntu.tar.gz`
+            - **Linux (Fedora)**: `StudentManagement-Linux-Fedora.tar.gz`
+
+            ### 🤖 Self-Service Booth App (ตู้ยืม-คืนอัตโนมัติ)
+            - **Windows**: `BoothApp-Windows.exe`
+            - **macOS**: `BoothApp-macOS.zip`
+            - **Linux (Ubuntu)**: `BoothApp-Linux-Ubuntu.tar.gz`
+            - **Linux (Fedora)**: `BoothApp-Linux-Fedora.tar.gz`
           files: |
-            all-artifacts/LibrarianManagement-Windows/LibrarianManagement-Windows.exe
-            all-artifacts/LibrarianManagement-macOS/LibrarianManagement-macOS.zip
-            all-artifacts/LibrarianManagement-Linux-Ubuntu/LibrarianManagement-Linux-Ubuntu.tar.gz
-            all-artifacts/LibrarianManagement-Linux-Fedora/LibrarianManagement-Linux-Fedora.tar.gz
-
+            all-artifacts/**/*.*

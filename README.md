@@ -174,14 +174,31 @@ uv run pytest -q
 
 ### 1. ดาวน์โหลดตามระบบปฏิบัติการของคุณ
 
-ไปที่ [Releases](https://github.com/ZenitHTH/school_project/releases) แล้วดาวน์โหลดไฟล์ตาม OS:
+ไปที่ [Releases](https://github.com/ZenitHTH/school_project/releases) แล้วดาวน์โหลดไฟล์แอปที่ต้องการตาม OS:
 
-| ระบบปฏิบัติการ | ไฟล์ที่ต้องดาวน์โหลด | วิธีเปิดใช้งาน |
+#### 📚 ระบบจัดการห้องสมุด (Librarian Management)
+| OS | ไฟล์ดาวน์โหลด | วิธีเปิด |
 |---|---|---|
-| **Windows** | `LibrarianManagement-Windows.exe` | ดับเบิลคลิกไฟล์ `.exe` เปิดใช้งานได้ทันที |
-| **macOS** | `LibrarianManagement-macOS.zip` | แตก zip แล้วดับเบิลคลิก `LibrarianManagement.app` |
-| **Linux (Ubuntu / Debian)** | `LibrarianManagement-Linux-Ubuntu.tar.gz` | ดูวิธีแตกไฟล์ด้านล่าง |
-| **Linux (Fedora / RHEL)** | `LibrarianManagement-Linux-Fedora.tar.gz` | ดูวิธีแตกไฟล์ด้านล่าง |
+| **Windows** | `LibrarianManagement-Windows.exe` | ดับเบิลคลิกไฟล์ `.exe` |
+| **macOS** | `LibrarianManagement-macOS.zip` | แตก zip แล้วเปิด `LibrarianManagement.app` |
+| **Linux (Ubuntu)** | `LibrarianManagement-Linux-Ubuntu.tar.gz` | แตกไฟล์แล้วรัน `./LibrarianManagement` |
+| **Linux (Fedora)** | `LibrarianManagement-Linux-Fedora.tar.gz` | แตกไฟล์แล้วรัน `./LibrarianManagement` |
+
+#### 🎓 ระบบงานทะเบียนนักเรียน (Student Management)
+| OS | ไฟล์ดาวน์โหลด | วิธีเปิด |
+|---|---|---|
+| **Windows** | `StudentManagement-Windows.exe` | ดับเบิลคลิกไฟล์ `.exe` |
+| **macOS** | `StudentManagement-macOS.zip` | แตก zip แล้วเปิด `StudentManagement.app` |
+| **Linux (Ubuntu)** | `StudentManagement-Linux-Ubuntu.tar.gz` | แตกไฟล์แล้วรัน `./StudentManagement` |
+| **Linux (Fedora)** | `StudentManagement-Linux-Fedora.tar.gz` | แตกไฟล์แล้วรัน `./StudentManagement` |
+
+#### 🤖 ตู้ยืม-คืนอัตโนมัติ (Self-Service Booth)
+| OS | ไฟล์ดาวน์โหลด | วิธีเปิด |
+|---|---|---|
+| **Windows** | `BoothApp-Windows.exe` | ดับเบิลคลิกไฟล์ `.exe` |
+| **macOS** | `BoothApp-macOS.zip` | แตก zip แล้วเปิด `BoothApp.app` |
+| **Linux (Ubuntu)** | `BoothApp-Linux-Ubuntu.tar.gz` | แตกไฟล์แล้วรัน `./BoothApp` |
+| **Linux (Fedora)** | `BoothApp-Linux-Fedora.tar.gz` | แตกไฟล์แล้วรัน `./BoothApp` |
 
 #### วิธีเปิดบน Linux (Ubuntu / Fedora)
 ```bash

@@ -71,14 +71,16 @@ def main():
             return
 
     from PySide6.QtQuickControls2 import QQuickStyle
-    QQuickStyle.setStyle("Basic")
+    QQuickStyle.setStyle("Fusion")
 
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("studentAdmin", adapter)
     engine.rootContext().setContextProperty("searchStudents", adapter.searchStudents)
 
-    qml_file = os.path.join(os.path.dirname(__file__), "qml", "Main.qml")
+    qml_dir = os.path.join(sys._MEIPASS, "apps", "student_management_app", "qml") \
+        if getattr(sys, "frozen", False) else os.path.join(os.path.dirname(__file__), "qml")
+    qml_file = os.path.join(qml_dir, "Main.qml")
     engine.load(qml_file)
 
     if not engine.rootObjects():
