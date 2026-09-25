@@ -18,7 +18,8 @@ from data.sync.apply import apply_sync
 NUMERIC_KEYS = {
     "student_id", "academic_year", "semester", "room", "seq_no",
     "total_copies", "available_copies", "book_id", "copy_id",
-    "loan_id", "fine_id", "reservation_id", "old_id", "new_id"
+    "loan_id", "fine_id", "reservation_id", "old_id", "new_id",
+    "category_id",
 }
 
 
@@ -358,3 +359,32 @@ class LibrarianAdminAdapter(QObject):
         """Fetch local activity logs."""
         rows = log_repo.get_activity_logs(self.conn, limit=100)
         return json.dumps([dict(r) for r in rows])
+
+    @Slot(int, str, str, str, str, str, result=str)
+    def updateBook(
+        self,
+        book_id: int,
+        title: str,
+        isbn: str = "",
+        author: str = "",
+        category_id_str: str = "",
+        shelf_location: str = "",
+    ) -> str:
+        """Update book metadata from QML."""
+        cat_id = int(category_id_str) if category_id_str and category_id_str.isdigit() else None
+        res = self.catalog_svc.update_book(
+            book_id=book_id,
+            title=title,
+            isbn=isbn or None,
+            author=author or None,
+            category_id=cat_id,
+            shelf_location=shelf_location or None,
+        )
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+
+    @Slot(int, result=str)
+    def deleteBook(self, book_id: int) -> str:
+        """Retire (soft-delete) a book and all its copies."""
+        res = self.catalog_svc.retire_book(book_id)
+        return json.dumps({"ok": res.ok, "error": res.error})
+

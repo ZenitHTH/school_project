@@ -71,7 +71,7 @@ def main():
             return
 
     from PySide6.QtQuickControls2 import QQuickStyle
-    QQuickStyle.setStyle("Basic")
+    QQuickStyle.setStyle("Fusion")
 
     app = QGuiApplication(sys.argv)
     engine = QQmlApplicationEngine()

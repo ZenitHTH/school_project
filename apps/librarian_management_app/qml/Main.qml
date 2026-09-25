@@ -13,6 +13,19 @@ ApplicationWindow {
     title: "ระบบจัดการห้องสมุด (Librarian Management)"
     color: "#f8fafc"
 
+    // Force light palette so TextFields/ComboBoxes always show dark text
+    // regardless of system dark mode (Fusion style inherits system palette)
+    palette.window: "#f8fafc"
+    palette.windowText: "#1e293b"
+    palette.base: "#ffffff"
+    palette.text: "#1e293b"
+    palette.button: "#e2e8f0"
+    palette.buttonText: "#1e293b"
+    palette.highlight: "#2563eb"
+    palette.highlightedText: "#ffffff"
+    palette.placeholderText: "#94a3b8"
+
+
     property var currentCheckoutStudent: null
     property var lastGeneratedBarcodes: []
     property int selectedBookId: 0
@@ -236,6 +249,25 @@ ApplicationWindow {
                                         addCopiesCountInput.text = "1"
                                         addCopiesDialog.open()
                                     }
+                                }
+                                Button {
+                                    text: "✏️ แก้ไข"
+                                    flat: true
+                                    font.pixelSize: 12
+                                    onClicked: openEditBookDialog(model.book_id, model.title, model.author || "", model.isbn || "", model.category_id || 0, model.shelf_location || "")
+                                }
+                                Button {
+                                    text: "🗑️ ลบ"
+                                    flat: true
+                                    font.pixelSize: 12
+                                    contentItem: Text {
+                                        text: "🗑️ ลบ"
+                                        font.pixelSize: 12
+                                        color: "#ef4444"
+                                        verticalAlignment: Text.AlignVCenter
+                                        horizontalAlignment: Text.AlignHCenter
+                                    }
+                                    onClicked: openDeleteBookDialog(model.book_id, model.title)
                                 }
                             }
                         }
@@ -656,6 +688,19 @@ ApplicationWindow {
                                                     Layout.fillWidth: true
                                                     textRole: "name"
                                                     model: ListModel { id: genCategoryModel }
+                                                    background: Rectangle {
+                                                        color: "#ffffff"
+                                                        border.color: genCategoryCombo.activeFocus ? "#2563eb" : "#cbd5e1"
+                                                        radius: 4
+                                                    }
+                                                    contentItem: Text {
+                                                        leftPadding: 8
+                                                        text: genCategoryCombo.displayText
+                                                        color: "#1e293b"
+                                                        font.pixelSize: 13
+                                                        verticalAlignment: Text.AlignVCenter
+                                                        elide: Text.ElideRight
+                                                    }
                                                 }
                                             }
                                             ColumnLayout {
@@ -688,6 +733,19 @@ ApplicationWindow {
                                             textRole: "display"
                                             model: ListModel { id: genExistingBooksModel }
                                             onCurrentIndexChanged: updateGenPreview()
+                                            background: Rectangle {
+                                                color: "#ffffff"
+                                                border.color: genExistingBookCombo.activeFocus ? "#2563eb" : "#cbd5e1"
+                                                radius: 4
+                                            }
+                                            contentItem: Text {
+                                                leftPadding: 8
+                                                text: genExistingBookCombo.displayText
+                                                color: "#1e293b"
+                                                font.pixelSize: 13
+                                                verticalAlignment: Text.AlignVCenter
+                                                elide: Text.ElideRight
+                                            }
                                         }
                                         Text {
                                             id: existingBookInfoText
@@ -1493,6 +1551,166 @@ ApplicationWindow {
             }
         }
     }
+    // Edit Book Dialog
+    Dialog {
+        id: editBookDialog
+        objectName: "editBookDialog"
+        title: "✏️ แก้ไขข้อมูลหนังสือ"
+        modal: true
+        anchors.centerIn: parent
+        width: 440
+        standardButtons: Dialog.NoButton
+        property int targetBookId: 0
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+
+            Text { text: "ชื่อหนังสือ (Title) *"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
+            TextField {
+                id: editBookTitleInput
+                objectName: "editBookTitleInput"
+                Layout.fillWidth: true
+                selectByMouse: true
+                padding: 8
+                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+            }
+
+            Text { text: "ผู้แต่ง (Author)"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
+            TextField {
+                id: editBookAuthorInput
+                objectName: "editBookAuthorInput"
+                Layout.fillWidth: true
+                selectByMouse: true
+                padding: 8
+                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+            }
+
+            Text { text: "ISBN"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
+            TextField {
+                id: editBookIsbnInput
+                objectName: "editBookIsbnInput"
+                Layout.fillWidth: true
+                selectByMouse: true
+                padding: 8
+                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+            }
+
+            Text { text: "หมวดหมู่"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
+            ComboBox {
+                id: editBookCategoryCombo
+                objectName: "editBookCategoryCombo"
+                Layout.fillWidth: true
+                textRole: "name"
+                model: ListModel { id: editBookCategoryModel }
+                background: Rectangle {
+                    color: "#ffffff"
+                    border.color: editBookCategoryCombo.activeFocus ? "#2563eb" : "#cbd5e1"
+                    radius: 4
+                }
+                contentItem: Text {
+                    leftPadding: 8
+                    text: editBookCategoryCombo.displayText
+                    color: "#1e293b"
+                    font.pixelSize: 13
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+            }
+
+            Text { text: "ตำแหน่งชั้นวาง"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
+            TextField {
+                id: editBookShelfInput
+                objectName: "editBookShelfInput"
+                Layout.fillWidth: true
+                selectByMouse: true
+                padding: 8
+                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+            }
+
+            Text {
+                id: editBookStatusText
+                objectName: "editBookStatusText"
+                Layout.fillWidth: true
+                text: ""
+                font.pixelSize: 12
+                wrapMode: Text.Wrap
+                color: text.indexOf("✗") !== -1 ? "#ef4444" : "#10b981"
+                visible: text !== ""
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button { text: "ยกเลิก"; onClicked: editBookDialog.close() }
+                Button {
+                    text: "💾 บันทึก"
+                    highlighted: true
+                    onClicked: submitEditBook()
+                }
+            }
+        }
+    }
+
+    // Delete Book Confirm Dialog
+    Dialog {
+        id: deleteBookDialog
+        objectName: "deleteBookDialog"
+        title: "🗑️ ยืนยันการลบหนังสือ"
+        modal: true
+        anchors.centerIn: parent
+        width: 400
+        standardButtons: Dialog.NoButton
+        property int targetBookId: 0
+        property string targetBookTitle: ""
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 16
+
+            Text {
+                id: deleteBookConfirmText
+                objectName: "deleteBookConfirmText"
+                text: "ต้องการลบหนังสือนี้หรือไม่?"
+                font.pixelSize: 13
+                color: "#1e293b"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
+            Text {
+                text: "⚠️ การลบจะปิดใช้งานหนังสือและบาร์โค้ดทั้งหมดของเล่มนี้"
+                font.pixelSize: 12
+                color: "#b45309"
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button { text: "ยกเลิก"; onClicked: deleteBookDialog.close() }
+                Button {
+                    id: btnConfirmDeleteBook
+                    objectName: "btnConfirmDeleteBook"
+                    text: "ยืนยันการลบ"
+                    contentItem: Text {
+                        text: btnConfirmDeleteBook.text
+                        color: "white"
+                        font.pixelSize: 12
+                        font.bold: true
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    background: Rectangle {
+                        color: btnConfirmDeleteBook.pressed ? "#be123c" : "#e11d48"
+                        radius: 4
+                    }
+                    onClicked: executeDeleteBook()
+                }
+            }
+        }
+    }
 
     function searchBooks() {
         catalogModel.clear()
@@ -2014,6 +2232,73 @@ ApplicationWindow {
         } else {
             categoryStatusText.text = "✗ " + (res.error || "ลบหมวดหมู่ไม่สำเร็จ")
             categoryStatusText.color = "#ef4444"
+        }
+    }
+
+    function openEditBookDialog(bookId, title, author, isbn, categoryId, shelf) {
+        editBookDialog.targetBookId = bookId
+        editBookTitleInput.text = title
+        editBookAuthorInput.text = author
+        editBookIsbnInput.text = isbn
+        editBookShelfInput.text = shelf
+        editBookStatusText.text = ""
+
+        editBookCategoryModel.clear()
+        editBookCategoryModel.append({ "category_id": 0, "name": "-- ไม่ระบุหมวดหมู่ --" })
+        var selectedIndex = 0
+        try {
+            var cats = JSON.parse(librarianAdmin.getCategories())
+            for (var i = 0; i < cats.length; i++) {
+                editBookCategoryModel.append(cats[i])
+                if (cats[i].category_id === categoryId) selectedIndex = i + 1
+            }
+        } catch (e) {}
+        editBookCategoryCombo.currentIndex = selectedIndex
+        editBookDialog.open()
+    }
+
+    function submitEditBook() {
+        var title = editBookTitleInput.text.trim()
+        if (!title) {
+            editBookStatusText.text = "✗ กรุณาระบุชื่อหนังสือ"
+            return
+        }
+        var catId = ""
+        if (editBookCategoryCombo.currentIndex > 0) {
+            catId = editBookCategoryModel.get(editBookCategoryCombo.currentIndex).category_id.toString()
+        }
+        var res = JSON.parse(librarianAdmin.updateBook(
+            editBookDialog.targetBookId,
+            title,
+            editBookIsbnInput.text.trim(),
+            editBookAuthorInput.text.trim(),
+            catId,
+            editBookShelfInput.text.trim()
+        ))
+        if (res.ok) {
+            editBookDialog.close()
+            searchBooks()
+            loadBooksForExistingSelector()
+        } else {
+            editBookStatusText.text = "✗ " + (res.error || "แก้ไขไม่สำเร็จ")
+        }
+    }
+
+    function openDeleteBookDialog(bookId, title) {
+        deleteBookDialog.targetBookId = bookId
+        deleteBookDialog.targetBookTitle = title
+        deleteBookConfirmText.text = "ต้องการลบหนังสือ '" + title + "' หรือไม่?"
+        deleteBookDialog.open()
+    }
+
+    function executeDeleteBook() {
+        var res = JSON.parse(librarianAdmin.deleteBook(deleteBookDialog.targetBookId))
+        if (res.ok) {
+            deleteBookDialog.close()
+            searchBooks()
+            loadBooksForExistingSelector()
+        } else {
+            deleteBookConfirmText.text = "✗ " + (res.error || "ลบหนังสือไม่สำเร็จ")
         }
     }
 
