@@ -48,12 +48,16 @@ def run_cli_first_launch(adapter: StudentAdminAdapter) -> None:
         print("✓ Created blank database following table rules.")
 
 
+from data.paths import get_default_db_path
+
 def main():
-    db_path = os.environ.get("STUDENT_DB_PATH", "student.sqlite")
+    default_path = str(get_default_db_path("SMTE-StudentManagement", "student.sqlite"))
+    db_path = os.environ.get("STUDENT_DB_PATH", default_path)
     pin = os.environ.get("STUDENT_DB_PIN", "123456")
 
     conn = get_connection(db_path, pin=pin)
-    apply_migrations(conn)
+    apply_migrations(conn, db_path=db_path)
+
 
     adapter = StudentAdminAdapter(conn)
 

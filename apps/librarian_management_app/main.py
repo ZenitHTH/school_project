@@ -48,12 +48,16 @@ def run_cli_first_launch(adapter: LibrarianAdminAdapter) -> None:
         print("✓ Created blank library database following table rules.")
 
 
+from data.paths import get_default_db_path
+
 def main():
-    db_path = os.environ.get("LIBRARY_DB_PATH", "library.sqlite")
+    default_path = str(get_default_db_path("SMTE-LibrarianManagement", "library.sqlite"))
+    db_path = os.environ.get("LIBRARY_DB_PATH", default_path)
     pin = os.environ.get("LIBRARY_DB_PIN", "123456")
 
     conn = get_connection(db_path, pin=pin)
-    apply_migrations(conn)
+    apply_migrations(conn, db_path=db_path)
+
 
     adapter = LibrarianAdminAdapter(conn)
 

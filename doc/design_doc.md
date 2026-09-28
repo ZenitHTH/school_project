@@ -23,7 +23,7 @@ components over time without rework.
 
 | Layer | Choice | Why |
 |---|---|---|
-| UI | PySide6 + Qt Quick (QML) | Native-compiled widgets (light on old hardware), anchor/layout system built for resolution independence, modern look out of the box |
+| UI | Qt Quick (QML) via PySide — **version depends on Windows 7 support, see §10a** | Native-compiled widgets (light on old hardware), anchor/layout system built for resolution independence, modern look out of the box |
 | App logic | Plain Python classes | No framework needed for CRUD + validation at this scale |
 | Data | SQLite (already built) | Zero-install embedded DB, fine for a single school's data volume |
 | Packaging | PyInstaller (or Nuitka if size/speed matters later) | Produces a standalone binary per OS, no Python install needed on target PCs |
@@ -303,6 +303,93 @@ particular is meant to be lightweight enough to run on whatever
 spare/dedicated PC ends up at the checkout desk, so it's worth confirming
 it's genuinely lighter than the other two, not just smaller in screen
 count.
+
+**Bundle as a one-folder build, not one file.** Ship the exe together
+with its library folder (Python, Qt, SQLCipher) as a portable archive (§10b),
+so staff can't separate them. Single-file builds unpack to a temp folder
+on every launch, which is slow on old PCs and fails if temp is locked
+down.
+
+## 10a. Windows 7 compatibility (decision needed)
+
+**Confirmed**: the school's PCs run a mix of Windows 7, 10, and 11. That
+conflicts with the stack in §3 as written: Qt 6 (PySide6) targets
+Windows 10 and newer, and Python 3.9+ no longer runs on Windows 7
+(verify both against current PySide6/Python docs before committing).
+
+| Option | What it means | Cost |
+|---|---|---|
+| **A. Single Qt 5.15 / PySide2 / Python 3.8 baseline** (recommended if any Windows 7 PC will run these apps) | One codebase, one build per OS, runs on Windows 7, 10, and 11 | Older, end-of-life toolchain; pin every dependency (`reportlab`, `python-barcode`, `openpyxl`, `platformdirs`, SQLCipher binding) to versions that still support Python 3.8; QML imports must be versioned (`import QtQuick 2.15`) |
+| B. Two builds: Qt 6 for Windows 10/11 + Qt 5 legacy build for Windows 7 | Modern stack where possible | Doubles the packaging and test matrix; PySide2/PySide6 API differences need a compatibility layer |
+| C. Retire or upgrade the Windows 7 PCs | Simplest software, one modern stack | Not the software's decision; Windows 7 is also long out of security support |
+
+For an offline school desktop app, an older pinned toolchain is a
+smaller risk than a machine that can't run the app at all — so A is the
+default recommendation, with the door open to move to Qt 6 once the
+last Windows 7 PC is gone.
+
+**Two checks either way**: (1) Windows 7 needs its Universal C Runtime
+update installed for Python 3.8 builds to start — confirm on a real
+Windows 7 PC, not assumed. (2) FTS5's `trigram` tokenizer needs SQLite
+3.34+ (`student_search_algorithm.md` §2) and the categories migration
+wants 3.35+ for `DROP COLUMN` (`database_layer_design.md` §5) — confirm
+the SQLite version bundled inside whichever SQLCipher build ends up
+available for Python 3.8, since older builds may bundle an older SQLite.
+
+**What would narrow this**: which of the three apps will actually run
+on a Windows 7 machine. If none of the Student Management or Librarian
+Management PCs is on Windows 7, only the Booth app's PC matters — and
+that could be the one place to solve it.
+
+## 10b. Distribution: portable archive first
+
+**Decision**: v1 ships as a portable archive per app per OS — no
+installer yet. The one-folder build from §10 is archived as-is; staff
+extract it and run the exe. Installers (Inno Setup for Windows,
+`.deb`/AppImage for Linux, `.dmg` for macOS) are deferred, not dropped:
+the freeze step is identical either way, so nothing is redone later.
+
+Freeze (per app, per OS, driven by the `.spec` files in `packaging/`):
+`pyinstaller --noconfirm --onedir --windowed --name SMTE-StudentManagement apps/student_management_app/main.py`
+— built with **Python 3.8** for the Windows 7-capable build (§10a).
+
+**Portable means the program, not the data.** The database stays in the
+user-data folder (`file_locations_design.md` §2), so running the app
+from a USB stick on another PC starts with an empty database on that PC.
+
+**Rules for a portable archive**
+- **Format**: `.zip` on Windows; `.tar.gz` on Linux and macOS. Zip does
+  not reliably keep the executable permission on those systems, so the
+  app could fail with "permission denied" until someone runs `chmod +x`.
+- **Extract to a short path, ideally without Thai characters** (for
+  example `C:\SMTE\StudentManagement\`). Windows 7 has a 260-character
+  path limit and the library folder is deeply nested; Thai characters in
+  the path are one more thing to test, not assume.
+- **Windows "Unblock"**: an archive received over LINE or downloaded is
+  marked as coming from the internet, and Windows may show SmartScreen
+  warnings for the extracted exe. Right-click the `.zip` → Properties →
+  **Unblock** *before* extracting.
+- **No shortcut is created**: the README tells staff to right-click the
+  exe → Send to → Desktop (create shortcut).
+- **Windows 7 prerequisites are now manual**: with no installer script
+  to check for them, the Universal C Runtime update and Visual C++
+  runtime have to be listed in the README and confirmed on a real
+  Windows 7 PC.
+- **Updating**: delete the old folder and extract the new version fresh
+  (extracting on top can leave stale files behind). Data is untouched;
+  migrations run on first start, with a backup first
+  (`database_layer_design.md` §10).
+- **Removing**: delete the folder. Data stays in the user-data folder.
+- **Version visible**: put the version in the archive name
+  (`SMTE-StudentManagement-1.0.0-win.zip`) and on an About/footer line in
+  the app, since there's no installer record of what's installed — staff
+  need a way to tell you which build they're running.
+- **Unsigned executables** may trigger SmartScreen and some antivirus
+  products; plan a short "More info → Run anyway" note in the README
+  and test with the school's real antivirus (§10).
+
+**Deliverables**: one archive per app per OS — six, or nine if macOS is
+confirmed (`file_locations_design.md` §6).
 
 ## 11. Open questions
 

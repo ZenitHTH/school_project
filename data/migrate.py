@@ -35,9 +35,11 @@ def set_version(conn: sqlite3.Connection, version: int) -> None:
 def apply_migrations(
     conn: sqlite3.Connection,
     migrations_dir: Optional[str] = None,
+    db_path: Optional[str] = None,
 ) -> int:
     """
     Apply any pending migrations up to the latest.
+    If db_path is provided and migrations are pending, creates a pre-migration backup.
     Returns the number of migrations applied.
     """
     if migrations_dir is None:
@@ -49,20 +51,27 @@ def apply_migrations(
 
     current_ver = get_current_version(conn)
     migrations = get_migrations(migrations_dir)
+    pending = [m for m in migrations if m[0] > current_ver]
+    if not pending:
+        return 0
+
+    if db_path and db_path != ":memory:":
+        from data.db import backup_database
+        backup_database(conn, db_path)
+
     applied_count = 0
+    for ver, fname, fpath in pending:
+        with open(fpath, "r", encoding="utf-8") as f:
+            sql_script = f.read()
 
-    for ver, fname, fpath in migrations:
-        if ver > current_ver:
-            with open(fpath, "r", encoding="utf-8") as f:
-                sql_script = f.read()
-
-            with conn:
-                conn.executescript(sql_script)
-                set_version(conn, ver)
-            current_ver = ver
-            applied_count += 1
+        with conn:
+            conn.executescript(sql_script)
+            set_version(conn, ver)
+        current_ver = ver
+        applied_count += 1
 
     return applied_count
+
 
 
 if __name__ == "__main__":

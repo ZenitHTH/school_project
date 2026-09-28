@@ -364,7 +364,14 @@ What's still worth doing at this minimal stage:
 - Before running any migration (§3, especially §3a's table rebuild) or
   an xlsx re-import, copy the current `school.sqlite` **and its
   `.salt` file** (§2) to a timestamped backup before touching either —
-  cheap, no dependency, no ICT involvement needed. This is a local
+  cheap, no dependency, no ICT involvement needed. **One correction to
+  "plain file copy"**: WAL mode (§1) keeps recent writes in `-wal` and
+  `-shm` sidecar files next to the database, so copying only the main
+  file while the app has it open can produce an incomplete backup. Run
+  `PRAGMA wal_checkpoint(TRUNCATE)` first (or use SQLite's backup API —
+  confirm it works through SQLCipher) so the main file is complete, then
+  copy. Where these files live per OS is in `file_locations_design.md`.
+  This is a local
   safety net against the app's own operations, not a substitute for real
   backup infrastructure — it protects against a bad migration, not a
   dead hard drive. Worth flagging that distinction explicitly when the
