@@ -33,6 +33,14 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+if sys.platform.startswith("linux"):
+    EXCLUDE_BINARIES = ("libglib", "libgio", "libgobject", "libgmodule")
+    a.binaries = [
+        x for x in a.binaries
+        if not any(os.path.basename(x[0]).lower().startswith(p) for p in EXCLUDE_BINARIES)
+    ]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(

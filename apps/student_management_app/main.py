@@ -6,6 +6,10 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from apps.common_linux_env import setup_linux_runtime_env
+
+setup_linux_runtime_env()
+
 import json
 from data.db import get_connection
 from data.migrate import apply_migrations

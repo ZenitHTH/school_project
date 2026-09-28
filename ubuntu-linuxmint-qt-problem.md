@@ -29,3 +29,16 @@ The crash is a chain reaction caused by **two overlapping issues**:
 | **2. Software Vector Rasterization** | `LIBGL_ALWAYS_SOFTWARE=1 ./LibrarianManagement` | Bypass the physical GPU drivers by routing all OpenGL/GLX instructions directly through the host CPU engine. |
 | **3. Combined Mitigation** | `LD_PRELOAD="/usr/lib/x86_64-linux-gnu/libglib-2.0.so.0 /usr/lib/x86_64-linux-gnu/libgio-2.0.so.0" LIBGL_ALWAYS_SOFTWARE=1 ./LibrarianManagement` | Addresses the library mismatch and the graphics backend errors concurrently in one execution path. |
 | **4. Purge Outdated Bundles** | Clean local application directory by running `mv libglib* libglib*.bak` and `mv libgio* libgio*.bak` | The ultimate structural fix: removes the outdated internal files entirely to natively rely on system libraries. |
+
+---
+
+### ✅ Permanent Source-Level & Packaging Resolution
+
+The issues have been resolved directly in the project codebase:
+
+1. **Packaging (`packaging/*.spec`)**:
+   - Explicitly filters out `libglib*`, `libgio*`, `libgobject*`, and `libgmodule*` from `a.binaries` on Linux platforms. This prevents bundling outdated GLib/GIO into the executable and lets the binary link directly to host system libraries.
+
+2. **Runtime Startup (`apps/common_linux_env.py` & `apps/*/main.py`)**:
+   - In frozen Linux environments, `GIO_MODULE_DIR` is set to `""` before Qt/GIO loads, preventing conflicts with host GVFS dynamic modules.
+   - Automatically defaults `LIBGL_ALWAYS_SOFTWARE=1` on Linux unless overridden by user environment variables, preventing Qt Quick GLX / FBConfig crashes.
