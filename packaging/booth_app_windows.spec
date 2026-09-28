@@ -1,16 +1,29 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import sys
+from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
+
+datas = [
+    ('../data/migrations/*.sql', 'data/migrations'),
+    ('../apps/booth_app/qml/*.qml', 'apps/booth_app/qml'),
+]
+binaries = []
+hiddenimports = ['sqlcipher3', 'pysqlcipher3', 'sqlite3']
+
+for pkg in ['core', 'data', 'apps']:
+    d, b, h = collect_all(pkg)
+    datas += d
+    binaries += b
+    hiddenimports += h
 
 a = Analysis(
     ['../apps/booth_app/main.py'],
     pathex=['..'],
-    binaries=[],
-    datas=[
-        ('../data/migrations/*.sql', 'data/migrations'),
-        ('../apps/booth_app/qml/*.qml', 'apps/booth_app/qml'),
-    ],
-    hiddenimports=['sqlcipher3', 'pysqlcipher3', 'sqlite3'],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
