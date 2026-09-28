@@ -43,15 +43,44 @@ htmlcov/
 .LSOverride
 ._*
 
-# Local SQLite databases, salts, and PIN hashes (protect PII)
+# Local SQLite databases, salts, sidecars, and PIN hashes (protect PII)
 *.sqlite
 *.sqlite.*
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+*-wal
+*-shm
 *.db
 *.pin_hash
 *.salt
+*.lockout
 
-# Temporary files & archives
+# PyInstaller & packaging
+*.spec.bak
+*.pkg
+*.app/
+*.manifest
+
+# IDE & Editor artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Office & spreadsheet temporary files
+~$*.xlsx
+~$*.xls
+*.xlsx#
+
+# Temporary files, logs & archives
 /tmp/
 *.log
+*.bak
 files.zip
 ui_screenshots/
+
