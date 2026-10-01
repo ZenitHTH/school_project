@@ -6,6 +6,7 @@ Rectangle {
     id: root
     Layout.fillWidth: true
     height: messageText.text !== "" ? 44 : 0
+    implicitHeight: height
     color: isError ? "#fee2e2" : "#dcfce7"
     border.color: isError ? "#fca5a5" : "#86efac"
     border.width: messageText.text !== "" ? 1 : 0
@@ -13,6 +14,7 @@ Rectangle {
     visible: messageText.text !== ""
 
     property alias text: messageText.text
+    property alias font: messageText.font
     property bool isError: false
     property int duration: 0
 

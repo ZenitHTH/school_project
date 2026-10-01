@@ -55,6 +55,8 @@ def booth_ui(qapp, tmp_path):
     adapter = BoothAdapter(conn)
 
     engine = QQmlApplicationEngine()
+    engine.addImportPath(os.path.abspath("apps/common_qml"))
+    engine.addImportPath(os.path.abspath("apps"))
     engine.rootContext().setContextProperty("boothAdapter", adapter)
 
     qml_path = os.path.abspath("apps/booth_app/qml/Main.qml")
@@ -291,6 +293,8 @@ def test_booth_warning_banner_visible_on_empty_db(qapp, tmp_path):
 
     adapter = BoothAdapter(conn)
     engine = QQmlApplicationEngine()
+    engine.addImportPath(os.path.abspath("apps/common_qml"))
+    engine.addImportPath(os.path.abspath("apps"))
     engine.rootContext().setContextProperty("boothAdapter", adapter)
 
     qml_path = os.path.abspath("apps/booth_app/qml/Main.qml")

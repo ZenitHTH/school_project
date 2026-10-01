@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../common_qml"
 
 ApplicationWindow {
     id: boothWindow
@@ -83,19 +84,20 @@ ApplicationWindow {
                 }
 
                 RowLayout {
-                    TextField {
+                    StyledSearchField {
                         id: studentIdInput
                         objectName: "studentIdInput"
                         placeholderText: "พิมพ์รหัสนักเรียน..."
                         font.pixelSize: 18
+                        implicitHeight: 44
                         Layout.fillWidth: true
-                        color: "#ffffff"
                         onAccepted: identifyStudent()
                     }
                     Button {
                         objectName: "btnIdentify"
                         text: "ยืนยันตัวตน"
                         highlighted: true
+                        implicitHeight: 44
                         onClicked: identifyStudent()
                     }
                 }
@@ -130,13 +132,13 @@ ApplicationWindow {
                     font.pixelSize: 14
                 }
 
-                TextField {
+                StyledSearchField {
                     id: bookBarcodeInput
                     objectName: "bookBarcodeInput"
                     placeholderText: "สแกนบาร์โค้ดหนังสือ..."
                     font.pixelSize: 18
+                    implicitHeight: 44
                     Layout.fillWidth: true
-                    color: "#ffffff"
                 }
 
                 RowLayout {
@@ -161,22 +163,13 @@ ApplicationWindow {
         }
 
         // Result Message Banner
-        Rectangle {
+        ActionFeedbackBanner {
+            id: feedbackBanner
+            objectName: "feedbackBanner"
             Layout.fillWidth: true
-            height: 60
-            color: "#1e293b"
-            radius: 8
-            border.color: "#38bdf8"
-
-            Text {
-                id: feedbackBanner
-                objectName: "feedbackBanner"
-                anchors.centerIn: parent
-                text: "กรุณาระบุตัวตนเพื่อเริ่มทำรายการ"
-                color: "#38bdf8"
-                font.bold: true
-                font.pixelSize: 16
-            }
+            implicitHeight: 52
+            font.pixelSize: 16
+            text: "กรุณาระบุตัวตนเพื่อเริ่มทำรายการ"
         }
 
         Button {
@@ -187,6 +180,7 @@ ApplicationWindow {
                 boothWindow.identifiedStudent = null
                 studentIdInput.text = ""
                 bookBarcodeInput.text = ""
+                feedbackBanner.isError = false
                 feedbackBanner.text = "ขอบคุณที่ใช้บริการ"
             }
         }
@@ -196,36 +190,44 @@ ApplicationWindow {
         var res = JSON.parse(boothAdapter.searchStudents(studentIdInput.text))
         if (res.length > 0) {
             boothWindow.identifiedStudent = res[0]
+            feedbackBanner.isError = false
             feedbackBanner.text = "ระบุตัวตนสำเร็จ: " + res[0].full_name
         } else {
+            feedbackBanner.isError = true
             feedbackBanner.text = "ไม่พบรหัสนักเรียนในระบบ"
         }
     }
 
     function doCheckout() {
         if (!boothWindow.identifiedStudent || !bookBarcodeInput.text) {
+            feedbackBanner.isError = true
             feedbackBanner.text = "กรุณากรอกข้อมูลให้ครบถ้วน"
             return
         }
         var res = JSON.parse(boothAdapter.checkout(boothWindow.identifiedStudent.student_id, bookBarcodeInput.text))
         if (res.ok) {
+            feedbackBanner.isError = false
             feedbackBanner.text = "ยืมหนังสือสำเร็จ! กำหนดคืน: " + res.data.due_at.substring(0, 10)
             bookBarcodeInput.text = ""
         } else {
+            feedbackBanner.isError = true
             feedbackBanner.text = "ยืมไม่สำเร็จ: " + res.error
         }
     }
 
     function doReturn() {
         if (!bookBarcodeInput.text) {
+            feedbackBanner.isError = true
             feedbackBanner.text = "กรุณาสแกนบาร์โค้ดหนังสือที่ต้องการคืน"
             return
         }
         var res = JSON.parse(boothAdapter.returnByBarcode(bookBarcodeInput.text))
         if (res.ok) {
+            feedbackBanner.isError = false
             feedbackBanner.text = "คืนหนังสือสำเร็จเรียบร้อยแล้ว ขอบคุณที่ใช้บริการ"
             bookBarcodeInput.text = ""
         } else {
+            feedbackBanner.isError = true
             feedbackBanner.text = "คืนไม่สำเร็จ: " + res.error
         }
     }
