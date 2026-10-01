@@ -150,7 +150,7 @@ Rectangle {
                     width: 320
                     height: 80
                     color: "transparent"
-                    visible: searchResultsModel.count === 0 || (searchResultsModel.count === 1 && searchResultsModel.get(0)._empty)
+                    visible: searchResultsModel.count === 0 || (searchResultsModel.count === 1 && searchResultsModel.get(0)._empty === true)
                     ColumnLayout {
                         anchors.centerIn: parent
                         spacing: 6
