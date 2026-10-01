@@ -62,6 +62,8 @@ def lib_ui(qapp, tmp_path):
     adapter = LibrarianAdminAdapter(conn)
 
     engine = QQmlApplicationEngine()
+    engine.addImportPath(os.path.abspath("apps/common_qml"))
+    engine.addImportPath(os.path.abspath("apps"))
     engine.rootContext().setContextProperty("librarianAdmin", adapter)
 
     qml_path = os.path.abspath("apps/librarian_management_app/qml/Main.qml")
@@ -390,6 +392,8 @@ def test_librarian_first_launch_dialog_opens_on_blank_db(qapp, tmp_path):
 
     adapter = LibrarianAdminAdapter(conn)
     engine = QQmlApplicationEngine()
+    engine.addImportPath(os.path.abspath("apps/common_qml"))
+    engine.addImportPath(os.path.abspath("apps"))
     engine.rootContext().setContextProperty("librarianAdmin", adapter)
 
     qml_path = os.path.abspath("apps/librarian_management_app/qml/Main.qml")
