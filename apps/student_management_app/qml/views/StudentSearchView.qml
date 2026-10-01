@@ -215,7 +215,7 @@ Rectangle {
                         }
 
                         Text {
-                            text: (model.grade_level || "-") + "/" + (model.room || "-")
+                            text: (model.grade_level && model.room) ? (model.grade_level + "/" + model.room) : (model.grade_level || model.room || "-")
                             font.pixelSize: 13
                             color: "#475569"
                             Layout.preferredWidth: 100
@@ -225,11 +225,11 @@ Rectangle {
                             Layout.preferredWidth: 90
                             height: 28
                             radius: 14
-                            color: model.status === "active" ? "#dcfce7" : (model.status === "on_leave" ? "#fef9c3" : "#fee2e2")
+                            color: (!model.status || model.status === "active") ? "#dcfce7" : (model.status === "on_leave" ? "#fef9c3" : (model.status === "transferred_out" ? "#fee2e2" : "#f1f5f9"))
                             Text {
                                 anchors.centerIn: parent
-                                text: model.status === "active" ? "ปกติ" : (model.status === "on_leave" ? "พักการเรียน" : "จำหน่าย")
-                                color: model.status === "active" ? "#166534" : (model.status === "on_leave" ? "#854d0e" : "#991b1b")
+                                text: (!model.status || model.status === "active") ? "ปกติ" : (model.status === "on_leave" ? "พักการเรียน" : (model.status === "transferred_out" ? "จำหน่าย" : model.status))
+                                color: (!model.status || model.status === "active") ? "#166534" : (model.status === "on_leave" ? "#854d0e" : (model.status === "transferred_out" ? "#991b1b" : "#475569"))
                                 font.pixelSize: 11
                                 font.bold: true
                             }

@@ -184,11 +184,11 @@ Rectangle {
                         height: 26
                         radius: 13
                         Layout.preferredWidth: 80
-                        color: root.selectedStudent && root.selectedStudent.status === "active" ? "#dcfce7" : (root.selectedStudent && root.selectedStudent.status === "on_leave" ? "#fef9c3" : "#fee2e2")
+                        color: (root.selectedStudent && (!root.selectedStudent.status || root.selectedStudent.status === "active")) ? "#dcfce7" : (root.selectedStudent && root.selectedStudent.status === "on_leave" ? "#fef9c3" : (root.selectedStudent && root.selectedStudent.status === "transferred_out" ? "#fee2e2" : "#f1f5f9"))
                         Text {
                             anchors.centerIn: parent
-                            text: root.selectedStudent ? (root.selectedStudent.status === "active" ? "ปกติ" : (root.selectedStudent.status === "on_leave" ? "พักการเรียน" : "จำหน่าย")) : ""
-                            color: root.selectedStudent && root.selectedStudent.status === "active" ? "#166534" : (root.selectedStudent && root.selectedStudent.status === "on_leave" ? "#854d0e" : "#991b1b")
+                            text: root.selectedStudent ? ((!root.selectedStudent.status || root.selectedStudent.status === "active") ? "ปกติ" : (root.selectedStudent.status === "on_leave" ? "พักการเรียน" : (root.selectedStudent.status === "transferred_out" ? "จำหน่าย" : root.selectedStudent.status))) : ""
+                            color: (root.selectedStudent && (!root.selectedStudent.status || root.selectedStudent.status === "active")) ? "#166534" : (root.selectedStudent && root.selectedStudent.status === "on_leave" ? "#854d0e" : (root.selectedStudent && root.selectedStudent.status === "transferred_out" ? "#991b1b" : "#475569"))
                             font.pixelSize: Math.max(10, root.baseFontSize)
                             font.bold: true
                         }
@@ -201,8 +201,7 @@ Rectangle {
                         id: detailSub
                         text: root.selectedStudent
                             ? ("รหัสประจำตัว: " + root.selectedStudent.student_id
-                               + "   |   ระดับชั้น: " + (root.selectedStudent.grade_level || "-")
-                               + "/" + (root.selectedStudent.room || "-")
+                               + "   |   ระดับชั้น: " + ((root.selectedStudent.grade_level && root.selectedStudent.room) ? (root.selectedStudent.grade_level + "/" + root.selectedStudent.room) : (root.selectedStudent.grade_level || root.selectedStudent.room || "-"))
                                + "   |   แผนการเรียน: " + (root.selectedStudent.track || "-"))
                             : ""
                         color: "#475569"

@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: root
+    anchors.fill: parent
 
     property var rootWindow: null
 
@@ -87,8 +88,10 @@ Item {
         id: roomDialog
         objectName: "roomDialog"
         title: "เปลี่ยนห้องเรียน"
+        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             spacing: 10
@@ -130,8 +133,10 @@ Item {
         id: statusDialog
         objectName: "statusDialog"
         title: "เปลี่ยนสถานะนักเรียน"
+        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             spacing: 10
@@ -172,8 +177,10 @@ Item {
         id: nameDialog
         objectName: "nameDialog"
         title: "แก้ไขชื่อ-นามสกุล"
+        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             spacing: 10
@@ -231,8 +238,10 @@ Item {
         id: idDialog
         objectName: "idDialog"
         title: "เปลี่ยนรหัสนักเรียน (Renumber ID)"
+        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             spacing: 10
@@ -275,9 +284,11 @@ Item {
         id: confirmImportDialog
         objectName: "confirmImportDialog"
         title: "ตรวจสอบการเปรียบเทียบข้อมูลและการเลื่อนชั้น (Diff Preview)"
+        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
-        width: 500
+        width: Math.min(520, rootWindow ? rootWindow.width - 40 : 500)
         anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             spacing: 12
