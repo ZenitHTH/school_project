@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: root
+    anchors.fill: parent
 
     property var rootWindow: null
 
@@ -134,8 +135,9 @@ Item {
         objectName: "renameCategoryDialog"
         title: "✏️ แก้ไขชื่อหมวดหมู่"
         modal: true
+        closePolicy: Popup.CloseOnEscape
         anchors.centerIn: parent
-        width: 380
+        width: Math.min(400, rootWindow ? rootWindow.width - 40 : 380)
         standardButtons: Dialog.NoButton
         property int targetCatId: 0
 
@@ -191,8 +193,9 @@ Item {
         objectName: "reassignCategoryDialog"
         title: "⚠️ จัดการหนังสือและลบหมวดหมู่"
         modal: true
+        closePolicy: Popup.CloseOnEscape
         anchors.centerIn: parent
-        width: 520
+        width: Math.min(540, rootWindow ? rootWindow.width - 40 : 520)
         standardButtons: Dialog.NoButton
         property int targetCatId: 0
         property string targetCatName: ""
@@ -321,8 +324,9 @@ Item {
         objectName: "simpleDeleteCategoryDialog"
         title: "🗑️ ยืนยันการลบหมวดหมู่"
         modal: true
+        closePolicy: Popup.CloseOnEscape
         anchors.centerIn: parent
-        width: 380
+        width: Math.min(400, rootWindow ? rootWindow.width - 40 : 380)
         standardButtons: Dialog.NoButton
         property int targetCatId: 0
         property string targetCatName: ""

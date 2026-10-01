@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: root
+    anchors.fill: parent
 
     property var rootWindow: null
 
@@ -119,8 +120,11 @@ Item {
         id: addBookDialog
         objectName: "addBookDialog"
         title: "เพิ่มหนังสือใหม่และสร้างบาร์โค้ด"
+        modal: true
+        closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.Ok | Dialog.Cancel
         anchors.centerIn: parent
+        width: Math.min(480, rootWindow ? rootWindow.width - 40 : 450)
 
         ColumnLayout {
             TextField { id: newBookTitle; objectName: "newBookTitle"; placeholderText: "ชื่อหนังสือ" }
@@ -151,8 +155,11 @@ Item {
         id: addCopiesDialog
         objectName: "addCopiesDialog"
         title: "เพิ่มเล่มหนังสือ: " + (rootWindow ? rootWindow.selectedBookTitle : "")
+        modal: true
+        closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.Ok | Dialog.Cancel
         anchors.centerIn: parent
+        width: Math.min(450, rootWindow ? rootWindow.width - 40 : 420)
 
         ColumnLayout {
             spacing: 8
@@ -193,8 +200,10 @@ Item {
         id: barcodeConfirmDialog
         objectName: "barcodeConfirmDialog"
         title: "สร้างบาร์โค้ดประจำเล่มสำเร็จ"
+        modal: true
+        closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.Close
-        width: 460
+        width: Math.min(460, rootWindow ? rootWindow.width - 40 : 440)
         anchors.centerIn: parent
 
         ColumnLayout {
@@ -253,8 +262,9 @@ Item {
         objectName: "editBookDialog"
         title: "✏️ แก้ไขข้อมูลหนังสือ"
         modal: true
+        closePolicy: Popup.CloseOnEscape
         anchors.centerIn: parent
-        width: 440
+        width: Math.min(460, rootWindow ? rootWindow.width - 40 : 440)
         standardButtons: Dialog.NoButton
         property int targetBookId: 0
 
@@ -354,8 +364,9 @@ Item {
         objectName: "deleteBookDialog"
         title: "🗑️ ยืนยันการลบหนังสือ"
         modal: true
+        closePolicy: Popup.CloseOnEscape
         anchors.centerIn: parent
-        width: 400
+        width: Math.min(420, rootWindow ? rootWindow.width - 40 : 400)
         standardButtons: Dialog.NoButton
         property int targetBookId: 0
         property string targetBookTitle: ""
