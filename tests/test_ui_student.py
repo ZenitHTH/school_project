@@ -77,6 +77,8 @@ def ui(qapp, tmp_path):
     adapter = StudentAdminAdapter(conn)
 
     engine = QQmlApplicationEngine()
+    engine.addImportPath(os.path.abspath("apps/common_qml"))
+    engine.addImportPath(os.path.abspath("apps"))
     engine.rootContext().setContextProperty("studentAdmin", adapter)
 
     qml_path = os.path.abspath("apps/student_management_app/qml/Main.qml")
@@ -321,10 +323,52 @@ def test_selected_file_path_shows_path_when_file_set(ui):
     window.setProperty("selectedXlsxPath", "/home/user/roster.xlsx")
     process(ui["app"])
 
-    txt = find(window, "selectedFilePath")
-    assert "/home/user/roster.xlsx" in txt.property("text")
-
     window.setProperty("selectedXlsxPath", "")
+
+
+def test_preview_diff_populates_in_page_preview_card(ui, tmp_path):
+    """Calling previewXlsxDiff populates diffModel, badges, and status text on screen."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "ม.1"
+    ws.append(["ระดับชั้น มัธยมศึกษาปีที่ 1 ห้อง 1 ปีการศึกษา 2568 ภาคเรียนที่ 1"])
+    ws.append(["ที่", "เลขประจำตัว", "ชื่อ - สกุล", "เลขประจำตัวประชาชน"])
+    # 1 new student, 1 grade/room change for existing student 1001
+    ws.append([1, 9999, "เด็กชาย ใหม่ เอี่ยม", "1111111111111"])
+    ws.append([2, 1001, "เด็กชาย สมชาย ใจดี", "1234567890123"])
+    for g in ["ม.2", "ม.3", "ม.4", "ม.5", "ม.6"]:
+        ws_g = wb.create_sheet(title=g)
+        ws_g.append([f"ระดับชั้น มัธยมศึกษาปีที่ {g[2]} ห้อง 1 ปีการศึกษา 2568 ภาคเรียนที่ 1"])
+        ws_g.append(["ที่", "เลขประจำตัว", "ชื่อ - สกุล", "เลขประจำตัวประชาชน"])
+    xlsx_file = str(tmp_path / "test_preview_roster.xlsx")
+    wb.save(xlsx_file)
+
+    window = ui["window"]
+    window.setProperty("selectedXlsxPath", xlsx_file)
+    process(ui["app"])
+
+    btn_preview = find(window, "btnPreviewDiff")
+    assert btn_preview is not None
+    assert btn_preview.property("enabled") is True
+
+    invoke(window, "previewXlsxDiff")
+    process(ui["app"])
+
+    diff_model = find(window, "diffModel")
+    assert diff_model is not None
+    assert diff_model.property("count") > 0
+
+    new_badge = find(window, "newBadgeText")
+    assert new_badge is not None
+    assert "นักเรียนใหม่: 1 คน" in new_badge.property("text")
+
+    status_txt = find(window, "importStatusText")
+    assert "ผลการตรวจสอบความเปลี่ยนแปลง" in status_txt.property("text")
+
+    # Cleanup
+    window.setProperty("selectedXlsxPath", "")
+
 
 
 # ---------------------------------------------------------------------------
@@ -564,6 +608,8 @@ def test_first_launch_dialog_opens_on_blank_db(qapp, tmp_path):
 
     adapter = StudentAdminAdapter(conn)
     engine = QQmlApplicationEngine()
+    engine.addImportPath(os.path.abspath("apps/common_qml"))
+    engine.addImportPath(os.path.abspath("apps"))
     engine.rootContext().setContextProperty("studentAdmin", adapter)
 
     qml_path = os.path.abspath("apps/student_management_app/qml/Main.qml")

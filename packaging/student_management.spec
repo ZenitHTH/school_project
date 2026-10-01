@@ -8,6 +8,8 @@ block_cipher = None
 datas = [
     ('../data/migrations/*.sql', 'data/migrations'),
     ('../apps/student_management_app/qml/*.qml', 'apps/student_management_app/qml'),
+    ('../apps/student_management_app/qml/views/*.qml', 'apps/student_management_app/qml/views'),
+    ('../apps/student_management_app/qml/dialogs/*.qml', 'apps/student_management_app/qml/dialogs'),
     ('../apps/common_qml/*.qml', 'apps/common_qml'),
     ('../apps/common_qml/qmldir', 'apps/common_qml'),
 ]
