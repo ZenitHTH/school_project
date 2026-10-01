@@ -174,7 +174,12 @@ def calculate_xlsx_diff(
         "detected_year": detected_year,
         "detected_semester": detected_semester,
     }
-    return Result.success(diff_data)
+    res = Result.success(diff_data)
+    if identity_conflicts:
+        res.with_warning(f"พบข้อขัดแย้งข้อมูลประจำตัวนักเรียน {len(identity_conflicts)} รายการ")
+    if missing_students:
+        res.with_warning(f"ไม่พบข้อมูลนักเรียนสถานะปกติในไฟล์ {len(missing_students)} รายการ")
+    return res
 
 
 def apply_xlsx_diff(

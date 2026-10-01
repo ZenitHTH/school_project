@@ -167,3 +167,46 @@ def test_student_diff_import_and_promotion_real_file(tmp_path):
     assert s2002["status"] == "active"
     conn.close()
 
+
+def test_xlsx_diff_warnings_on_conflict_and_missing():
+    """Verify Result warnings are populated when conflicts or missing students exist."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    apply_migrations(conn)
+
+    # Student 1: National ID conflict
+    conn.execute(
+        "INSERT INTO students (student_id, national_id, full_name, first_name, last_name, status) "
+        "VALUES (101, '111', 'นายเก่า แท้', 'เก่า', 'แท้', 'active')"
+    )
+    # Student 2: Active in DB but missing from file
+    conn.execute(
+        "INSERT INTO students (student_id, national_id, full_name, first_name, last_name, status) "
+        "VALUES (102, '222', 'นายหาย ไป', 'หาย', 'ไป', 'active')"
+    )
+    conn.commit()
+
+    # Parsed row with student_id 101 but different name 'นายใหม่ แท้'
+    parsed_rows = [
+        {
+            "student_id": 101,
+            "national_id": "111",
+            "prefix": "นาย",
+            "first_name": "ใหม่",
+            "last_name": "แท้",
+            "full_name": "นายใหม่ แท้",
+            "gender": "ชาย",
+            "grade_level": "ม.1",
+            "room": 1,
+            "track": None,
+        }
+    ]
+
+    with patch("core.importers.xlsx_diff_importer.parse_roster_sheets", return_value=parsed_rows):
+        res = calculate_xlsx_diff(conn, "dummy.xlsx")
+        assert res.is_ok()
+        assert res.has_warnings()
+        assert any("ข้อขัดแย้ง" in w for w in res.warnings)
+        assert any("ไม่พบข้อมูลนักเรียน" in w for w in res.warnings)
+
+

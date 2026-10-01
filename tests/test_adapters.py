@@ -422,6 +422,7 @@ def test_student_adapter_diff_slots(tmp_path, student_adapter):
     prev_raw = adapter.previewXlsxDiff(xlsx_file)
     prev = json.loads(prev_raw)
     assert prev["ok"] is True
+    assert "warnings" in prev
     assert len(prev["data"]["new_students"]) == 1
     assert prev["data"]["new_students"][0]["student_id"] == 5555
 
@@ -429,6 +430,7 @@ def test_student_adapter_diff_slots(tmp_path, student_adapter):
     apply_raw = adapter.applyXlsxDiff(xlsx_file, 2568, 1, "Admin")
     applied = json.loads(apply_raw)
     assert applied["ok"] is True
+    assert "warnings" in applied
     assert applied["data"]["new_added"] == 1
 
     # Verify student 5555 exists

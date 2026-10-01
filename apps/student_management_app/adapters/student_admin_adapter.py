@@ -211,7 +211,7 @@ class StudentAdminAdapter(QObject):
 
         from core.importers.xlsx_diff_importer import calculate_xlsx_diff
         res = calculate_xlsx_diff(self.conn, xlsx_path)
-        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data, "warnings": res.warnings})
 
     @Slot(str, int, int, str, result=str)
     def applyXlsxDiff(self, xlsx_path: str, academic_year: int, semester: int, actor: str = "Admin") -> str:
@@ -224,10 +224,10 @@ class StudentAdminAdapter(QObject):
         from core.importers.xlsx_diff_importer import calculate_xlsx_diff, apply_xlsx_diff
         diff_res = calculate_xlsx_diff(self.conn, xlsx_path)
         if not diff_res.ok:
-            return json.dumps({"ok": False, "error": diff_res.error})
+            return json.dumps({"ok": False, "error": diff_res.error, "warnings": diff_res.warnings})
 
         res = apply_xlsx_diff(self.conn, diff_res.data, academic_year, semester, actor=actor)
-        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data, "warnings": res.warnings})
 
     @Slot(result=str)
     def getActivityLogs(self) -> str:
