@@ -1,0 +1,6 @@
+module common_qml
+StyledSearchField 1.0 StyledSearchField.qml
+PaginationBar 1.0 PaginationBar.qml
+ActionFeedbackBanner 1.0 ActionFeedbackBanner.qml
+AuditLogView 1.0 AuditLogView.qml
+FirstLaunchDialog 1.0 FirstLaunchDialog.qml

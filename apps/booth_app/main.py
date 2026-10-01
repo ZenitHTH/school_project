@@ -52,6 +52,11 @@ def main():
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("boothAdapter", adapter)
 
+    common_qml_dir = os.path.join(sys._MEIPASS, "apps", "common_qml") \
+        if getattr(sys, "frozen", False) else os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "common_qml"))
+    engine.addImportPath(common_qml_dir)
+    engine.addImportPath(os.path.dirname(common_qml_dir))
+
     qml_dir = os.path.join(sys._MEIPASS, "apps", "booth_app", "qml") \
         if getattr(sys, "frozen", False) else os.path.join(os.path.dirname(__file__), "qml")
     qml_file = os.path.join(qml_dir, "Main.qml")

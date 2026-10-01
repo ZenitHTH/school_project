@@ -8,6 +8,8 @@ block_cipher = None
 datas = [
     ('../data/migrations/*.sql', 'data/migrations'),
     ('../apps/booth_app/qml/*.qml', 'apps/booth_app/qml'),
+    ('../apps/common_qml/*.qml', 'apps/common_qml'),
+    ('../apps/common_qml/qmldir', 'apps/common_qml'),
 ]
 binaries = []
 hiddenimports = ['sqlcipher3', 'pysqlcipher3', 'sqlite3']
