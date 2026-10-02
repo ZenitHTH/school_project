@@ -8,11 +8,13 @@ def test_setup_linux_runtime_env_frozen(monkeypatch):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
     monkeypatch.delenv("GIO_MODULE_DIR", raising=False)
     monkeypatch.delenv("LIBGL_ALWAYS_SOFTWARE", raising=False)
+    monkeypatch.delenv("QT_QUICK_BACKEND", raising=False)
 
     setup_linux_runtime_env()
 
     assert os.environ.get("GIO_MODULE_DIR") == ""
     assert os.environ.get("LIBGL_ALWAYS_SOFTWARE") == "1"
+    assert os.environ.get("QT_QUICK_BACKEND") == "software"
 
 
 def test_setup_linux_runtime_env_not_frozen(monkeypatch):
@@ -21,31 +23,37 @@ def test_setup_linux_runtime_env_not_frozen(monkeypatch):
         monkeypatch.delattr(sys, "frozen", raising=False)
     monkeypatch.delenv("GIO_MODULE_DIR", raising=False)
     monkeypatch.delenv("LIBGL_ALWAYS_SOFTWARE", raising=False)
+    monkeypatch.delenv("QT_QUICK_BACKEND", raising=False)
 
     setup_linux_runtime_env()
 
     assert "GIO_MODULE_DIR" not in os.environ
     assert os.environ.get("LIBGL_ALWAYS_SOFTWARE") == "1"
+    assert os.environ.get("QT_QUICK_BACKEND") == "software"
 
 
 def test_setup_linux_runtime_env_preserves_custom_software_flag(monkeypatch):
     monkeypatch.setattr(sys, "platform", "linux")
     monkeypatch.setenv("LIBGL_ALWAYS_SOFTWARE", "0")
+    monkeypatch.setenv("QT_QUICK_BACKEND", "rhi")
 
     setup_linux_runtime_env()
 
     assert os.environ.get("LIBGL_ALWAYS_SOFTWARE") == "0"
+    assert os.environ.get("QT_QUICK_BACKEND") == "rhi"
 
 
 def test_setup_linux_runtime_env_non_linux(monkeypatch):
     monkeypatch.setattr(sys, "platform", "darwin")
     monkeypatch.delenv("GIO_MODULE_DIR", raising=False)
     monkeypatch.delenv("LIBGL_ALWAYS_SOFTWARE", raising=False)
+    monkeypatch.delenv("QT_QUICK_BACKEND", raising=False)
 
     setup_linux_runtime_env()
 
     assert "GIO_MODULE_DIR" not in os.environ
     assert "LIBGL_ALWAYS_SOFTWARE" not in os.environ
+    assert "QT_QUICK_BACKEND" not in os.environ
 
 
 def test_entrypoints_import_and_invoke_sanitizer():

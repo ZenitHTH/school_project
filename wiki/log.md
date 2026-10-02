@@ -29,3 +29,7 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
   - `wiki/services/library-services.md`: CatalogService, LoanService, FineService, ReservationService, LibraryPolicy rules, and ReportLab A4 barcode generator.
 - 100% of wiki index link targets are now valid and reachable.
 
+## [2026-10-02] fix | Linux Software Rendering Fallback for Legacy Intel iGPUs
+- Updated `apps/common_linux_env.py` to auto-configure `LIBGL_ALWAYS_SOFTWARE="1"`, `QT_QUICK_BACKEND="software"`, and `QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)`.
+- Guarantees immediate launch on Linux machines with legacy Intel iGPUs lacking modern OpenGL/GLX drivers without manual terminal exports.
+- Verified test suite passes 185/185 tests in `tests/test_linux_env.py`.

@@ -39,6 +39,7 @@ Each app has dedicated spec files:
 ---
 
 ## 4. Runtime Environment Fixes (`apps/common_linux_env.py`)
-To prevent Qt QML font crashes or missing Wayland/X11 platform plugins on Linux Mint and Ubuntu:
-- Automatically sets `QT_QPA_PLATFORM="xcb;wayland"` with fallback.
-- Overrides `QML_IMPORT_PATH` and ensures `Fusion` style is applied for consistent cross-platform controls.
+To prevent Qt QML font crashes, missing Wayland/X11 platform plugins, or GLX/OpenGL failures on older Intel iGPUs:
+- Automatically sets `LIBGL_ALWAYS_SOFTWARE="1"` and `QT_QUICK_BACKEND="software"` on Linux when not overridden.
+- Configures `QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)` to ensure immediate software rasterization fallback.
+- Clears `GIO_MODULE_DIR` in frozen bundles to avoid GLib/GIO symbol collisions with host libraries.
