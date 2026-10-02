@@ -1,11 +1,11 @@
 # Cross-Platform Desktop Packaging (`packaging/` & `.github/workflows/`)
 
 ## 1. Overview
-The project distributes standalone desktop executables across four platforms:
-1. **Windows**: `.exe` built on `windows-latest`.
-2. **macOS**: `.app` bundle built on `macos-latest`.
-3. **Ubuntu Linux**: Executable built with PySide6 bundled plugins on `ubuntu-24.04`.
-4. **Fedora Linux**: Containerized build for RPM-based distributions.
+The project distributes standalone desktop executables and native OS installers across four platforms:
+1. **Windows**: Portable `.exe` and Inno Setup `Setup.exe` built on `windows-latest`.
+2. **macOS**: Portable `.app` bundle, `.zip`, and Apple `.dmg` disk image built via native `hdiutil` on `macos-latest`.
+3. **Ubuntu / Debian Linux**: Portable `.tar.gz` and `.deb` package built via `dpkg-deb` on `ubuntu-24.04`.
+4. **Fedora / RHEL Linux**: Portable `.tar.gz` and `.rpm` package built via containerized `rpmbuild` on `fedora:latest`.
 
 ---
 
@@ -22,7 +22,23 @@ Each app has dedicated spec files:
 
 ---
 
-## 3. Runtime Environment Fixes (`apps/common_linux_env.py`)
+## 3. Native Setup Installers (`packaging/installers/`)
+- **Debian / Ubuntu (`.deb`)**:
+  - Script: `packaging/installers/deb/build_deb.sh`
+  - Installs to `/usr/lib/<app>`, creates symlink in `/usr/bin/<app>`, and installs desktop launcher in `/usr/share/applications/<app>.desktop`.
+- **Fedora / RHEL (`.rpm`)**:
+  - Script: `packaging/installers/rpm/build_rpm.sh`
+  - Generates RPM spec and runs `rpmbuild` inside Fedora container. Installs to `/usr/lib/<app>`, symlinks to `/usr/bin/<app>`, and sets up `.desktop`.
+- **Windows (`setup.exe`)**:
+  - Script: `packaging/installers/windows/installer.iss`
+  - Built with Inno Setup CLI (`iscc`). Provides Start Menu shortcut, Desktop icon toggle, and clean Windows uninstaller.
+- **macOS (`.dmg`)**:
+  - Script: `packaging/installers/macos/create_dmg.sh`
+  - Built with native Apple `hdiutil` (UDZO compressed format) with drag-to-Applications folder symlink.
+
+---
+
+## 4. Runtime Environment Fixes (`apps/common_linux_env.py`)
 To prevent Qt QML font crashes or missing Wayland/X11 platform plugins on Linux Mint and Ubuntu:
 - Automatically sets `QT_QPA_PLATFORM="xcb;wayland"` with fallback.
 - Overrides `QML_IMPORT_PATH` and ensures `Fusion` style is applied for consistent cross-platform controls.

@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-windows:
-    name: Build Windows (.exe)
+    name: Build Windows (.exe & Setup.exe)
     runs-on: windows-latest
 
     steps:
@@ -35,12 +35,20 @@ jobs:
           pyinstaller packaging/booth_app.spec
         working-directory: ${{ github.workspace }}
 
+      - name: Build Windows Installers (Inno Setup)
+        run: |
+          mkdir dist\installers
+          iscc /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="1.0.0" /DSourceExe="dist\LibrarianManagement.exe" /DOutputDir="dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="1.0.0" /DSourceExe="dist\StudentManagement.exe" /DOutputDir="dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="1.0.0" /DSourceExe="dist\BoothApp.exe" /DOutputDir="dist\installers" packaging\installers\windows\installer.iss
+
       - name: Prepare Windows artifacts
         run: |
           mkdir windows-artifacts
           copy dist\LibrarianManagement.exe windows-artifacts\LibrarianManagement-Windows.exe
           copy dist\StudentManagement.exe windows-artifacts\StudentManagement-Windows.exe
           copy dist\BoothApp.exe windows-artifacts\BoothApp-Windows.exe
+          copy dist\installers\*.exe windows-artifacts\
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -50,7 +58,7 @@ jobs:
           retention-days: 30
 
   build-macos:
-    name: Build macOS (.app & binary)
+    name: Build macOS (.app, .zip & .dmg)
     runs-on: macos-latest
 
     steps:
@@ -74,7 +82,13 @@ jobs:
           pyinstaller packaging/booth_app.spec
         working-directory: ${{ github.workspace }}
 
-      - name: Package macOS zips
+      - name: Build macOS DMGs
+        run: |
+          ./packaging/installers/macos/create_dmg.sh LibrarianManagement dist/LibrarianManagement.app 1.0.0 dist/installers
+          ./packaging/installers/macos/create_dmg.sh StudentManagement dist/StudentManagement.app 1.0.0 dist/installers
+          ./packaging/installers/macos/create_dmg.sh BoothApp dist/BoothApp.app 1.0.0 dist/installers
+
+      - name: Package macOS artifacts
         run: |
           mkdir macos-artifacts
           cd dist
@@ -82,6 +96,7 @@ jobs:
           zip -r ../macos-artifacts/StudentManagement-macOS.zip StudentManagement.app StudentManagement
           zip -r ../macos-artifacts/BoothApp-macOS.zip BoothApp.app BoothApp
           cd ..
+          cp dist/installers/*.dmg macos-artifacts/
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
@@ -91,8 +106,8 @@ jobs:
           retention-days: 30
 
   build-ubuntu:
-    name: Build Linux (Ubuntu)
-    runs-on: ubuntu-22.04
+    name: Build Linux Ubuntu (.tar.gz & .deb)
+    runs-on: ubuntu-24.04
 
     steps:
       - uses: actions/checkout@v4
@@ -109,7 +124,7 @@ jobs:
             libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 \
             libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
             libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \
-            libxcb-xfixes0 libxcb-xinerama0
+            libxcb-xfixes0 libxcb-xinerama0 binutils dpkg
 
       - name: Install Python dependencies
         run: |
@@ -124,13 +139,20 @@ jobs:
           pyinstaller packaging/booth_app.spec
         working-directory: ${{ github.workspace }}
 
-      - name: Package Ubuntu tar.gz
+      - name: Build Debian packages (.deb)
+        run: |
+          ./packaging/installers/deb/build_deb.sh LibrarianManagement LibrarianManagement 1.0.0 dist/LibrarianManagement dist/installers
+          ./packaging/installers/deb/build_deb.sh StudentManagement StudentManagement 1.0.0 dist/StudentManagement dist/installers
+          ./packaging/installers/deb/build_deb.sh BoothApp BoothApp 1.0.0 dist/BoothApp dist/installers
+
+      - name: Package Ubuntu artifacts
         run: |
           mkdir ubuntu-artifacts
           chmod +x dist/LibrarianManagement dist/StudentManagement dist/BoothApp
           tar -czvf ubuntu-artifacts/LibrarianManagement-Linux-Ubuntu.tar.gz -C dist LibrarianManagement
           tar -czvf ubuntu-artifacts/StudentManagement-Linux-Ubuntu.tar.gz -C dist StudentManagement
           tar -czvf ubuntu-artifacts/BoothApp-Linux-Ubuntu.tar.gz -C dist BoothApp
+          cp dist/installers/*.deb ubuntu-artifacts/
 
       - name: Upload Ubuntu artifacts
         uses: actions/upload-artifact@v4
@@ -140,17 +162,17 @@ jobs:
           retention-days: 30
 
   build-fedora:
-    name: Build Linux (Fedora)
+    name: Build Linux Fedora (.tar.gz & .rpm)
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build in Fedora Container
+      - name: Build and Package in Fedora Container
         run: |
           docker run --rm -v "${{ github.workspace }}:/workspace" -w /workspace fedora:latest bash -c "
             set -e
-            dnf install -y python3 python3-pip gcc mesa-libEGL libxkbcommon-x11 tar
+            dnf install -y python3 python3-pip gcc mesa-libEGL libxkbcommon-x11 tar rpm-build
             python3 -m pip install --upgrade pip
             pip install pyinstaller
             pip install -r requirements.txt
@@ -162,6 +184,11 @@ jobs:
             tar -czvf fedora-artifacts/LibrarianManagement-Linux-Fedora.tar.gz -C dist LibrarianManagement
             tar -czvf fedora-artifacts/StudentManagement-Linux-Fedora.tar.gz -C dist StudentManagement
             tar -czvf fedora-artifacts/BoothApp-Linux-Fedora.tar.gz -C dist BoothApp
+            
+            ./packaging/installers/rpm/build_rpm.sh LibrarianManagement LibrarianManagement 1.0.0 dist/LibrarianManagement dist/installers
+            ./packaging/installers/rpm/build_rpm.sh StudentManagement StudentManagement 1.0.0 dist/StudentManagement dist/installers
+            ./packaging/installers/rpm/build_rpm.sh BoothApp BoothApp 1.0.0 dist/BoothApp dist/installers
+            cp dist/installers/*.rpm fedora-artifacts/
           "
 
       - name: Upload Fedora artifacts
@@ -188,27 +215,30 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
-          name: ${{ github.event_name == 'release' && github.event.release.name || 'Latest Multi-Platform Build' }}
+          name: ${{ github.event_name == 'release' && github.event.release.name || 'Latest Multi-Platform Build & Installers' }}
           prerelease: ${{ github.event_name != 'release' }}
           body: |
-            Automated multi-platform standalone builds for School Library & Student Management System.
+            Automated multi-platform standalone builds and native system installers for School Library & Student Management System.
 
             ### 📚 Librarian Management App (ระบบจัดการห้องสมุด)
-            - **Windows**: `LibrarianManagement-Windows.exe`
-            - **macOS**: `LibrarianManagement-macOS.zip`
-            - **Linux (Ubuntu)**: `LibrarianManagement-Linux-Ubuntu.tar.gz`
-            - **Linux (Fedora)**: `LibrarianManagement-Linux-Fedora.tar.gz`
+            - **Windows**: `LibrarianManagement-Setup-1.0.0.exe` (Installer), `LibrarianManagement-Windows.exe` (Portable)
+            - **macOS**: `LibrarianManagement-1.0.0.dmg` (Installer), `LibrarianManagement-macOS.zip` (Portable)
+            - **Linux (Debian/Ubuntu)**: `librarianmanagement_1.0.0_amd64.deb`
+            - **Linux (Fedora/RHEL)**: `librarianmanagement-1.0.0-1.*.rpm`
+            - **Linux (Portable)**: `LibrarianManagement-Linux-Ubuntu.tar.gz`, `LibrarianManagement-Linux-Fedora.tar.gz`
 
             ### 🎓 Student Management App (ระบบงานทะเบียนนักเรียน)
-            - **Windows**: `StudentManagement-Windows.exe`
-            - **macOS**: `StudentManagement-macOS.zip`
-            - **Linux (Ubuntu)**: `StudentManagement-Linux-Ubuntu.tar.gz`
-            - **Linux (Fedora)**: `StudentManagement-Linux-Fedora.tar.gz`
+            - **Windows**: `StudentManagement-Setup-1.0.0.exe` (Installer), `StudentManagement-Windows.exe` (Portable)
+            - **macOS**: `StudentManagement-1.0.0.dmg` (Installer), `StudentManagement-macOS.zip` (Portable)
+            - **Linux (Debian/Ubuntu)**: `studentmanagement_1.0.0_amd64.deb`
+            - **Linux (Fedora/RHEL)**: `studentmanagement-1.0.0-1.*.rpm`
+            - **Linux (Portable)**: `StudentManagement-Linux-Ubuntu.tar.gz`, `StudentManagement-Linux-Fedora.tar.gz`
 
             ### 🤖 Self-Service Booth App (ตู้ยืม-คืนอัตโนมัติ)
-            - **Windows**: `BoothApp-Windows.exe`
-            - **macOS**: `BoothApp-macOS.zip`
-            - **Linux (Ubuntu)**: `BoothApp-Linux-Ubuntu.tar.gz`
-            - **Linux (Fedora)**: `BoothApp-Linux-Fedora.tar.gz`
+            - **Windows**: `BoothApp-Setup-1.0.0.exe` (Installer), `BoothApp-Windows.exe` (Portable)
+            - **macOS**: `BoothApp-1.0.0.dmg` (Installer), `BoothApp-macOS.zip` (Portable)
+            - **Linux (Debian/Ubuntu)**: `boothapp_1.0.0_amd64.deb`
+            - **Linux (Fedora/RHEL)**: `boothapp-1.0.0-1.*.rpm`
+            - **Linux (Portable)**: `BoothApp-Linux-Ubuntu.tar.gz`, `BoothApp-Linux-Fedora.tar.gz`
           files: |
             all-artifacts/**/*.*
