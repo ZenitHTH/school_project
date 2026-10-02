@@ -33,3 +33,9 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Updated `apps/common_linux_env.py` to auto-configure `LIBGL_ALWAYS_SOFTWARE="1"`, `QT_QUICK_BACKEND="software"`, and `QQuickWindow.setGraphicsApi(QSGRendererInterface.GraphicsApi.Software)`.
 - Guarantees immediate launch on Linux machines with legacy Intel iGPUs lacking modern OpenGL/GLX drivers without manual terminal exports.
 - Verified test suite passes 185/185 tests in `tests/test_linux_env.py`.
+
+## [2026-10-02] fix | RPM Packaging Script Path Resolution
+- Resolved `rpmbuild` failure in Fedora container where `%install` could not resolve relative `dist/LibrarianManagement`.
+- Updated `packaging/installers/rpm/build_rpm.sh` to resolve and inject absolute binary path (`ABS_DIST_BIN_PATH`).
+- Added unit test in `tests/test_spec_exclusions.py`.
+

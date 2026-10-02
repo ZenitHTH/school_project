@@ -28,3 +28,12 @@ def test_filter_linux_binaries():
     assert "libgio-2.0.so.0" not in names
     assert "libgobject-2.0.so.0" not in names
     assert "libgmodule-2.0.so.0" not in names
+
+
+def test_build_rpm_script_uses_absolute_path():
+    script_path = os.path.join(os.path.dirname(__file__), "..", "packaging", "installers", "rpm", "build_rpm.sh")
+    with open(script_path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    assert "ABS_DIST_BIN_PATH=" in content
+    assert 'cp "$ABS_DIST_BIN_PATH"' in content

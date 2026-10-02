@@ -12,6 +12,7 @@ if [ ! -f "$DIST_BIN_PATH" ]; then
     echo "Error: Binary not found at $DIST_BIN_PATH"
     exit 1
 fi
+ABS_DIST_BIN_PATH="$(cd "$(dirname "$DIST_BIN_PATH")" && pwd)/$(basename "$DIST_BIN_PATH")"
 
 ARCH="${6:-$(uname -m)}"
 case "$ARCH" in
@@ -45,7 +46,7 @@ mkdir -p %{buildroot}/usr/lib/$PKG_NAME
 mkdir -p %{buildroot}/usr/bin
 mkdir -p %{buildroot}/usr/share/applications
 
-cp "$DIST_BIN_PATH" %{buildroot}/usr/lib/$PKG_NAME/$APP_BIN_NAME
+cp "$ABS_DIST_BIN_PATH" %{buildroot}/usr/lib/$PKG_NAME/$APP_BIN_NAME
 chmod 755 %{buildroot}/usr/lib/$PKG_NAME/$APP_BIN_NAME
 ln -sf /usr/lib/$PKG_NAME/$APP_BIN_NAME %{buildroot}/usr/bin/$PKG_NAME
 
