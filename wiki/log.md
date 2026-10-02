@@ -39,3 +39,10 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Updated `packaging/installers/rpm/build_rpm.sh` to resolve and inject absolute binary path (`ABS_DIST_BIN_PATH`).
 - Added unit test in `tests/test_spec_exclusions.py`.
 
+## [2026-10-02] fix | Windows Inno Setup Installer Path Resolution
+- Fixed Inno Setup build failure in `.github/workflows/build.yml` where relative `dist/StudentManagement.exe` was evaluated relative to `packaging/installers/windows/`.
+- Injected absolute `${{ github.workspace }}` path for `/DSourceExe` and `/DOutputDir`.
+- Updated default relative fallbacks in `packaging/installers/windows/installer.iss` to point to `..\..\..\dist\`.
+
+
+

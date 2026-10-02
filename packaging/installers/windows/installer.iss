@@ -19,11 +19,11 @@
 #endif
 
 #ifndef SourceExe
-  #define SourceExe "dist\" + AppExe
+  #define SourceExe "..\..\..\dist\" + AppExe
 #endif
 
 #ifndef OutputDir
-  #define OutputDir "dist\installers"
+  #define OutputDir "..\..\..\dist\installers"
 #endif
 
 [Setup]

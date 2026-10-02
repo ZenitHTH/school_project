@@ -37,10 +37,11 @@ jobs:
 
       - name: Build Windows Installers (Inno Setup)
         run: |
-          mkdir dist\installers
-          iscc /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="1.0.0" /DSourceExe="dist\LibrarianManagement.exe" /DOutputDir="dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="1.0.0" /DSourceExe="dist\StudentManagement.exe" /DOutputDir="dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="1.0.0" /DSourceExe="dist\BoothApp.exe" /DOutputDir="dist\installers" packaging\installers\windows\installer.iss
+          mkdir -Force dist\installers
+          iscc /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="1.0.0" /DSourceExe="${{ github.workspace }}\dist\LibrarianManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="1.0.0" /DSourceExe="${{ github.workspace }}\dist\StudentManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="1.0.0" /DSourceExe="${{ github.workspace }}\dist\BoothApp.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+        working-directory: ${{ github.workspace }}
 
       - name: Prepare Windows artifacts
         run: |
