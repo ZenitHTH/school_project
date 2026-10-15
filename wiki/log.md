@@ -48,5 +48,12 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Implemented case/dash-insensitive barcode lookup and ISBN fallback in `book_repo.get_copy_by_barcode`.
 - Fixed argument binding order in `BarcodeGeneratorView.qml`.
 
+## [2026-10-15] chore | Repo Cleanup: Removed Dead Files, Duplicate Docs & Unused Specs
+- Removed 4 duplicate root docs (`application_layer_design.md`, `database_layer_design.md`, `design_doc.md`, `ui_layer_design.md`).
+- Removed 2 unused root scripts (`query_lm_studio.py`, `seed_sample_students.py`).
+- Removed 3 unused `packaging/*_windows.spec` files superseded by unified cross-platform specs.
+- Removed zero-import dead modules `core/library/models.py` and `core/shared/errors.py`.
+- Added exclusion regression test in `tests/test_spec_exclusions.py`.
+
 
 

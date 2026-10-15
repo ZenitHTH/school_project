@@ -37,3 +37,35 @@ def test_build_rpm_script_uses_absolute_path():
 
     assert "ABS_DIST_BIN_PATH=" in content
     assert 'cp "$ABS_DIST_BIN_PATH"' in content
+
+
+def test_dead_files_and_duplicate_docs_removed():
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    removed_paths = [
+        "application_layer_design.md",
+        "database_layer_design.md",
+        "design_doc.md",
+        "ui_layer_design.md",
+        "query_lm_studio.py",
+        "seed_sample_students.py",
+        "packaging/booth_app_windows.spec",
+        "packaging/librarian_management_windows.spec",
+        "packaging/student_management_windows.spec",
+        "core/library/models.py",
+        "core/shared/errors.py",
+    ]
+    for rel in removed_paths:
+        assert not os.path.exists(os.path.join(repo_root, rel)), f"Dead file still exists: {rel}"
+
+    # Canonical files must remain
+    for kept in [
+        "doc/design_doc.md",
+        "wiki/index.md",
+        "packaging/librarian_management.spec",
+        "packaging/student_management.spec",
+        "packaging/booth_app.spec",
+        "core/student/models.py",
+        "core/shared/result.py",
+    ]:
+        assert os.path.exists(os.path.join(repo_root, kept)), f"Required file missing: {kept}"
+
