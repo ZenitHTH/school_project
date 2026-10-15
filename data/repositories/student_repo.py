@@ -14,50 +14,57 @@ def search_students(
     offset: int = 0,
 ) -> List[sqlite3.Row]:
     """Search students using FTS5 trigram on full_name, suffix ID, excluding national_id."""
-    conditions = []
-    params: List[Any] = []
-
     clean_query = query.strip()
+    join_clauses = [
+        """
+        LEFT JOIN (
+            SELECT student_id, MAX(id) AS max_id
+            FROM enrollments
+            GROUP BY student_id
+        ) latest_e ON latest_e.student_id = s.student_id
+        LEFT JOIN enrollments e ON e.id = latest_e.max_id
+        """
+    ]
+    join_params: List[Any] = []
+    where_conditions: List[str] = []
+    where_params: List[Any] = []
     order_clause = "ORDER BY s.student_id ASC"
 
     if clean_query:
         if clean_query.isdigit():
             # ID suffix matching, national_id strictly excluded
-            conditions.append("CAST(s.student_id AS TEXT) LIKE ?")
-            params.append(f"%{clean_query}")
+            where_conditions.append("CAST(s.student_id AS TEXT) LIKE ?")
+            where_params.append(f"%{clean_query}")
         elif len(clean_query) < 3:
             # Short query fallback: LIKE on full_name
-            conditions.append("s.full_name LIKE ?")
-            params.append(f"%{clean_query}%")
+            where_conditions.append("s.full_name LIKE ?")
+            where_params.append(f"%{clean_query}%")
         else:
             # FTS5 trigram query on full_name
             clean_fts = clean_query.replace('"', '""')
             fts_query = f'"{clean_fts}"'
-            conditions.append(
-                "(s.student_id IN (SELECT rowid FROM students_fts WHERE students_fts MATCH ?) "
-                "OR s.full_name LIKE ?)"
+            join_clauses.append(
+                "LEFT JOIN (SELECT rowid, rank FROM students_fts WHERE students_fts MATCH ?) fts ON fts.rowid = s.student_id"
             )
-            params.extend([fts_query, f"%{clean_query}%"])
-            order_clause = (
-                "ORDER BY CASE WHEN s.student_id IN (SELECT rowid FROM students_fts WHERE students_fts MATCH ?) "
-                "THEN (SELECT rank FROM students_fts WHERE students_fts MATCH ? AND rowid = s.student_id) "
-                "ELSE 999 END ASC, s.student_id ASC"
-            )
-            params.extend([fts_query, fts_query])
+            join_params.append(fts_query)
+            where_conditions.append("(fts.rowid IS NOT NULL OR s.full_name LIKE ?)")
+            where_params.append(f"%{clean_query}%")
+            order_clause = "ORDER BY COALESCE(fts.rank, 999.0) ASC, s.student_id ASC"
 
     if grade_level is not None:
-        conditions.append("e.grade_level = ?")
-        params.append(grade_level)
+        where_conditions.append("e.grade_level = ?")
+        where_params.append(grade_level)
 
     if room is not None:
-        conditions.append("e.room = ?")
-        params.append(room)
+        where_conditions.append("e.room = ?")
+        where_params.append(room)
 
     if status is not None:
-        conditions.append("s.status = ?")
-        params.append(status)
+        where_conditions.append("s.status = ?")
+        where_params.append(status)
 
-    where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+    where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+    joins = "\n".join(join_clauses)
 
     sql = f"""
         SELECT
@@ -75,15 +82,12 @@ def search_students(
             e.academic_year,
             e.semester
         FROM students s
-        LEFT JOIN enrollments e ON e.student_id = s.student_id
-            AND e.id = (
-                SELECT max(e2.id) FROM enrollments e2 WHERE e2.student_id = s.student_id
-            )
+        {joins}
         {where_clause}
         {order_clause}
         LIMIT ? OFFSET ?
     """
-    params.extend([limit, offset])
+    params = join_params + where_params + [limit, offset]
     return conn.execute(sql, params).fetchall()
 
 
@@ -95,49 +99,60 @@ def count_students(
     status: Optional[str] = None,
 ) -> int:
     """Count total students matching search query and filters."""
-    conditions = []
-    params: List[Any] = []
-
     clean_query = query.strip()
+    join_clauses = [
+        """
+        LEFT JOIN (
+            SELECT student_id, MAX(id) AS max_id
+            FROM enrollments
+            GROUP BY student_id
+        ) latest_e ON latest_e.student_id = s.student_id
+        LEFT JOIN enrollments e ON e.id = latest_e.max_id
+        """
+    ]
+    join_params: List[Any] = []
+    where_conditions: List[str] = []
+    where_params: List[Any] = []
+
     if clean_query:
         if clean_query.isdigit():
-            conditions.append("CAST(s.student_id AS TEXT) LIKE ?")
-            params.append(f"%{clean_query}")
+            where_conditions.append("CAST(s.student_id AS TEXT) LIKE ?")
+            where_params.append(f"%{clean_query}")
         elif len(clean_query) < 3:
-            conditions.append("s.full_name LIKE ?")
-            params.append(f"%{clean_query}%")
+            where_conditions.append("s.full_name LIKE ?")
+            where_params.append(f"%{clean_query}%")
         else:
             clean_fts = clean_query.replace('"', '""')
             fts_query = f'"{clean_fts}"'
-            conditions.append(
-                "(s.student_id IN (SELECT rowid FROM students_fts WHERE students_fts MATCH ?) "
-                "OR s.full_name LIKE ?)"
+            join_clauses.append(
+                "LEFT JOIN (SELECT rowid, rank FROM students_fts WHERE students_fts MATCH ?) fts ON fts.rowid = s.student_id"
             )
-            params.extend([fts_query, f"%{clean_query}%"])
+            join_params.append(fts_query)
+            where_conditions.append("(fts.rowid IS NOT NULL OR s.full_name LIKE ?)")
+            where_params.append(f"%{clean_query}%")
 
     if grade_level is not None:
-        conditions.append("e.grade_level = ?")
-        params.append(grade_level)
+        where_conditions.append("e.grade_level = ?")
+        where_params.append(grade_level)
 
     if room is not None:
-        conditions.append("e.room = ?")
-        params.append(room)
+        where_conditions.append("e.room = ?")
+        where_params.append(room)
 
     if status is not None:
-        conditions.append("s.status = ?")
-        params.append(status)
+        where_conditions.append("s.status = ?")
+        where_params.append(status)
 
-    where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+    where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+    joins = "\n".join(join_clauses)
 
     sql = f"""
         SELECT COUNT(DISTINCT s.student_id)
         FROM students s
-        LEFT JOIN enrollments e ON e.student_id = s.student_id
-            AND e.id = (
-                SELECT max(e2.id) FROM enrollments e2 WHERE e2.student_id = s.student_id
-            )
+        {joins}
         {where_clause}
     """
+    params = join_params + where_params
     row = conn.execute(sql, params).fetchone()
     return int(row[0]) if row else 0
 
@@ -160,13 +175,16 @@ def get_student(conn: sqlite3.Connection, student_id: int) -> Optional[sqlite3.R
             e.academic_year,
             e.semester
         FROM students s
-        LEFT JOIN enrollments e ON e.student_id = s.student_id
-            AND e.id = (
-                SELECT max(e2.id) FROM enrollments e2 WHERE e2.student_id = s.student_id
-            )
+        LEFT JOIN (
+            SELECT student_id, MAX(id) AS max_id
+            FROM enrollments
+            WHERE student_id = ?
+            GROUP BY student_id
+        ) latest_e ON latest_e.student_id = s.student_id
+        LEFT JOIN enrollments e ON e.id = latest_e.max_id
         WHERE s.student_id = ?
     """
-    return conn.execute(sql, (student_id,)).fetchone()
+    return conn.execute(sql, (student_id, student_id)).fetchone()
 
 
 def update_status(

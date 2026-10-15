@@ -66,3 +66,27 @@ def test_short_query_fallback(conn):
     res = svc.search("สม")
     assert res.ok
     assert len(res.data) == 2
+
+
+def test_search_students_ignores_past_enrollment_and_escapes_quotes(conn):
+    from data.repositories import student_repo
+
+    conn.execute(
+        "INSERT INTO students (student_id, full_name, status) VALUES (4001, 'เด็กชายสม\"ชาย ใจดี', 'active')"
+    )
+    conn.execute(
+        "INSERT INTO enrollments (student_id, academic_year, semester, grade_level, room) "
+        "VALUES (4001, 2566, 1, 'ม.1', 1), (4001, 2567, 1, 'ม.2', 2)"
+    )
+    conn.commit()
+
+    # Old grade/room must not match
+    assert len(student_repo.search_students(conn, query="", grade_level="ม.1", room=1)) == 0
+    assert student_repo.count_students(conn, query="", grade_level="ม.1", room=1) == 0
+
+    # Latest grade/room and embedded quote FTS5 query must match without syntax error
+    rows = student_repo.search_students(conn, query='สม"ชาย', grade_level="ม.2", room=2)
+    assert len(rows) == 1
+    assert rows[0]["student_id"] == 4001
+    assert rows[0]["grade_level"] == "ม.2"
+

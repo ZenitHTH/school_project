@@ -61,5 +61,11 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Supported percent-encoded Thai `file://` URLs in `normalize_file_path`.
 - Cleaned up duplicate implementations across `StudentAdminAdapter`, `LibrarianAdminAdapter`, and `BoothAdapter`.
 
+## [2026-10-15] perf | Single-Pass Student Search Join & FTS5 Query Optimization
+- Replaced correlated per-row `max(e2.id)` enrollment subqueries in `student_repo.py` with single-pass `latest_e` join.
+- Replaced triple FTS5 `MATCH` queries per student row with single `LEFT JOIN` on `students_fts`.
+- Fixed parameter alignment when combining search query with `grade_level` and `room` filters.
+- Guaranteed only latest semester enrollment is matched during student search.
+
 
 
