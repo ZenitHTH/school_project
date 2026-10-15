@@ -72,5 +72,12 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Batched student and enrollment upserts in `apply_sync` using `local_cur.executemany` instead of row-by-row loops.
 - Sorted `student_id_changes` by `id ASC` to preserve chronological renumbering order during snapshot synchronization with active loans.
 
+## [2026-10-15] fix | Post-Review Path Normalization, QML Slots & Search DRY
+- Fixed DB path resolution in `booth_app/main.py` to target canonical `SMTE-LibrarianManagement` without creating misspelled ghost directories.
+- Normalized `file://` URLs in `LibrarianAdminAdapter.exportLabelsPdf` and added fallback to system temp dir when `/tmp` is missing.
+- Aligned `BookActionDialogs.qml` slot calls and explicit `@Slot(int, str)` / `@Slot(int, int)` overloads in `LibrarianAdminAdapter.addCopies`.
+- Deduplicated student search and count SQL query construction into shared `_build_student_search_clauses` in `data/repositories/student_repo.py`.
+
+
 
 

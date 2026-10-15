@@ -196,7 +196,7 @@ class LibrarianAdminAdapter(QObject):
             from core.library.services.label_service import export_label_sheet_pdf
             items = json.loads(barcodes_json)
             output_path = normalize_file_path(output_path)
-            if output_path.startswith("/tmp/") and not os.path.exists("/tmp"):
+            if output_path.replace("\\", "/").startswith("/tmp/") and not os.path.exists("/tmp"):
                 import tempfile
                 output_path = os.path.join(tempfile.gettempdir(), os.path.basename(output_path))
             export_label_sheet_pdf(items, output_path)
