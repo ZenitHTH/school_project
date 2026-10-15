@@ -24,16 +24,24 @@ except ImportError:
 
 from data.paths import get_default_db_path
 
+
+def resolve_booth_db_path() -> str:
+    if os.environ.get("BOOTH_DB_PATH"):
+        return os.environ["BOOTH_DB_PATH"]
+    lib_path = str(get_default_db_path("SMTE-LibrarianManagement", "library.sqlite"))
+    booth_path = str(get_default_db_path("SMTE-Booth", "library.sqlite"))
+    if os.path.exists(lib_path) and not os.path.exists(booth_path):
+        return lib_path
+    return booth_path
+
+
 def main():
-    default_path = str(get_default_db_path("SMTE-Booth", "library.sqlite"))
-    lib_path = str(get_default_db_path("SMTE-LibraryManagement", "library.sqlite"))
-    if not os.path.exists(default_path) and os.path.exists(lib_path):
-        default_path = lib_path
-    db_path = os.environ.get("BOOTH_DB_PATH", default_path)
+    db_path = resolve_booth_db_path()
     pin = os.environ.get("BOOTH_DB_PIN", "123456")
 
     conn = get_connection(db_path, pin=pin)
     apply_migrations(conn, db_path=db_path)
+
 
 
     adapter = BoothAdapter(conn)

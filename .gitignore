@@ -83,4 +83,6 @@ htmlcov/
 *.bak
 files.zip
 ui_screenshots/
+.superpowers/
+
 
