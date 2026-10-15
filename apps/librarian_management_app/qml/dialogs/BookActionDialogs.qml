@@ -130,7 +130,7 @@ Item {
             TextField { id: newBookTitle; objectName: "newBookTitle"; placeholderText: "ชื่อหนังสือ" }
             TextField { id: newBookIsbn; objectName: "newBookIsbn"; placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)" }
             TextField { id: newBookAuthor; objectName: "newBookAuthor"; placeholderText: "ผู้แต่ง" }
-            TextField { id: newBookBarcodes; objectName: "newBookBarcodes"; placeholderText: "จำนวนเล่ม (เช่น 2) หรือระบุบาร์โค้ดคั่นด้วยจุลภาค" }
+            TextField { id: newBookBarcodes; objectName: "newBookBarcodes"; placeholderText: "จำนวนเล่ม (เช่น 2) หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"; text: "1" }
         }
 
         onAccepted: {
@@ -173,15 +173,9 @@ Item {
         }
 
         onAccepted: {
-            var raw = addCopiesCountInput.text.trim()
-            var count = parseInt(raw) || 0
-            var res
+            var raw = addCopiesCountInput.text.trim() || "1"
             var bookId = rootWindow ? rootWindow.selectedBookId : 0
-            if (count > 0 && !isNaN(Number(raw))) {
-                res = JSON.parse(librarianAdmin.addCopies(bookId, count))
-            } else {
-                res = JSON.parse(librarianAdmin.addCopies(bookId, raw))
-            }
+            var res = JSON.parse(librarianAdmin.addCopies(bookId, raw))
             if (res.ok && res.data && res.data.barcodes && res.data.barcodes.length > 0) {
                 barcodeConfirmModel.clear()
                 if (rootWindow) rootWindow.lastGeneratedBarcodes = res.data.barcodes

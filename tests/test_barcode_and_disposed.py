@@ -150,3 +150,15 @@ def test_export_label_sheet_pdf_escapes_special_and_non_ascii_chars(tmp_path):
     assert raw.startswith(b"%PDF-1.4")
     assert b"SMTE-\\(01\\)\\\\A" in raw
 
+
+def test_export_labels_pdf_normalizes_file_url(conn, tmp_path):
+    adapter = LibrarianAdminAdapter(conn)
+    pdf_path = tmp_path / "url_labels.pdf"
+    file_url = "file://" + str(pdf_path)
+
+    resp = json.loads(adapter.exportLabelsPdf(json.dumps(["SMTE-00001-01"]), file_url))
+    assert resp["ok"] is True
+    assert resp["data"]["output_path"] == str(pdf_path)
+    assert pdf_path.exists()
+
+
