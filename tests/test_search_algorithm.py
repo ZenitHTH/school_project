@@ -90,3 +90,14 @@ def test_search_students_ignores_past_enrollment_and_escapes_quotes(conn):
     assert rows[0]["student_id"] == 4001
     assert rows[0]["grade_level"] == "ม.2"
 
+
+def test_search_and_count_share_clause_builder_and_match_counts(conn):
+    from data.repositories import student_repo
+
+    assert hasattr(student_repo, "_build_student_search_clauses")
+    for q in ["", "4321", "สม", "เข็ม"]:
+        rows = student_repo.search_students(conn, query=q, grade_level="ม.1")
+        total = student_repo.count_students(conn, query=q, grade_level="ม.1")
+        assert len(rows) == total
+
+

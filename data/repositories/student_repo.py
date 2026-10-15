@@ -4,16 +4,13 @@ from typing import Any, Dict, List, Optional, Tuple
 from core.shared.log_service import record_activity
 
 
-def search_students(
-    conn: sqlite3.Connection,
+def _build_student_search_clauses(
     query: str,
     grade_level: Optional[str] = None,
     room: Optional[int] = None,
     status: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0,
-) -> List[sqlite3.Row]:
-    """Search students using FTS5 trigram on full_name, suffix ID, excluding national_id."""
+) -> Tuple[str, str, str, List[Any]]:
+    """Build shared JOIN, WHERE, ORDER BY clauses and params for student search/count queries."""
     clean_query = query.strip()
     join_clauses = [
         """
@@ -65,7 +62,23 @@ def search_students(
 
     where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
     joins = "\n".join(join_clauses)
+    params = join_params + where_params
+    return joins, where_clause, order_clause, params
 
+
+def search_students(
+    conn: sqlite3.Connection,
+    query: str,
+    grade_level: Optional[str] = None,
+    room: Optional[int] = None,
+    status: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> List[sqlite3.Row]:
+    """Search students using FTS5 trigram on full_name, suffix ID, excluding national_id."""
+    joins, where_clause, order_clause, params = _build_student_search_clauses(
+        query=query, grade_level=grade_level, room=room, status=status
+    )
     sql = f"""
         SELECT
             s.student_id,
@@ -87,8 +100,7 @@ def search_students(
         {order_clause}
         LIMIT ? OFFSET ?
     """
-    params = join_params + where_params + [limit, offset]
-    return conn.execute(sql, params).fetchall()
+    return conn.execute(sql, params + [limit, offset]).fetchall()
 
 
 def count_students(
@@ -99,60 +111,15 @@ def count_students(
     status: Optional[str] = None,
 ) -> int:
     """Count total students matching search query and filters."""
-    clean_query = query.strip()
-    join_clauses = [
-        """
-        LEFT JOIN (
-            SELECT student_id, MAX(id) AS max_id
-            FROM enrollments
-            GROUP BY student_id
-        ) latest_e ON latest_e.student_id = s.student_id
-        LEFT JOIN enrollments e ON e.id = latest_e.max_id
-        """
-    ]
-    join_params: List[Any] = []
-    where_conditions: List[str] = []
-    where_params: List[Any] = []
-
-    if clean_query:
-        if clean_query.isdigit():
-            where_conditions.append("CAST(s.student_id AS TEXT) LIKE ?")
-            where_params.append(f"%{clean_query}")
-        elif len(clean_query) < 3:
-            where_conditions.append("s.full_name LIKE ?")
-            where_params.append(f"%{clean_query}%")
-        else:
-            clean_fts = clean_query.replace('"', '""')
-            fts_query = f'"{clean_fts}"'
-            join_clauses.append(
-                "LEFT JOIN (SELECT rowid, rank FROM students_fts WHERE students_fts MATCH ?) fts ON fts.rowid = s.student_id"
-            )
-            join_params.append(fts_query)
-            where_conditions.append("(fts.rowid IS NOT NULL OR s.full_name LIKE ?)")
-            where_params.append(f"%{clean_query}%")
-
-    if grade_level is not None:
-        where_conditions.append("e.grade_level = ?")
-        where_params.append(grade_level)
-
-    if room is not None:
-        where_conditions.append("e.room = ?")
-        where_params.append(room)
-
-    if status is not None:
-        where_conditions.append("s.status = ?")
-        where_params.append(status)
-
-    where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
-    joins = "\n".join(join_clauses)
-
+    joins, where_clause, _, params = _build_student_search_clauses(
+        query=query, grade_level=grade_level, room=room, status=status
+    )
     sql = f"""
         SELECT COUNT(DISTINCT s.student_id)
         FROM students s
         {joins}
         {where_clause}
     """
-    params = join_params + where_params
     row = conn.execute(sql, params).fetchone()
     return int(row[0]) if row else 0
 
