@@ -113,9 +113,7 @@ def test_librarian_admin_adapter_barcodes_and_pdf(conn, tmp_path):
     assert add_resp["ok"]
     book_id = add_resp["data"]["book_id"]
     barcodes = add_resp["data"]["barcodes"]
-    assert len(barcodes) == 2
-    assert barcodes[0] == f"SMTE-{book_id:05d}-01"
-    assert barcodes[1] == f"SMTE-{book_id:05d}-02"
+    assert barcodes == [f"SMTE-{book_id:05d}-01", f"SMTE-{book_id:05d}-02"]
 
     # Add copies via adapter with count string "1"
     add_copies_resp = json.loads(adapter.addCopies(book_id, "1"))
@@ -128,3 +126,27 @@ def test_librarian_admin_adapter_barcodes_and_pdf(conn, tmp_path):
     assert pdf_resp["ok"]
     assert os.path.exists(output_pdf)
     assert os.path.getsize(output_pdf) > 1000
+
+    # Blank barcodes_csv defaults to 1 copy; int addCopies; case/dash/ISBN lookup
+    default_book = json.loads(adapter.addBook(title="เคมี ม.4", isbn="978-616-999", barcodes_csv=""))
+    assert default_book["ok"]
+    b2_id = default_book["data"]["book_id"]
+    assert default_book["data"]["barcodes"] == [f"SMTE-{b2_id:05d}-01"]
+
+    int_copies = json.loads(adapter.addCopies(b2_id, 2))
+    assert int_copies["ok"]
+    assert int_copies["data"]["barcodes"] == [f"SMTE-{b2_id:05d}-02", f"SMTE-{b2_id:05d}-03"]
+
+    assert json.loads(adapter.getCopyByBarcode(f"smte-{b2_id:05d}-01"))["ok"]
+    assert json.loads(adapter.getCopyByBarcode(f"SMTE{b2_id:05d}02"))["ok"]
+    assert json.loads(adapter.getCopyByBarcode("978-616-999"))["ok"]
+
+
+def test_export_label_sheet_pdf_escapes_special_and_non_ascii_chars(tmp_path):
+    output_pdf = str(tmp_path / "special_labels.pdf")
+    export_label_sheet_pdf(["SMTE-(01)\\A", "SMTE-ไทย-02"], output_pdf)
+    with open(output_pdf, "rb") as f:
+        raw = f.read()
+    assert raw.startswith(b"%PDF-1.4")
+    assert b"SMTE-\\(01\\)\\\\A" in raw
+

@@ -41,8 +41,12 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 
 ## [2026-10-02] fix | Windows Inno Setup Installer Path Resolution
 - Fixed Inno Setup build failure in `.github/workflows/build.yml` where relative `dist/StudentManagement.exe` was evaluated relative to `packaging/installers/windows/`.
-- Injected absolute `${{ github.workspace }}` path for `/DSourceExe` and `/DOutputDir`.
-- Updated default relative fallbacks in `packaging/installers/windows/installer.iss` to point to `..\..\..\dist\`.
+## [2026-10-15] fix | Pure-Stdlib Code128 PDF Generator & Barcode Lookup
+- Replaced external `python-barcode`/`reportlab` dependencies in `label_service.py` with pure-stdlib ISO/IEC 15417 Code128-B + PDF 1.4 vector generator.
+- Escaped PDF text delimiters `(`, `)`, `\` and mapped out-of-range non-ASCII chars without crash.
+- Defaulted empty `barcodes_csv` to 1 copy in `LibrarianAdminAdapter.addBook` and supported int/str in `addCopies`.
+- Implemented case/dash-insensitive barcode lookup and ISBN fallback in `book_repo.get_copy_by_barcode`.
+- Fixed argument binding order in `BarcodeGeneratorView.qml`.
 
 
 

@@ -65,5 +65,6 @@ Handles circulation desk borrowing rules and validation pipeline.
 
 ## 6. Barcode Label Generator (`core.library.services.label_service`)
 Generates printable A4 PDF sheets with barcode labels and dashed cut lines.
+- **Pure-Stdlib Vector Engine**: Zero external dependencies (no `python-barcode`, `Pillow`, or `reportlab`). Emits direct vector PDF 1.4 rectangles (`re f`) and dashed cut guides (`[3 3] 0 d`).
 - **Grid Layout**: Configurable 3 columns × 8 rows (24 labels per A4 page).
-- **Format**: Code128 barcodes rendered via ReportLab with human-readable text labels.
+- **Format**: ISO/IEC 15417 Code128-B barcodes with human-readable text labels and PDF delimiter escaping.

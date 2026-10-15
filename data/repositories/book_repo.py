@@ -274,14 +274,45 @@ def get_available_copy(conn: sqlite3.Connection, book_id: int) -> Optional[sqlit
 
 
 def get_copy_by_barcode(conn: sqlite3.Connection, barcode: str) -> Optional[sqlite3.Row]:
-    """Lookup copy and parent book by barcode."""
-    sql = """
+    """Lookup copy and parent book by barcode (case/dash-insensitive + ISBN fallback)."""
+    clean = barcode.strip()
+    if not clean:
+        return None
+
+    # 1. Exact match
+    sql_exact = """
         SELECT bc.*, b.title, b.author, b.isbn, b.active
         FROM book_copies bc
         JOIN books b ON b.book_id = bc.book_id
         WHERE bc.barcode = ?
     """
-    return conn.execute(sql, (barcode.strip(),)).fetchone()
+    row = conn.execute(sql_exact, (clean,)).fetchone()
+    if row:
+        return row
+
+    norm = clean.lower().replace("-", "")
+    # 2. Case and dash-insensitive barcode match
+    sql_norm = """
+        SELECT bc.*, b.title, b.author, b.isbn, b.active
+        FROM book_copies bc
+        JOIN books b ON b.book_id = bc.book_id
+        WHERE REPLACE(LOWER(bc.barcode), '-', '') = ?
+        LIMIT 1
+    """
+    row = conn.execute(sql_norm, (norm,)).fetchone()
+    if row:
+        return row
+
+    # 3. ISBN fallback (find available copy first, or first copy)
+    sql_isbn = """
+        SELECT bc.*, b.title, b.author, b.isbn, b.active
+        FROM book_copies bc
+        JOIN books b ON b.book_id = bc.book_id
+        WHERE REPLACE(LOWER(b.isbn), '-', '') = ?
+        ORDER BY CASE WHEN bc.status = 'available' THEN 0 ELSE 1 END, bc.copy_id ASC
+        LIMIT 1
+    """
+    return conn.execute(sql_isbn, (norm,)).fetchone()
 
 
 def get_copies_for_book(conn: sqlite3.Connection, book_id: int) -> List[sqlite3.Row]:

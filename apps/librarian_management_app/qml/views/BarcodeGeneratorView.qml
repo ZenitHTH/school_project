@@ -113,7 +113,7 @@ Rectangle {
                 catId = genCategoryModel.get(genCategoryCombo.currentIndex).category_id.toString()
             }
             var shelf = genShelfLocation.text.trim()
-            res = JSON.parse(librarianAdmin.addBook(title, isbn, author, catId, shelf, "", count.toString()))
+            res = JSON.parse(librarianAdmin.addBook(title, isbn, author, "", catId, shelf, count.toString()))
             if (res.ok) {
                 genStatusMessage.text = "✓ บันทึกหนังสือ '" + title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
                 barcodeGenScreen.previewedBarcodes = res.data.barcodes
@@ -138,7 +138,7 @@ Rectangle {
                 return
             }
             var selBook = genExistingBooksModel.get(genExistingBookCombo.currentIndex)
-            res = JSON.parse(librarianAdmin.addCopies(selBook.book_id, count))
+            res = JSON.parse(librarianAdmin.addCopies(selBook.book_id, count.toString()))
             if (res.ok) {
                 genStatusMessage.text = "✓ เพิ่มเล่มหนังสือ '" + selBook.title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
                 barcodeGenScreen.previewedBarcodes = res.data.barcodes
