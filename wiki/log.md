@@ -55,5 +55,11 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Removed zero-import dead modules `core/library/models.py` and `core/shared/errors.py`.
 - Added exclusion regression test in `tests/test_spec_exclusions.py`.
 
+## [2026-10-15] refactor | Centralized QML Sanitizer & File URL Normalizer
+- Extracted shared `NUMERIC_KEYS`, `_sanitize_for_qml`, and `normalize_file_path` into `core/shared/mock_qt.py`.
+- Fixed boolean preservation in `_sanitize_for_qml` to prevent `bool` values being coerced to integers.
+- Supported percent-encoded Thai `file://` URLs in `normalize_file_path`.
+- Cleaned up duplicate implementations across `StudentAdminAdapter`, `LibrarianAdminAdapter`, and `BoothAdapter`.
+
 
 

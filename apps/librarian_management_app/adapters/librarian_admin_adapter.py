@@ -3,7 +3,10 @@ import sqlite3
 import datetime
 from typing import Any, Dict, List, Optional
 
-from core.shared.mock_qt import QObject, Signal, Slot, HAVE_QT
+from core.shared.mock_qt import (
+    QObject, Signal, Slot, HAVE_QT,
+    NUMERIC_KEYS, _sanitize_for_qml, normalize_file_path,
+)
 
 from core.library.services.catalog_service import CatalogService
 from core.library.services.fine_service import FineService
@@ -13,26 +16,6 @@ from core.student.services.student_service import StudentService
 from data.repositories import log_repo
 from data.sync.diff import compute_diff
 from data.sync.apply import apply_sync
-
-
-NUMERIC_KEYS = {
-    "student_id", "academic_year", "semester", "room", "seq_no",
-    "total_copies", "available_copies", "book_id", "copy_id",
-    "loan_id", "fine_id", "reservation_id", "old_id", "new_id",
-    "category_id",
-}
-
-
-def _sanitize_for_qml(obj: Any) -> Any:
-    """Convert None values to typed defaults to prevent QML null role and type mismatch warnings."""
-    if isinstance(obj, list):
-        return [_sanitize_for_qml(item) for item in obj]
-    if isinstance(obj, dict):
-        return {
-            k: (0 if k in NUMERIC_KEYS else "") if v is None else _sanitize_for_qml(v)
-            for k, v in obj.items()
-        }
-    return obj
 
 
 class LibrarianAdminAdapter(QObject):
@@ -85,10 +68,7 @@ class LibrarianAdminAdapter(QObject):
     @Slot(str, str, result=str)
     def importRoster(self, file_path: str, actor: str = "Librarian") -> str:
         """Import or sync student records from .sqlite snapshot or .xlsx roster."""
-        from urllib.parse import unquote, urlparse
-        if file_path.startswith("file://"):
-            parsed = urlparse(file_path)
-            file_path = unquote(parsed.path)
+        file_path = normalize_file_path(file_path)
 
         if file_path.endswith(".sqlite") or file_path.endswith(".db"):
             res = apply_sync(file_path, self.conn)
@@ -344,20 +324,14 @@ class LibrarianAdminAdapter(QObject):
     @Slot(str, result=str)
     def previewSync(self, snapshot_path: str) -> str:
         """Calculate and return diff preview from incoming snapshot."""
-        from urllib.parse import unquote, urlparse
-        if snapshot_path.startswith("file://"):
-            parsed = urlparse(snapshot_path)
-            snapshot_path = unquote(parsed.path)
+        snapshot_path = normalize_file_path(snapshot_path)
         res = compute_diff(snapshot_path, self.conn)
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
     @Slot(str, result=str)
     def applySync(self, snapshot_path: str) -> str:
         """Apply snapshot into local mirror."""
-        from urllib.parse import unquote, urlparse
-        if snapshot_path.startswith("file://"):
-            parsed = urlparse(snapshot_path)
-            snapshot_path = unquote(parsed.path)
+        snapshot_path = normalize_file_path(snapshot_path)
         res = apply_sync(snapshot_path, self.conn)
         if res.ok:
             self._mark_first_launch_done()

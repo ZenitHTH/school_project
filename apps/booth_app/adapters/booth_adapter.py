@@ -2,29 +2,14 @@ import json
 import sqlite3
 from typing import Optional
 
-from core.shared.mock_qt import QObject, Signal, Slot, HAVE_QT
+from core.shared.mock_qt import (
+    QObject, Signal, Slot, HAVE_QT,
+    NUMERIC_KEYS, _sanitize_for_qml, normalize_file_path,
+)
 
 from core.library.services.catalog_service import CatalogService
 from core.library.services.loan_service import LoanService
 from core.student.services.student_service import StudentService
-
-
-NUMERIC_KEYS = {
-    "student_id", "academic_year", "semester", "room", "seq_no",
-    "total_copies", "available_copies", "book_id", "copy_id",
-    "loan_id", "fine_id", "reservation_id", "old_id", "new_id"
-}
-
-
-def _sanitize_for_qml(obj):
-    if isinstance(obj, list):
-        return [_sanitize_for_qml(item) for item in obj]
-    if isinstance(obj, dict):
-        return {
-            k: (0 if k in NUMERIC_KEYS else "") if v is None else _sanitize_for_qml(v)
-            for k, v in obj.items()
-        }
-    return obj
 
 
 class BoothAdapter(QObject):

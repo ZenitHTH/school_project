@@ -464,4 +464,17 @@ def test_librarian_adapter_barcodes_and_labels(tmp_path, librarian_adapter):
     assert pdf_res["data"]["output_path"] == out_pdf
 
 
+def test_normalize_file_path_thai_url_and_sanitize_preserves_bool():
+    from core.shared.mock_qt import _sanitize_for_qml, normalize_file_path
+
+    assert normalize_file_path("file:///tmp/%E0%B8%99%E0%B8%A3.xlsx") == "/tmp/นร.xlsx"
+    assert normalize_file_path("/tmp/plain.sqlite") == "/tmp/plain.sqlite"
+
+    sanitized = _sanitize_for_qml([{"student_id": None, "active": True, "full_name": None}])
+    assert sanitized[0]["student_id"] == 0
+    assert sanitized[0]["active"] is True
+    assert sanitized[0]["full_name"] == ""
+
+
+
 

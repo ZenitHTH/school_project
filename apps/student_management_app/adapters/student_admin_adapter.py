@@ -3,33 +3,16 @@ import sqlite3
 import datetime
 from typing import Any, Dict, List, Optional
 
-from core.shared.mock_qt import QObject, Signal, Slot, HAVE_QT
-
+from core.shared.mock_qt import (
+    QObject, Signal, Slot, HAVE_QT,
+    NUMERIC_KEYS, _sanitize_for_qml, normalize_file_path,
+)
 from core.importers.xlsx_validator import validate_xlsx_structure, check_live_data_exists
 from core.importers.build_db import import_roster
 from core.student.services.student_service import StudentService
 from core.student.services.enrollment_service import EnrollmentService
 from data.repositories import log_repo
 from data.sync.export import export_snapshot
-
-
-NUMERIC_KEYS = {
-    "student_id", "academic_year", "semester", "room", "seq_no",
-    "total_copies", "available_copies", "book_id", "copy_id",
-    "loan_id", "fine_id", "reservation_id", "old_id", "new_id"
-}
-
-
-def _sanitize_for_qml(obj: Any) -> Any:
-    """Convert None values to typed defaults to prevent QML null role and type mismatch warnings."""
-    if isinstance(obj, list):
-        return [_sanitize_for_qml(item) for item in obj]
-    if isinstance(obj, dict):
-        return {
-            k: (0 if k in NUMERIC_KEYS else "") if v is None else _sanitize_for_qml(v)
-            for k, v in obj.items()
-        }
-    return obj
 
 
 class StudentAdminAdapter(QObject):
@@ -152,10 +135,7 @@ class StudentAdminAdapter(QObject):
     @Slot(str, bool, str, result=str)
     def importXlsx(self, xlsx_path: str, force: bool = False, actor: str = "Admin") -> str:
         """Validate and import student roster xlsx with re-import safeguard."""
-        from urllib.parse import unquote, urlparse
-        if xlsx_path.startswith("file://"):
-            parsed = urlparse(xlsx_path)
-            xlsx_path = unquote(parsed.path)
+        xlsx_path = normalize_file_path(xlsx_path)
 
         # 1. Validate structure
         val_res = validate_xlsx_structure(xlsx_path)
@@ -200,10 +180,7 @@ class StudentAdminAdapter(QObject):
     @Slot(str, result=str)
     def previewXlsxDiff(self, xlsx_path: str) -> str:
         """Preview categorized diff for recurring xlsx re-import / promotion."""
-        from urllib.parse import unquote, urlparse
-        if xlsx_path.startswith("file://"):
-            parsed = urlparse(xlsx_path)
-            xlsx_path = unquote(parsed.path)
+        xlsx_path = normalize_file_path(xlsx_path)
 
         val_res = validate_xlsx_structure(xlsx_path)
         if not val_res.ok:
@@ -216,10 +193,7 @@ class StudentAdminAdapter(QObject):
     @Slot(str, int, int, str, result=str)
     def applyXlsxDiff(self, xlsx_path: str, academic_year: int, semester: int, actor: str = "Admin") -> str:
         """Apply xlsx diff atomically inside one transaction."""
-        from urllib.parse import unquote, urlparse
-        if xlsx_path.startswith("file://"):
-            parsed = urlparse(xlsx_path)
-            xlsx_path = unquote(parsed.path)
+        xlsx_path = normalize_file_path(xlsx_path)
 
         from core.importers.xlsx_diff_importer import calculate_xlsx_diff, apply_xlsx_diff
         diff_res = calculate_xlsx_diff(self.conn, xlsx_path)
