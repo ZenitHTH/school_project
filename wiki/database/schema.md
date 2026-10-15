@@ -33,6 +33,7 @@ All SQLite database connections use `get_connection(...)` from `data/db.py`, whi
   - `book_id` (INTEGER REFERENCES books(book_id)).
   - `barcode` (TEXT UNIQUE): E.g. `SMTE-00001-01`.
   - `status` (TEXT: `'available'`, `'borrowed'`, `'reserved'`, `'lost'`, `'disposed'`).
+  - Index `idx_copies_book_status ON book_copies(book_id, status)` for fast copy availability checks.
 - **`loans`**: Borrow / return transactions.
   - `loan_id` (INTEGER PRIMARY KEY AUTOINCREMENT).
   - `copy_id`, `student_id`.

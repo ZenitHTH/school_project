@@ -25,8 +25,8 @@ def test_migrations_full_lifecycle(temp_db):
     assert get_current_version(conn) == 0
 
     applied = apply_migrations(conn)
-    assert applied == 8
-    assert get_current_version(conn) == 8
+    assert applied == 9
+    assert get_current_version(conn) == 9
 
     # Verify tables
     cur = conn.cursor()

@@ -67,5 +67,10 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Fixed parameter alignment when combining search query with `grade_level` and `room` filters.
 - Guaranteed only latest semester enrollment is matched during student search.
 
+## [2026-10-15] perf | Batched Snapshot Sync & Composite Book Copy Index
+- Added migration `0009_copies_book_status_idx.sql` creating composite index `idx_copies_book_status` on `book_copies(book_id, status)`.
+- Batched student and enrollment upserts in `apply_sync` using `local_cur.executemany` instead of row-by-row loops.
+- Sorted `student_id_changes` by `id ASC` to preserve chronological renumbering order during snapshot synchronization with active loans.
+
 
 

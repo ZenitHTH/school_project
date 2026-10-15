@@ -32,7 +32,7 @@ def apply_sync(
         try:
             students = snap_cur.execute("SELECT * FROM students").fetchall()
             enrollments = snap_cur.execute("SELECT * FROM enrollments").fetchall()
-            id_changes = snap_cur.execute("SELECT * FROM student_id_changes").fetchall()
+            id_changes = snap_cur.execute("SELECT * FROM student_id_changes ORDER BY id ASC").fetchall()
         finally:
             snap_conn.close()
 
@@ -51,34 +51,57 @@ def apply_sync(
                     (new_id, old_id),
                 )
 
-            # 2. Upsert all students from snapshot
-            for s in students:
-                local_cur.execute(
-                    """
-                    INSERT INTO students (student_id, national_id, prefix, first_name, last_name, full_name, gender, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(student_id) DO UPDATE SET
-                        national_id = excluded.national_id,
-                        prefix = excluded.prefix,
-                        first_name = excluded.first_name,
-                        last_name = excluded.last_name,
-                        full_name = excluded.full_name,
-                        gender = excluded.gender,
-                        status = excluded.status
-                    """,
-                    (s["student_id"], s["national_id"], s["prefix"], s["first_name"], s["last_name"], s["full_name"], s["gender"], s["status"]),
+            # 2. Batch upsert all students from snapshot
+            student_rows = [
+                (
+                    s["student_id"],
+                    s["national_id"],
+                    s["prefix"],
+                    s["first_name"],
+                    s["last_name"],
+                    s["full_name"],
+                    s["gender"],
+                    s["status"],
                 )
+                for s in students
+            ]
+            local_cur.executemany(
+                """
+                INSERT INTO students (student_id, national_id, prefix, first_name, last_name, full_name, gender, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(student_id) DO UPDATE SET
+                    national_id = excluded.national_id,
+                    prefix = excluded.prefix,
+                    first_name = excluded.first_name,
+                    last_name = excluded.last_name,
+                    full_name = excluded.full_name,
+                    gender = excluded.gender,
+                    status = excluded.status
+                """,
+                student_rows,
+            )
 
-            # 3. Refresh enrollments
+            # 3. Batch refresh enrollments
             local_cur.execute("DELETE FROM enrollments;")
-            for e in enrollments:
-                local_cur.execute(
-                    """
-                    INSERT INTO enrollments (id, student_id, academic_year, semester, grade_level, room, track)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (e["id"], e["student_id"], e["academic_year"], e["semester"], e["grade_level"], e["room"], e["track"]),
+            enrollment_rows = [
+                (
+                    e["id"],
+                    e["student_id"],
+                    e["academic_year"],
+                    e["semester"],
+                    e["grade_level"],
+                    e["room"],
+                    e["track"],
                 )
+                for e in enrollments
+            ]
+            local_cur.executemany(
+                """
+                INSERT INTO enrollments (id, student_id, academic_year, semester, grade_level, room, track)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                enrollment_rows,
+            )
 
             # 3. Update sync_state
             local_cur.execute(

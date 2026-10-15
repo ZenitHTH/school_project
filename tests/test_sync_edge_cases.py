@@ -130,3 +130,52 @@ def test_apply_sync_empty_student_snapshot_clears_enrollments(two_db_env):
     cur = l_conn.cursor()
     cur.execute("SELECT count(*) FROM enrollments")
     assert cur.fetchone()[0] == 0
+
+
+def test_apply_sync_chained_id_renumber_preserves_loans_and_index_exists(tmp_path):
+    from data.db import get_connection
+    from data.migrate import apply_migrations
+    from data.sync.export import export_snapshot
+    from data.sync.apply import apply_sync
+    from data.repositories import book_repo, loan_repo
+
+    # Setup student DB with chained ID change: 1001 -> 8001 -> 9001
+    st_conn = get_connection(str(tmp_path / "st.sqlite"), pin="123456")
+    apply_migrations(st_conn)
+    st_conn.execute(
+        "INSERT INTO students (student_id, full_name, status) VALUES (9001, 'นายสายฟ้า ไวมาก', 'active')"
+    )
+    st_conn.execute(
+        "INSERT INTO student_id_changes (old_id, new_id, reason, changed_at) VALUES "
+        "(1001, 8001, 'step1', '2026-10-01T00:00:00Z'), "
+        "(8001, 9001, 'step2', '2026-10-02T00:00:00Z')"
+    )
+    st_conn.commit()
+    snap_path = str(tmp_path / "chained_snap.sqlite")
+    export_snapshot(st_conn, snap_path)
+    st_conn.close()
+
+    # Setup library DB where student 1001 currently holds an active loan
+    lib_conn = get_connection(str(tmp_path / "lib.sqlite"), pin="123456")
+    apply_migrations(lib_conn)
+    lib_conn.execute(
+        "INSERT INTO students (student_id, full_name, status) VALUES (1001, 'นายสายฟ้า ไวมาก', 'active')"
+    )
+    b_id = book_repo.add_book(lib_conn, title="ฟิสิกส์อะตอม")
+    c_ids = book_repo.add_copies(lib_conn, b_id, ["SMTE-00001-01"])
+    loan_id = loan_repo.create_loan(
+        lib_conn, copy_id=c_ids[0], student_id=1001,
+        borrowed_at="2026-10-01T00:00:00Z", due_at="2026-10-15T00:00:00Z"
+    )
+
+    res = apply_sync(snap_path, lib_conn)
+    assert res.ok
+    loan_row = lib_conn.execute("SELECT student_id FROM loans WHERE loan_id = ?", (loan_id,)).fetchone()
+    assert loan_row["student_id"] == 9001
+
+    idx_row = lib_conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_copies_book_status'"
+    ).fetchone()
+    assert idx_row is not None
+    lib_conn.close()
+
