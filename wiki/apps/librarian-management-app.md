@@ -38,12 +38,14 @@ apps/librarian_management_app/
 
 ### 2.3 Book Registration & Grouping Split View (`BarcodeGeneratorView.qml`, Tab 6)
 - 2-column split screen:
-  - **Left Card (Book Registration)**: Register new book or add copies to an existing book. Immediately commits deterministic `SMTE-xxxxx-xx` barcodes to `book_copies` in SQLite upon save.
+  - **Left Card (Book Registration)**: Register new book or add copies to an existing book. Immediately commits deterministic `SMTE-xxxxx-xx` barcodes to `book_copies` in SQLite upon save. Auto-selects existing books upon switching to mode 1 and supports topping up copies to a target count.
   - **Right Card (Grouping Management)**: Add, edit, or delete classification categories. Changes instantly refresh `genCategoryCombo` on the left card without losing typed input.
 
 ### 2.4 Dedicated Barcode Printout Generator (`CategoryManagementView.qml`, Tab 7)
 - Staff can search books, select specific books via checkboxes, and export their active barcodes (`exportSelectedBooksPdf`).
 - Or print all active barcodes across the library (`exportAllBooksPdf` / `btnExportPdfSheet`) to standard A4 sticker sheets (3 columns x 8 rows = 24 labels/sheet).
+- Displays all copy barcodes clearly (up to 5 barcodes inline, or range with count).
+- Includes direct per-row `+ เพิ่มเล่ม` action button to add additional physical copies without navigating away.
 - Automatically excludes retired and disposed copies (`status NOT IN ('retired', 'disposed')`).
 
 ### 2.5 Student Snapshot Sync (`StudentSyncView.qml`)

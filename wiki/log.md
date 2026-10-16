@@ -93,6 +93,13 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Added `book_repo.list_books_with_barcodes` and `LibrarianAdminAdapter.getBooksWithBarcodes` excluding retired/disposed copies.
 - Maintained 100% test coverage with automated UI verification for split view and selectable printing.
 
+## [2026-10-16] fix | Multi-Copy Barcode Registration, Edit Copy Sync & Printout Row Action
+- Resolved Mode 1 existing book combo index reset and size collapse on Page 6 by preserving selection and adding implicitHeight constraints.
+- Enabled top-up copy count adjustment in Mode 0 and added `+5` stepper smart increment (`1 -> 5`).
+- Added `editBookCopiesInput` to `editBookDialog` in `BookActionDialogs.qml` allowing total copies adjustment directly from Catalog Edit.
+- Replaced static grey `Code128` text on printout rows with direct `+ เพิ่มเล่ม` button and multi-barcode list display.
+- Verified 5-copy book PDF export produces all 5 physical barcodes in output PDF.
+
 
 
 

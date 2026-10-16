@@ -357,6 +357,9 @@ ApplicationWindow {
             // 7. Dedicated Barcode Printout Generator View
             CategoryManagementView {
                 id: categoryView
+                onAddCopiesRequested: function(bookId, title) {
+                    bookDialogs.openAddCopiesDialog(bookId, title)
+                }
             }
         }
     }

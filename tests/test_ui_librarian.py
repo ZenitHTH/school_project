@@ -707,6 +707,39 @@ def test_edit_book_dialog_increases_total_copies_and_syncs_printout(lib_ui):
     assert len(books[0]["barcodes"]) == 5
 
 
+def test_barcode_printout_exports_all_five_barcodes_to_pdf(lib_ui):
+    import re
+    window = lib_ui["window"]
+    lib_ui["adapter"].addBook("เคมีคำนวณ ม.ต้น", "9786169990001", "อ.เคมี", "", "", "C-1", "5")
+
+    find(window, "navBtnCategories").clicked.emit()
+    process(lib_ui["app"])
+
+    search_box = find(window, "barcodePrintSearchInput")
+    search_box.setProperty("text", "เคมีคำนวณ")
+    process(lib_ui["app"])
+
+    model = find(window, "genBarcodesModel")
+    assert model.property("count") == 1
+    row0 = model.get(0)
+    assert row0.property("copy_count").toInt() == 5
+    preview_str = row0.property("barcode_preview").toString()
+    assert "-01" in preview_str and "-05" in preview_str
+
+    find(window, "btnPrintSelectedPdf").clicked.emit()
+    process(lib_ui["app"])
+
+    cat_screen = find(window, "categoryScreen")
+    pdf_path = cat_screen.property("lastPdfExported")
+    assert os.path.exists(pdf_path)
+    pdf_bytes = open(pdf_path, "rb").read()
+    barcodes_in_pdf = re.findall(rb"\((SMTE-\d{5}-\d{2})\)", pdf_bytes)
+    assert len(barcodes_in_pdf) == 5
+    assert barcodes_in_pdf[0].endswith(b"-01")
+    assert barcodes_in_pdf[4].endswith(b"-05")
+
+
+
 
 
 

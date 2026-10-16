@@ -17,6 +17,8 @@ Rectangle {
     property alias genBarcodesModel: genBarcodesModel
     property alias genPdfStatusText: genPdfStatusText
 
+    signal addCopiesRequested(int bookId, string title)
+
     function loadPrintableBooks(query) {
         genBarcodesModel.clear()
         try {
@@ -26,9 +28,11 @@ Rectangle {
             for (var i = 0; i < books.length; i++) {
                 var b = books[i]
                 if (b.barcodes && b.barcodes.length > 0) {
-                    var previewStr = b.barcodes[0]
-                    if (b.barcodes.length > 1) {
-                        previewStr += " .. " + b.barcodes[b.barcodes.length - 1]
+                    var previewStr = ""
+                    if (b.barcodes.length <= 5) {
+                        previewStr = b.barcodes.join(", ")
+                    } else {
+                        previewStr = b.barcodes.slice(0, 3).join(", ") + " ... " + b.barcodes[b.barcodes.length - 1] + " (รวม " + b.barcodes.length + " เล่ม)"
                     }
                     genBarcodesModel.append({
                         "book_id": b.book_id,
@@ -363,16 +367,17 @@ Rectangle {
                                 Text {
                                     text: (model.author ? ("ผู้แต่ง: " + model.author + " | ") : "") + "รหัสบาร์โค้ด: " + model.barcode_preview
                                     font.pixelSize: 11
-                                    font.family: "Monospace"
+                                    font.family: "monospace"
                                     color: "#0f766e"
                                 }
                             }
 
-                            Text {
-                                text: "Code128"
-                                font.pixelSize: 10
-                                color: "#94a3b8"
+                            Button {
+                                text: "+ เพิ่มเล่ม"
+                                flat: true
+                                font.pixelSize: 12
                                 Layout.alignment: Qt.AlignRight
+                                onClicked: barcodePrintScreen.addCopiesRequested(model.book_id, model.title)
                             }
                         }
                     }
