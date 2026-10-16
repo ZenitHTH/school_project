@@ -29,6 +29,7 @@ Item {
     property alias editBookCategoryCombo: editBookCategoryCombo
     property alias editBookCategoryModel: editBookCategoryModel
     property alias editBookShelfInput: editBookShelfInput
+    property alias editBookCopiesInput: editBookCopiesInput
     property alias editBookStatusText: editBookStatusText
 
     property alias deleteBookDialog: deleteBookDialog
@@ -44,13 +45,16 @@ Item {
         addCopiesDialog.open()
     }
 
-    function openEditBookDialog(bookId, title, author, isbn, categoryId, shelf) {
+    function openEditBookDialog(bookId, title, author, isbn, categoryId, shelf, totalCopies) {
         editBookDialog.targetBookId = bookId
         editBookTitleInput.text = title
         editBookAuthorInput.text = author
         editBookIsbnInput.text = isbn
         editBookShelfInput.text = shelf
         editBookStatusText.text = ""
+        var copies = (typeof totalCopies === "number" && totalCopies > 0) ? totalCopies : (parseInt(totalCopies) || 1)
+        editBookDialog.currentTotalCopies = copies
+        editBookCopiesInput.text = copies.toString()
 
         editBookCategoryModel.clear()
         editBookCategoryModel.append({ "category_id": 0, "name": "-- ไม่ระบุหมวดหมู่ --" })
@@ -85,10 +89,18 @@ Item {
             editBookShelfInput.text.trim()
         ))
         if (res.ok) {
+            var newTotal = parseInt(editBookCopiesInput.text) || editBookDialog.currentTotalCopies
+            if (newTotal > editBookDialog.currentTotalCopies) {
+                var diff = newTotal - editBookDialog.currentTotalCopies
+                librarianAdmin.addCopies(editBookDialog.targetBookId, diff.toString())
+            }
             editBookDialog.close()
             if (rootWindow) {
                 rootWindow.searchBooks()
                 rootWindow.loadBooksForExistingSelector()
+                if (typeof rootWindow.loadPrintableBooks === "function") {
+                    rootWindow.loadPrintableBooks("")
+                }
             }
         } else {
             editBookStatusText.text = "✗ " + (res.error || "แก้ไขไม่สำเร็จ")
@@ -109,6 +121,9 @@ Item {
             if (rootWindow) {
                 rootWindow.searchBooks()
                 rootWindow.loadBooksForExistingSelector()
+                if (typeof rootWindow.loadPrintableBooks === "function") {
+                    rootWindow.loadPrintableBooks("")
+                }
             }
         } else {
             deleteBookConfirmText.text = "✗ " + (res.error || "ลบหนังสือไม่สำเร็จ")
@@ -145,7 +160,13 @@ Item {
                     pdfExportStatusText.text = ""
                     barcodeConfirmDialog.open()
                 }
-                if (rootWindow) rootWindow.searchBooks()
+                if (rootWindow) {
+                    rootWindow.searchBooks()
+                    rootWindow.loadBooksForExistingSelector()
+                    if (typeof rootWindow.loadPrintableBooks === "function") {
+                        rootWindow.loadPrintableBooks("")
+                    }
+                }
             }
         }
     }
@@ -154,29 +175,19 @@ Item {
     Dialog {
         id: addCopiesDialog
         objectName: "addCopiesDialog"
-        title: "เพิ่มเล่มหนังสือ: " + (rootWindow ? rootWindow.selectedBookTitle : "")
+        title: "➕ เพิ่มเล่มหนังสือ: " + (rootWindow ? rootWindow.selectedBookTitle : "")
         modal: true
         closePolicy: Popup.CloseOnEscape
-        standardButtons: Dialog.Ok | Dialog.Cancel
+        standardButtons: Dialog.NoButton
         anchors.centerIn: parent
-        width: Math.min(450, rootWindow ? rootWindow.width - 40 : 420)
+        width: Math.min(460, rootWindow ? rootWindow.width - 40 : 430)
 
-        ColumnLayout {
-            spacing: 8
-            Text { text: "ระบุจำนวนเล่มที่ต้องการสร้างบาร์โค้ดเพิ่ม:"; color: "#475569" }
-            TextField {
-                id: addCopiesCountInput
-                objectName: "addCopiesCountInput"
-                placeholderText: "จำนวนเล่ม (เช่น 2) หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"
-                text: "1"
-            }
-        }
-
-        onAccepted: {
+        function executeAddCopies() {
             var raw = addCopiesCountInput.text.trim() || "1"
             var bookId = rootWindow ? rootWindow.selectedBookId : 0
             var res = JSON.parse(librarianAdmin.addCopies(bookId, raw))
             if (res.ok && res.data && res.data.barcodes && res.data.barcodes.length > 0) {
+                addCopiesDialog.close()
                 barcodeConfirmModel.clear()
                 if (rootWindow) rootWindow.lastGeneratedBarcodes = res.data.barcodes
                 for (var i = 0; i < res.data.barcodes.length; i++) {
@@ -185,7 +196,56 @@ Item {
                 pdfExportStatusText.text = ""
                 barcodeConfirmDialog.open()
             }
-            if (rootWindow) rootWindow.searchBooks()
+            if (rootWindow) {
+                rootWindow.searchBooks()
+                rootWindow.loadBooksForExistingSelector()
+                if (typeof rootWindow.loadPrintableBooks === "function") {
+                    rootWindow.loadPrintableBooks("")
+                }
+            }
+        }
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 12
+
+            Text { text: "ระบุจำนวนเล่มที่ต้องการสร้างบาร์โค้ดเพิ่ม:"; color: "#475569"; font.pixelSize: 13 }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                TextField {
+                    id: addCopiesCountInput
+                    objectName: "addCopiesCountInput"
+                    placeholderText: "เช่น 4 หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"
+                    text: "1"
+                    Layout.fillWidth: true
+                    selectByMouse: true
+                    padding: 8
+                    background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                    onAccepted: addCopiesDialog.executeAddCopies()
+                }
+                Button { text: "+1"; Layout.preferredWidth: 44; onClicked: { var c = Math.min(99, (parseInt(addCopiesCountInput.text) || 1) + 1); addCopiesCountInput.text = c.toString(); } }
+                Button {
+                    text: "+4"
+                    Layout.preferredWidth: 44
+                    onClicked: {
+                        var cur = parseInt(addCopiesCountInput.text) || 1
+                        var c = Math.min(99, cur + 4)
+                        addCopiesCountInput.text = c.toString()
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                Button { text: "ยกเลิก"; onClicked: addCopiesDialog.close() }
+                Button {
+                    text: "💾 เพิ่มเล่มและสร้างบาร์โค้ด"
+                    highlighted: true
+                    onClicked: addCopiesDialog.executeAddCopies()
+                }
+            }
         }
     }
 
@@ -221,7 +281,7 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 6
                         Text { text: "• เล่มที่ " + (index + 1) + ": "; font.bold: true }
-                        Text { text: model.barcode; font.family: "Monospace"; color: "#0f766e" }
+                        Text { text: model.barcode; font.family: "monospace"; color: "#0f766e" }
                     }
                 }
             }
@@ -261,6 +321,7 @@ Item {
         width: Math.min(460, rootWindow ? rootWindow.width - 40 : 440)
         standardButtons: Dialog.NoButton
         property int targetBookId: 0
+        property int currentTotalCopies: 1
 
         ColumnLayout {
             anchors.fill: parent
@@ -326,6 +387,29 @@ Item {
                 selectByMouse: true
                 padding: 8
                 background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+            }
+
+            Text { text: "จำนวนเล่มทั้งหมด (Total Copies)"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                TextField {
+                    id: editBookCopiesInput
+                    objectName: "editBookCopiesInput"
+                    Layout.preferredWidth: 90
+                    text: "1"
+                    validator: IntValidator { bottom: 1; top: 99 }
+                    selectByMouse: true
+                    padding: 8
+                    background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                }
+                Text {
+                    text: "(หากระบุมากกว่าเดิม ระบบจะสร้างบาร์โค้ดประจำเล่มเพิ่มอัตโนมัติ)"
+                    color: "#64748b"
+                    font.pixelSize: 11
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                }
             }
 
             Text {

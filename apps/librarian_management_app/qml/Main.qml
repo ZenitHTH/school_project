@@ -109,6 +109,7 @@ ApplicationWindow {
     property alias editBookIsbnInput: bookDialogs.editBookIsbnInput
     property alias editBookCategoryCombo: bookDialogs.editBookCategoryCombo
     property alias editBookShelfInput: bookDialogs.editBookShelfInput
+    property alias editBookCopiesInput: bookDialogs.editBookCopiesInput
     property alias editBookStatusText: bookDialogs.editBookStatusText
     property alias deleteBookDialog: bookDialogs.deleteBookDialog
     property alias deleteBookConfirmText: bookDialogs.deleteBookConfirmText
@@ -293,8 +294,8 @@ ApplicationWindow {
                 onAddCopiesRequested: function(bookId, title) {
                     bookDialogs.openAddCopiesDialog(bookId, title)
                 }
-                onEditBookRequested: function(bookId, title, author, isbn, categoryId, shelf) {
-                    bookDialogs.openEditBookDialog(bookId, title, author, isbn, categoryId, shelf)
+                onEditBookRequested: function(bookId, title, author, isbn, categoryId, shelf, totalCopies) {
+                    bookDialogs.openEditBookDialog(bookId, title, author, isbn, categoryId, shelf, totalCopies)
                 }
                 onDeleteBookRequested: function(bookId, title) {
                     bookDialogs.openDeleteBookDialog(bookId, title)
@@ -608,8 +609,12 @@ ApplicationWindow {
     }
 
     // Forwarding to Book Dialogs
-    function openEditBookDialog(bookId, title, author, isbn, categoryId, shelf) {
-        bookDialogs.openEditBookDialog(bookId, title, author, isbn, categoryId, shelf)
+    function openEditBookDialog(bookId, title, author, isbn, categoryId, shelf, totalCopies) {
+        bookDialogs.openEditBookDialog(bookId, title, author, isbn, categoryId, shelf, totalCopies)
+    }
+
+    function openAddCopiesDialog(bookId, title) {
+        bookDialogs.openAddCopiesDialog(bookId, title)
     }
 
     function submitEditBook() {

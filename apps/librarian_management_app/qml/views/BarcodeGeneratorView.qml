@@ -98,8 +98,15 @@ Rectangle {
         }
     }
 
-    function loadBooksForExistingSelector() {
+    function loadBooksForExistingSelector(preferredBookId) {
+        var prevId = (typeof preferredBookId === "number" && preferredBookId > 0)
+            ? preferredBookId
+            : (genExistingBookCombo.currentIndex >= 0 && genExistingBookCombo.currentIndex < genExistingBooksModel.count
+                ? genExistingBooksModel.get(genExistingBookCombo.currentIndex).book_id
+                : 0)
+
         genExistingBooksModel.clear()
+        var selIdx = 0
         try {
             var books = JSON.parse(librarianAdmin.searchBooks(""))
             for (var i = 0; i < books.length; i++) {
@@ -111,8 +118,19 @@ Rectangle {
                     "total_copies": b.total_copies,
                     "display": b.title + " (มีอยู่ " + b.total_copies + " เล่ม)"
                 })
+                if (b.book_id === prevId) {
+                    selIdx = i
+                }
             }
         } catch (e) {}
+        if (genExistingBooksModel.count > 0) {
+            genExistingBookCombo.currentIndex = selIdx
+            var cur = genExistingBooksModel.get(selIdx)
+            existingBookInfoText.text = "หนังสือ: " + cur.title + " | ปัจจุบันมี: " + cur.total_copies + " เล่ม"
+        } else {
+            genExistingBookCombo.currentIndex = -1
+            existingBookInfoText.text = ""
+        }
     }
 
     function updateGenPreview() {
@@ -137,13 +155,38 @@ Rectangle {
                 catId = genCategoryModel.get(genCategoryCombo.currentIndex).category_id.toString()
             }
             var shelf = genShelfLocation.text.trim()
-            res = JSON.parse(librarianAdmin.addBook(title, isbn, author, "", catId, shelf, count.toString()))
-            if (res.ok) {
-                genStatusMessage.text = "✓ บันทึกหนังสือ '" + title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
-                barcodeGenScreen.bookSaved()
-                loadBooksForExistingSelector()
+
+            // Check if active book with identical title already exists
+            var existingBook = null
+            try {
+                var found = JSON.parse(librarianAdmin.searchBooks(title))
+                for (var fi = 0; fi < found.length; fi++) {
+                    if (found[fi].title.trim() === title && (!isbn || found[fi].isbn === isbn)) {
+                        existingBook = found[fi]
+                        break
+                    }
+                }
+            } catch (e) {}
+
+            if (existingBook && existingBook.total_copies < count) {
+                var diff = count - existingBook.total_copies
+                res = JSON.parse(librarianAdmin.addCopies(existingBook.book_id, diff.toString()))
+                if (res.ok) {
+                    genStatusMessage.text = "✓ ปรับจำนวนเล่มหนังสือ '" + title + "' เป็น " + count + " เล่ม (สร้างบาร์โค้ดเพิ่ม " + diff + " เล่ม)"
+                    barcodeGenScreen.bookSaved()
+                    loadBooksForExistingSelector(existingBook.book_id)
+                } else {
+                    genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
+                }
             } else {
-                genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
+                res = JSON.parse(librarianAdmin.addBook(title, isbn, author, "", catId, shelf, count.toString()))
+                if (res.ok) {
+                    genStatusMessage.text = "✓ บันทึกหนังสือ '" + title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
+                    barcodeGenScreen.bookSaved()
+                    loadBooksForExistingSelector(res.data.book_id)
+                } else {
+                    genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
+                }
             }
         } else {
             if (genExistingBooksModel.count === 0 || genExistingBookCombo.currentIndex < 0) {
@@ -155,7 +198,7 @@ Rectangle {
             if (res.ok) {
                 genStatusMessage.text = "✓ เพิ่มเล่มหนังสือ '" + selBook.title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
                 barcodeGenScreen.bookSaved()
-                loadBooksForExistingSelector()
+                loadBooksForExistingSelector(selBook.book_id)
             } else {
                 genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
             }
@@ -210,12 +253,13 @@ Rectangle {
                 border.color: "#e2e8f0"
 
                 ScrollView {
+                    id: leftFormScroll
                     anchors.fill: parent
                     anchors.margins: 16
                     clip: true
 
                     ColumnLayout {
-                        width: parent.width
+                        width: leftFormScroll.availableWidth
                         spacing: 12
 
                         // Mode Switch
@@ -295,12 +339,22 @@ Rectangle {
                                         id: genCategoryCombo
                                         objectName: "genCategoryCombo"
                                         Layout.fillWidth: true
+                                        implicitHeight: 36
                                         textRole: "name"
                                         model: ListModel { id: genCategoryModel; objectName: "genCategoryModel" }
                                         background: Rectangle {
+                                            implicitHeight: 36
                                             color: "#ffffff"
                                             border.color: genCategoryCombo.activeFocus ? "#2563eb" : "#cbd5e1"
                                             radius: 4
+                                            Text {
+                                                anchors.right: parent.right
+                                                anchors.rightMargin: 10
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: "▼"
+                                                font.pixelSize: 10
+                                                color: "#64748b"
+                                            }
                                         }
                                         contentItem: Text {
                                             leftPadding: 8
@@ -339,12 +393,22 @@ Rectangle {
                                 id: genExistingBookCombo
                                 objectName: "genExistingBookCombo"
                                 Layout.fillWidth: true
+                                implicitHeight: 36
                                 textRole: "display"
                                 model: ListModel { id: genExistingBooksModel; objectName: "genExistingBooksModel" }
                                 background: Rectangle {
+                                    implicitHeight: 36
                                     color: "#ffffff"
                                     border.color: genExistingBookCombo.activeFocus ? "#2563eb" : "#cbd5e1"
                                     radius: 4
+                                    Text {
+                                        anchors.right: parent.right
+                                        anchors.rightMargin: 10
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "▼"
+                                        font.pixelSize: 10
+                                        color: "#64748b"
+                                    }
                                 }
                                 contentItem: Text {
                                     leftPadding: 8
@@ -353,6 +417,14 @@ Rectangle {
                                     font.pixelSize: 13
                                     verticalAlignment: Text.AlignVCenter
                                     elide: Text.ElideRight
+                                }
+                                onCurrentIndexChanged: {
+                                    if (currentIndex >= 0 && currentIndex < genExistingBooksModel.count) {
+                                        var sel = genExistingBooksModel.get(currentIndex)
+                                        existingBookInfoText.text = "หนังสือ: " + sel.title + " | ปัจจุบันมี: " + sel.total_copies + " เล่ม"
+                                    } else {
+                                        existingBookInfoText.text = ""
+                                    }
                                 }
                             }
                             Text {
@@ -383,7 +455,15 @@ Rectangle {
                             Item { Layout.fillWidth: true }
                             Button { text: "-1"; Layout.preferredWidth: 44; onClicked: { var c = Math.max(1, (parseInt(genCopyCountInput.text) || 1) - 1); genCopyCountInput.text = c.toString(); } }
                             Button { text: "+1"; Layout.preferredWidth: 44; onClicked: { var c = Math.min(99, (parseInt(genCopyCountInput.text) || 1) + 1); genCopyCountInput.text = c.toString(); } }
-                            Button { text: "+5"; Layout.preferredWidth: 44; onClicked: { var c = Math.min(99, (parseInt(genCopyCountInput.text) || 1) + 5); genCopyCountInput.text = c.toString(); } }
+                            Button {
+                                text: "+5"
+                                Layout.preferredWidth: 44
+                                onClicked: {
+                                    var cur = parseInt(genCopyCountInput.text) || 1
+                                    var c = (cur === 1) ? 5 : Math.min(99, cur + 5)
+                                    genCopyCountInput.text = c.toString()
+                                }
+                            }
                         }
 
                         Rectangle { Layout.fillWidth: true; height: 1; color: "#e2e8f0" }

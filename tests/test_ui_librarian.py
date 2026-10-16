@@ -635,5 +635,78 @@ def test_barcode_printout_page_select_book_and_print_all(lib_ui):
     assert "✓" in find(window, "genPdfStatusText").property("text")
 
 
+def test_existing_book_selector_auto_selects_and_adds_copies_to_five(lib_ui):
+    window = lib_ui["window"]
+    find(window, "navBtnGenerator").clicked.emit()
+    process(lib_ui["app"])
+
+    # 1. Add book with 1 copy initially
+    find(window, "genBookTitle").setProperty("text", "หัวใจคณิตศาสตร์ ม.ต้น")
+    find(window, "genBookIsbn").setProperty("text", "9786164408500")
+    find(window, "genBookAuthor").setProperty("text", "ณัฐอุดมพาณิชย์")
+    find(window, "genCopyCountInput").setProperty("text", "1")
+    find(window, "btnExecuteGenerate").clicked.emit()
+    process(lib_ui["app"])
+
+    # 2. Switch to Mode 1 (Add Copies to Existing) -> combo must auto-select (>= 0), height >= 32
+    find(window, "btnModeAddCopies").clicked.emit()
+    process(lib_ui["app"])
+    combo = find(window, "genExistingBookCombo")
+    assert combo.property("currentIndex") >= 0
+    assert combo.property("displayText") != ""
+    assert combo.property("height") >= 32
+
+    # 3. Select the newly added book and add 4 copies -> total 5 barcodes in PDF
+    model = find(window, "genExistingBooksModel")
+    target_idx = 0
+    for i in range(model.property("count")):
+        item = model.get(i)
+        t = item.property("title").toString() if hasattr(item.property("title"), "toString") else str(item.property("title"))
+        if t == "หัวใจคณิตศาสตร์ ม.ต้น":
+            target_idx = i
+            break
+    combo.setProperty("currentIndex", target_idx)
+    find(window, "genCopyCountInput").setProperty("text", "4")
+    find(window, "btnExecuteGenerate").clicked.emit()
+    process(lib_ui["app"])
+
+    books = json.loads(lib_ui["adapter"].getBooksWithBarcodes("หัวใจคณิตศาสตร์"))
+    assert len(books) == 1
+    assert len(books[0]["barcodes"]) == 5
+    assert books[0]["barcodes"][0].endswith("-01")
+    assert books[0]["barcodes"][4].endswith("-05")
+
+
+def test_edit_book_dialog_increases_total_copies_and_syncs_printout(lib_ui):
+    window = lib_ui["window"]
+    res = json.loads(lib_ui["adapter"].addBook("ฟิสิกส์ ม.ต้น", "9786160001112", "อ.นิวตัน", "", "", "B-1", "1"))
+    book_id = res["data"]["book_id"]
+
+    invoke(
+        window,
+        "openEditBookDialog",
+        Q_ARG("QVariant", book_id),
+        Q_ARG("QVariant", "ฟิสิกส์ ม.ต้น"),
+        Q_ARG("QVariant", "อ.นิวตัน"),
+        Q_ARG("QVariant", "9786160001112"),
+        Q_ARG("QVariant", 0),
+        Q_ARG("QVariant", "B-1"),
+        Q_ARG("QVariant", 1),
+    )
+    process(lib_ui["app"])
+
+    copies_input = find(window, "editBookCopiesInput")
+    assert copies_input is not None
+    assert copies_input.property("text") == "1"
+    copies_input.setProperty("text", "5")
+    invoke(window, "submitEditBook")
+    process(lib_ui["app"])
+
+    books = json.loads(lib_ui["adapter"].getBooksWithBarcodes("ฟิสิกส์ ม.ต้น"))
+    assert len(books) == 1
+    assert len(books[0]["barcodes"]) == 5
+
+
+
 
 

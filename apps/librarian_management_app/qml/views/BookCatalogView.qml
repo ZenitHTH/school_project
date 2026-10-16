@@ -15,7 +15,7 @@ Rectangle {
     signal searchRequested()
     signal openGeneratorRequested()
     signal addCopiesRequested(int bookId, string title)
-    signal editBookRequested(int bookId, string title, string author, string isbn, int categoryId, string shelfLocation)
+    signal editBookRequested(int bookId, string title, string author, string isbn, int categoryId, string shelfLocation, int totalCopies)
     signal deleteBookRequested(int bookId, string title)
 
     ColumnLayout {
@@ -89,7 +89,7 @@ Rectangle {
                         text: "✏️ แก้ไข"
                         flat: true
                         font.pixelSize: 12
-                        onClicked: root.editBookRequested(model.book_id, model.title, model.author || "", model.isbn || "", model.category_id || 0, model.shelf_location || "")
+                        onClicked: root.editBookRequested(model.book_id, model.title, model.author || "", model.isbn || "", model.category_id || 0, model.shelf_location || "", model.total_copies || 1)
                     }
                     Button {
                         text: "🗑️ ลบ"
