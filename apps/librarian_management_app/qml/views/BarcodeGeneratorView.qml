@@ -31,12 +31,6 @@ Rectangle {
     property alias categoryListView: categoryListView
     property alias categoryListModel: categoryListModel
 
-    // Continuity placeholders for PDF export until Task 3 connects to dedicated printout page
-    property alias btnExportPdfSheet: btnExportPdfSheet
-    property alias genBarcodesList: genBarcodesList
-    property alias genBarcodesModel: genBarcodesModel
-    property alias genPdfStatusText: genPdfStatusText
-
     signal backToCatalogRequested()
     signal bookSaved()
     signal editCategoryRequested(int catId, string catName)
@@ -166,18 +160,6 @@ Rectangle {
                 genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
             }
         }
-    }
-
-    function exportGenPdf() {
-        // Placeholder forwarding
-    }
-
-    // Hidden items for property alias continuity until Task 3
-    Item {
-        visible: false
-        Button { id: btnExportPdfSheet; objectName: "btnExportPdfSheet" }
-        ListView { id: genBarcodesList; objectName: "genBarcodesList"; model: ListModel { id: genBarcodesModel; objectName: "genBarcodesModel" } }
-        Text { id: genPdfStatusText; objectName: "genPdfStatusText" }
     }
 
     ColumnLayout {

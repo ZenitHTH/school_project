@@ -79,10 +79,13 @@ ApplicationWindow {
     property alias btnRefreshPreview: barcodeGenView.btnRefreshPreview
     property alias btnExecuteGenerate: barcodeGenView.btnExecuteGenerate
     property alias genStatusMessage: barcodeGenView.genStatusMessage
-    property alias btnExportPdfSheet: barcodeGenView.btnExportPdfSheet
-    property alias genBarcodesList: barcodeGenView.genBarcodesList
-    property alias genBarcodesModel: barcodeGenView.genBarcodesModel
-    property alias genPdfStatusText: barcodeGenView.genPdfStatusText
+    property alias barcodePrintSearchInput: categoryView.barcodePrintSearchInput
+    property alias btnSelectAllBooks: categoryView.btnSelectAllBooks
+    property alias btnPrintSelectedPdf: categoryView.btnPrintSelectedPdf
+    property alias btnExportPdfSheet: categoryView.btnExportPdfSheet
+    property alias genBarcodesList: categoryView.genBarcodesList
+    property alias genBarcodesModel: categoryView.genBarcodesModel
+    property alias genPdfStatusText: categoryView.genPdfStatusText
 
     property alias categoryScreen: categoryView
     property alias categoryNameInput: barcodeGenView.categoryNameInput
@@ -197,10 +200,10 @@ ApplicationWindow {
                 NavBtn {
                     id: navBtnCategories
                     objectName: "navBtnCategories"
-                    text: "📁 จัดการหมวดหมู่"
+                    text: "🏷️ พิมพ์สติกเกอร์บาร์โค้ด"
                     active: stackLayout.currentIndex === 7
                     onClicked: {
-                        window.loadCategoriesList()
+                        categoryView.loadPrintableBooks()
                         stackLayout.currentIndex = 7
                     }
                 }
@@ -337,6 +340,7 @@ ApplicationWindow {
                 onBackToCatalogRequested: stackLayout.currentIndex = 0
                 onBookSaved: {
                     window.searchBooks()
+                    categoryView.loadPrintableBooks()
                 }
                 onEditCategoryRequested: function(catId, catName) {
                     categoryDialogs.openRenameCategoryDialog(catId, catName)
@@ -349,18 +353,9 @@ ApplicationWindow {
                 }
             }
 
-            // 7. Category Management View
+            // 7. Dedicated Barcode Printout Generator View
             CategoryManagementView {
                 id: categoryView
-                onEditCategoryRequested: function(catId, catName) {
-                    categoryDialogs.openRenameCategoryDialog(catId, catName)
-                }
-                onDeleteCategoryRequested: function(catId, catName) {
-                    categoryDialogs.requestDeleteCategory(catId, catName)
-                }
-                onCategoryAdded: {
-                    window.initGeneratorPage()
-                }
             }
         }
     }
@@ -555,7 +550,32 @@ ApplicationWindow {
     }
 
     function exportGenPdf() {
-        barcodeGenView.exportGenPdf()
+        categoryView.exportAllBooksPdf()
+    }
+
+    // Forwarding to Dedicated Barcode Printout Generator View
+    function loadPrintableBooks(query) {
+        categoryView.loadPrintableBooks(query || "")
+    }
+
+    function deselectAllPrintableBooks() {
+        categoryView.deselectAllPrintableBooks()
+    }
+
+    function selectAllPrintableBooks() {
+        categoryView.selectAllPrintableBooks()
+    }
+
+    function setPrintableBookSelected(index, isSelected) {
+        categoryView.setPrintableBookSelected(index, isSelected)
+    }
+
+    function exportSelectedBooksPdf() {
+        categoryView.exportSelectedBooksPdf()
+    }
+
+    function exportAllBooksPdf() {
+        categoryView.exportAllBooksPdf()
     }
 
     // Forwarding to Category Management View & Dialogs
@@ -607,6 +627,7 @@ ApplicationWindow {
     Component.onCompleted: {
         if (typeof librarianAdmin !== "undefined" && librarianAdmin !== null) {
             searchBooks()
+            categoryView.loadPrintableBooks()
             if (librarianAdmin.isFirstLaunch()) {
                 firstLaunchDialog.open()
             }

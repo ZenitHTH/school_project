@@ -446,7 +446,7 @@ def test_barcode_generator_page_preview_and_save(lib_ui):
 
     assert stack.property("currentIndex") == 6
 
-    # Test previewing
+    # Test input
     title_input = find(window, "genBookTitle")
     assert title_input is not None
     title_input.setProperty("text", "ชีววิทยาน่ารู้ ม.3")
@@ -455,11 +455,7 @@ def test_barcode_generator_page_preview_and_save(lib_ui):
     count_input.setProperty("text", "2")
     process(lib_ui["app"])
 
-    model = find(window, "genBarcodesModel")
-    assert model is not None
-    assert model.property("count") == 2
-
-    # Save and commit
+    # Save and commit (generates and saves barcodes into SQLite)
     save_btn = find(window, "btnExecuteGenerate")
     assert save_btn is not None
     save_btn.clicked.emit()
@@ -467,6 +463,15 @@ def test_barcode_generator_page_preview_and_save(lib_ui):
 
     status_msg = find(window, "genStatusMessage")
     assert "✓" in status_msg.property("text")
+
+    # Navigate to Dedicated Barcode Printout page (Page 7)
+    find(window, "navBtnCategories").clicked.emit()
+    process(lib_ui["app"])
+    assert stack.property("currentIndex") == 7
+
+    model = find(window, "genBarcodesModel")
+    assert model is not None
+    assert model.property("count") >= 1
 
     # Export PDF
     pdf_btn = find(window, "btnExportPdfSheet")
@@ -482,12 +487,12 @@ def test_barcode_generator_page_preview_and_save(lib_ui):
 def test_category_management_screen(lib_ui):
     window = lib_ui["window"]
     stack = find(window, "librarianStack")
-    nav_btn = find(window, "navBtnCategories")
+    nav_btn = find(window, "navBtnGenerator")
     assert nav_btn is not None
     nav_btn.clicked.emit()
     process(lib_ui["app"])
 
-    assert stack.property("currentIndex") == 7
+    assert stack.property("currentIndex") == 6
 
     cat_input = find(window, "categoryNameInput")
     add_btn = find(window, "btnAddCategory")
@@ -516,7 +521,7 @@ def test_category_management_screen(lib_ui):
 
 def test_category_rename_and_delete_with_reassign(lib_ui):
     window = lib_ui["window"]
-    find(window, "navBtnCategories").clicked.emit()
+    find(window, "navBtnGenerator").clicked.emit()
     process(lib_ui["app"])
 
     # 1. Add two test categories
@@ -598,6 +603,36 @@ def test_book_and_grouping_split_page_saves_barcodes_and_manages_categories(lib_
     books = json.loads(lib_ui["adapter"].getBooksWithBarcodes("Python"))
     assert len(books) == 1
     assert len(books[0]["barcodes"]) == 3
+
+
+def test_barcode_printout_page_select_book_and_print_all(lib_ui):
+    window = lib_ui["window"]
+    # Add a second book so we can test printing selected vs printing all
+    lib_ui["adapter"].addBook("เคมีอินทรีย์", "", "ดร.สมศรี", "", "", "", "2")
+
+    # Navigate to Page 7 (Barcode Printout page)
+    find(window, "navBtnCategories").clicked.emit()
+    process(lib_ui["app"])
+
+    model = find(window, "genBarcodesModel")
+    assert model.property("count") >= 2
+
+    # Validation: Deselect all and try printing selected -> error message
+    invoke(window, "deselectAllPrintableBooks")
+    find(window, "btnPrintSelectedPdf").clicked.emit()
+    process(lib_ui["app"])
+    assert "กรุณาเลือกหนังสืออย่างน้อย 1 รายการ" in find(window, "genPdfStatusText").property("text")
+
+    # 1. Print Selected (select only first book)
+    invoke(window, "setPrintableBookSelected", Q_ARG("QVariant", 0), Q_ARG("QVariant", True))
+    find(window, "btnPrintSelectedPdf").clicked.emit()
+    process(lib_ui["app"])
+    assert "✓" in find(window, "genPdfStatusText").property("text")
+
+    # 2. Print All
+    find(window, "btnExportPdfSheet").clicked.emit()
+    process(lib_ui["app"])
+    assert "✓" in find(window, "genPdfStatusText").property("text")
 
 
 

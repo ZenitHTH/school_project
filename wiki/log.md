@@ -87,6 +87,12 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Sanitized RPM pre-release version hyphens with tildes (`${VERSION//-/\~}`).
 - Automated generation of `SHA256SUMS.txt` and GitHub Releases with release notes.
 
+## [2026-10-16] feat | Book Registration Split View & Dedicated Barcode Printout Page
+- Repurposed Tab 6 (`BarcodeGeneratorView.qml`) into 2-column split view combining book registration (auto-saving deterministic barcodes to SQLite) and category grouping management with live combo sync.
+- Repurposed Tab 7 (`CategoryManagementView.qml`) into dedicated Barcode Printout Generator supporting search, individual book selection, and Print All A4 PDF export.
+- Added `book_repo.list_books_with_barcodes` and `LibrarianAdminAdapter.getBooksWithBarcodes` excluding retired/disposed copies.
+- Maintained 100% test coverage with automated UI verification for split view and selectable printing.
+
 
 
 
