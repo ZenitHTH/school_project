@@ -14,7 +14,7 @@ from core.library.services.fine_service import FineService
 from core.library.services.loan_service import LoanService
 from core.library.services.reservation_service import ReservationService
 from core.student.services.student_service import StudentService
-from data.repositories import log_repo
+from data.repositories import book_repo, log_repo
 from data.sync.diff import compute_diff
 from data.sync.apply import apply_sync
 
@@ -126,6 +126,13 @@ class LibrarianAdminAdapter(QObject):
         res = self.catalog_svc.get_book(book_id)
         data = _sanitize_for_qml(res.data) if res.ok else {}
         return json.dumps(data)
+
+    @Slot(result=str)
+    @Slot(str, result=str)
+    def getBooksWithBarcodes(self, query: str = "") -> str:
+        """Get active books with persisted non-disposed barcodes."""
+        rows = book_repo.list_books_with_barcodes(self.conn, query=query)
+        return json.dumps(_sanitize_for_qml(rows))
 
     @Slot(str, str, str, str, str, str, str, result=str)
     def addBook(

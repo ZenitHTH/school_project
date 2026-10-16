@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from core.shared.log_service import record_activity
 
 
@@ -340,3 +340,18 @@ def insert_copy(conn: sqlite3.Connection, book_id: int, barcode: str, status: st
             (book_id, book_id),
         )
         return copy_id
+
+
+def list_books_with_barcodes(conn: sqlite3.Connection, query: str = "") -> List[Dict[str, Any]]:
+    """List active books with their active non-disposed/non-retired barcodes."""
+    books = search_books(conn, query=query, limit=500, offset=0)
+    result = []
+    for b in books:
+        item = dict(b)
+        rows = conn.execute(
+            "SELECT barcode FROM book_copies WHERE book_id = ? AND status NOT IN ('retired', 'disposed') ORDER BY copy_id ASC",
+            (b["book_id"],),
+        ).fetchall()
+        item["barcodes"] = [r["barcode"] for r in rows]
+        result.append(item)
+    return result

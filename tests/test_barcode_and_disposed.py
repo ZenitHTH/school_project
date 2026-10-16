@@ -162,3 +162,19 @@ def test_export_labels_pdf_normalizes_file_url(conn, tmp_path):
     assert pdf_path.exists()
 
 
+def test_get_books_with_barcodes_returns_saved_active_barcodes(conn):
+    adapter = LibrarianAdminAdapter(conn)
+    res1 = json.loads(adapter.addBook(title="ดาราศาสตร์ ม.3", author="อ.วิชัย", barcodes_csv="2"))
+    assert res1["ok"] is True
+    b1_id = res1["data"]["book_id"]
+
+    # Mark second copy disposed — only active copy should be listed for printing
+    copies = book_repo.get_copies_for_book(conn, b1_id)
+    adapter.markCopy(copies[1]["copy_id"], "disposed", "ชำรุด")
+
+    books = json.loads(adapter.getBooksWithBarcodes(""))
+    assert len(books) == 1
+    assert books[0]["book_id"] == b1_id
+    assert books[0]["barcodes"] == [f"SMTE-{b1_id:05d}-01"]
+
+
