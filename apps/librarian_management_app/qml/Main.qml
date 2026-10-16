@@ -85,11 +85,11 @@ ApplicationWindow {
     property alias genPdfStatusText: barcodeGenView.genPdfStatusText
 
     property alias categoryScreen: categoryView
-    property alias categoryNameInput: categoryView.categoryNameInput
-    property alias btnAddCategory: categoryView.btnAddCategory
-    property alias categoryStatusText: categoryView.categoryStatusText
-    property alias categoryListView: categoryView.categoryListView
-    property alias categoryListModel: categoryView.categoryListModel
+    property alias categoryNameInput: barcodeGenView.categoryNameInput
+    property alias btnAddCategory: barcodeGenView.btnAddCategory
+    property alias categoryStatusText: barcodeGenView.categoryStatusText
+    property alias categoryListView: barcodeGenView.categoryListView
+    property alias categoryListModel: barcodeGenView.categoryListModel
 
     // Dialog aliases
     property alias addBookDialog: bookDialogs.addBookDialog
@@ -186,7 +186,7 @@ ApplicationWindow {
                 NavBtn {
                     id: navBtnGenerator
                     objectName: "navBtnGenerator"
-                    text: "🏷️ สร้างบาร์โค้ดและเพิ่มหนังสือ"
+                    text: "📚 เพิ่มหนังสือ / หมวดหมู่"
                     active: stackLayout.currentIndex === 6
                     onClicked: {
                         window.initGeneratorPage()
@@ -331,12 +331,21 @@ ApplicationWindow {
                 title: "ประวัติกิจกรรมห้องสมุด (Audit Log)"
             }
 
-            // 6. Barcode Generator View
+            // 6. Barcode Generator & Grouping View
             BarcodeGeneratorView {
                 id: barcodeGenView
                 onBackToCatalogRequested: stackLayout.currentIndex = 0
                 onBookSaved: {
                     window.searchBooks()
+                }
+                onEditCategoryRequested: function(catId, catName) {
+                    categoryDialogs.openRenameCategoryDialog(catId, catName)
+                }
+                onDeleteCategoryRequested: function(catId, catName) {
+                    categoryDialogs.requestDeleteCategory(catId, catName)
+                }
+                onCategoryAdded: {
+                    barcodeGenView.loadCategoriesList()
                 }
             }
 
@@ -551,11 +560,11 @@ ApplicationWindow {
 
     // Forwarding to Category Management View & Dialogs
     function loadCategoriesList() {
-        categoryView.loadCategoriesList()
+        barcodeGenView.loadCategoriesList()
     }
 
     function addNewCategory() {
-        categoryView.addNewCategory()
+        barcodeGenView.addNewCategory()
     }
 
     function openRenameCategoryDialog(catId, catName) {

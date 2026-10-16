@@ -8,9 +8,6 @@ Rectangle {
     color: "#f8fafc"
 
     property int currentGenMode: 0 // 0: New Book, 1: Add Copies to Existing
-    property var previewedBarcodes: []
-    property int previewedBookId: 0
-    property string lastPdfExported: ""
 
     property alias btnModeNewBook: btnModeNewBook
     property alias btnModeAddCopies: btnModeAddCopies
@@ -26,6 +23,15 @@ Rectangle {
     property alias btnRefreshPreview: btnRefreshPreview
     property alias btnExecuteGenerate: btnExecuteGenerate
     property alias genStatusMessage: genStatusMessage
+
+    // Grouping / Category Management aliases
+    property alias categoryNameInput: categoryNameInput
+    property alias btnAddCategory: btnAddCategory
+    property alias categoryStatusText: categoryStatusText
+    property alias categoryListView: categoryListView
+    property alias categoryListModel: categoryListModel
+
+    // Continuity placeholders for PDF export until Task 3 connects to dedicated printout page
     property alias btnExportPdfSheet: btnExportPdfSheet
     property alias genBarcodesList: genBarcodesList
     property alias genBarcodesModel: genBarcodesModel
@@ -33,18 +39,69 @@ Rectangle {
 
     signal backToCatalogRequested()
     signal bookSaved()
+    signal editCategoryRequested(int catId, string catName)
+    signal deleteCategoryRequested(int catId, string catName)
+    signal categoryAdded()
 
-    function initGeneratorPage() {
+    function reloadCategories() {
+        var prevCatId = 0
+        if (genCategoryCombo.currentIndex > 0 && genCategoryCombo.currentIndex < genCategoryModel.count) {
+            prevCatId = genCategoryModel.get(genCategoryCombo.currentIndex).category_id
+        }
         genCategoryModel.clear()
         genCategoryModel.append({ "category_id": 0, "name": "-- ไม่ระบุหมวดหมู่ --" })
+        categoryListModel.clear()
         try {
-            var cats = JSON.parse(librarianAdmin.getCategories())
+            var raw = librarianAdmin.listCategories()
+            var cats = JSON.parse(raw)
+            var newIndex = 0
             for (var i = 0; i < cats.length; i++) {
                 genCategoryModel.append(cats[i])
+                categoryListModel.append({
+                    "category_id": cats[i].category_id,
+                    "name": cats[i].name
+                })
+                if (cats[i].category_id === prevCatId) {
+                    newIndex = i + 1
+                }
             }
+            genCategoryCombo.currentIndex = newIndex
         } catch (e) {}
+    }
+
+    function initGeneratorPage() {
+        reloadCategories()
         loadBooksForExistingSelector()
-        updateGenPreview()
+    }
+
+    function loadCategoriesList() {
+        reloadCategories()
+    }
+
+    function addNewCategory() {
+        var name = categoryNameInput.text.trim()
+        if (!name) {
+            categoryStatusText.text = "⚠️ กรุณากรอกชื่อหมวดหมู่"
+            categoryStatusText.color = "#ef4444"
+            return
+        }
+
+        try {
+            var res = JSON.parse(librarianAdmin.addCategory(name))
+            if (res.ok) {
+                categoryStatusText.text = "✓ เพิ่มหมวดหมู่ '" + name + "' เรียบร้อยแล้ว"
+                categoryStatusText.color = "#10b981"
+                categoryNameInput.text = ""
+                reloadCategories()
+                barcodeGenScreen.categoryAdded()
+            } else {
+                categoryStatusText.text = "✗ " + (res.error || "เกิดข้อผิดพลาดในการเพิ่มหมวดหมู่")
+                categoryStatusText.color = "#ef4444"
+            }
+        } catch (e) {
+            categoryStatusText.text = "✗ เกิดข้อผิดพลาดในการเชื่อมต่อ: " + e
+            categoryStatusText.color = "#ef4444"
+        }
     }
 
     function loadBooksForExistingSelector() {
@@ -65,40 +122,13 @@ Rectangle {
     }
 
     function updateGenPreview() {
-        var count = parseInt(genCopyCountInput.text) || 1
-        var targetBookId = 0
-        var currentTitle = ""
-        if (barcodeGenScreen.currentGenMode === 0) {
-            targetBookId = 0
-            currentTitle = genBookTitle.text.trim() || "(หนังสือใหม่)"
-        } else {
-            if (genExistingBooksModel.count > 0 && genExistingBookCombo.currentIndex >= 0 && genExistingBookCombo.currentIndex < genExistingBooksModel.count) {
-                var selected = genExistingBooksModel.get(genExistingBookCombo.currentIndex)
-                targetBookId = selected.book_id
-                currentTitle = selected.title
-                existingBookInfoText.text = "หนังสือ: " + selected.title + " | ปัจจุบันมี: " + selected.total_copies + " เล่ม"
-            }
-        }
-
-        try {
-            var res = JSON.parse(librarianAdmin.previewBarcodes(targetBookId, count))
-            if (res.ok && res.barcodes) {
-                genBarcodesModel.clear()
-                for (var j = 0; j < res.barcodes.length; j++) {
-                    genBarcodesModel.append({
-                        "barcode": res.barcodes[j],
-                        "title": currentTitle,
-                        "seq": (j + 1) + " จาก " + res.barcodes.length,
-                        "is_committed": false
-                    })
-                }
-                genSummaryLabel.text = "พร้อมสร้าง: " + res.barcodes.length + " เล่ม (รหัสเริ่มต้น: " + res.barcodes[0] + ")"
-            }
-        } catch (e) {}
+        // Kept for backward compatibility
     }
 
     function executeGenerateAndSave() {
         var count = parseInt(genCopyCountInput.text) || 1
+        if (count <= 0) count = 1
+
         var res
         if (barcodeGenScreen.currentGenMode === 0) {
             var title = genBookTitle.text.trim()
@@ -109,24 +139,13 @@ Rectangle {
             var isbn = genBookIsbn.text.trim()
             var author = genBookAuthor.text.trim()
             var catId = ""
-            if (genCategoryCombo.currentIndex > 0) {
+            if (genCategoryCombo.currentIndex > 0 && genCategoryCombo.currentIndex < genCategoryModel.count) {
                 catId = genCategoryModel.get(genCategoryCombo.currentIndex).category_id.toString()
             }
             var shelf = genShelfLocation.text.trim()
             res = JSON.parse(librarianAdmin.addBook(title, isbn, author, "", catId, shelf, count.toString()))
             if (res.ok) {
                 genStatusMessage.text = "✓ บันทึกหนังสือ '" + title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
-                barcodeGenScreen.previewedBarcodes = res.data.barcodes
-                genBarcodesModel.clear()
-                for (var i = 0; i < res.data.barcodes.length; i++) {
-                    genBarcodesModel.append({
-                        "barcode": res.data.barcodes[i],
-                        "title": title,
-                        "seq": (i + 1) + " จาก " + res.data.barcodes.length,
-                        "is_committed": true
-                    })
-                }
-                genSummaryLabel.text = "✓ บันทึกและสร้างบาร์โค้ดเรียบร้อย (" + res.data.barcodes.length + " เล่ม)"
                 barcodeGenScreen.bookSaved()
                 loadBooksForExistingSelector()
             } else {
@@ -141,17 +160,6 @@ Rectangle {
             res = JSON.parse(librarianAdmin.addCopies(selBook.book_id, count.toString()))
             if (res.ok) {
                 genStatusMessage.text = "✓ เพิ่มเล่มหนังสือ '" + selBook.title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
-                barcodeGenScreen.previewedBarcodes = res.data.barcodes
-                genBarcodesModel.clear()
-                for (var k = 0; k < res.data.barcodes.length; k++) {
-                    genBarcodesModel.append({
-                        "barcode": res.data.barcodes[k],
-                        "title": selBook.title,
-                        "seq": (k + 1) + " จาก " + res.data.barcodes.length,
-                        "is_committed": true
-                    })
-                }
-                genSummaryLabel.text = "✓ บันทึกและสร้างบาร์โค้ดเรียบร้อย (" + res.data.barcodes.length + " เล่ม)"
                 barcodeGenScreen.bookSaved()
                 loadBooksForExistingSelector()
             } else {
@@ -161,19 +169,15 @@ Rectangle {
     }
 
     function exportGenPdf() {
-        var barcodes = []
-        for (var i = 0; i < genBarcodesModel.count; i++) {
-            barcodes.push(genBarcodesModel.get(i).barcode)
-        }
-        if (barcodes.length === 0) return
-        var outPath = "/tmp/library_labels_" + Date.now() + ".pdf"
-        var res = JSON.parse(librarianAdmin.exportLabelsPdf(JSON.stringify(barcodes), outPath))
-        if (res.ok) {
-            barcodeGenScreen.lastPdfExported = res.data.output_path
-            genPdfStatusText.text = "✓ บันทึกแผ่นพิมพ์สติกเกอร์ PDF A4 สำเร็จที่: " + res.data.output_path
-        } else {
-            genPdfStatusText.text = "✗ ข้อผิดพลาดในการส่งออก PDF: " + res.error
-        }
+        // Placeholder forwarding
+    }
+
+    // Hidden items for property alias continuity until Task 3
+    Item {
+        visible: false
+        Button { id: btnExportPdfSheet; objectName: "btnExportPdfSheet" }
+        ListView { id: genBarcodesList; objectName: "genBarcodesList"; model: ListModel { id: genBarcodesModel; objectName: "genBarcodesModel" } }
+        Text { id: genPdfStatusText; objectName: "genPdfStatusText" }
     }
 
     ColumnLayout {
@@ -188,13 +192,13 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: 4
                 Text {
-                    text: "🏷️ เครื่องมือเพิ่มหนังสือและสร้างบาร์โค้ดประจำเล่ม"
+                    text: "📚 เพิ่มหนังสือและจัดการหมวดหมู่ (Book Registration & Grouping)"
                     font.bold: true
                     font.pixelSize: 20
                     color: "#0f172a"
                 }
                 Text {
-                    text: "ระบบสร้างรหัสบาร์โค้ดติดตามประจำเล่มแบบกำหนดได้ (SMTE-xxxxx-xx) ตามมาตรฐาน Code128 พร้อมพิมพ์สติกเกอร์ A4 (3x8)"
+                    text: "ลงทะเบียนหนังสือใหม่/เพิ่มเล่มพร้อมสร้างบาร์โค้ดลงฐานข้อมูลทันที (ด้านซ้าย) และจัดการหมวดหมู่หนังสือ (ด้านขวา)"
                     font.pixelSize: 12
                     color: "#64748b"
                     wrapMode: Text.Wrap
@@ -207,18 +211,18 @@ Rectangle {
             }
         }
 
-        // Main split cards
+        // Main 2-column split view
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: 16
 
-            // Left Card: Form
+            // Left Card: Add Book / Add Copies Form
             Rectangle {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 380
-                Layout.maximumWidth: 410
-                Layout.minimumWidth: 330
+                Layout.preferredWidth: 420
+                Layout.maximumWidth: 460
+                Layout.minimumWidth: 350
                 color: "#ffffff"
                 radius: 8
                 border.color: "#e2e8f0"
@@ -243,7 +247,6 @@ Rectangle {
                                 highlighted: barcodeGenScreen.currentGenMode === 0
                                 onClicked: {
                                     barcodeGenScreen.currentGenMode = 0
-                                    barcodeGenScreen.updateGenPreview()
                                 }
                             }
                             Button {
@@ -255,7 +258,6 @@ Rectangle {
                                 onClicked: {
                                     barcodeGenScreen.currentGenMode = 1
                                     barcodeGenScreen.loadBooksForExistingSelector()
-                                    barcodeGenScreen.updateGenPreview()
                                 }
                             }
                         }
@@ -277,7 +279,6 @@ Rectangle {
                                 selectByMouse: true
                                 padding: 8
                                 background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-                                onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
 
                             Text { text: "ผู้แต่ง (Author)"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
@@ -313,7 +314,7 @@ Rectangle {
                                         objectName: "genCategoryCombo"
                                         Layout.fillWidth: true
                                         textRole: "name"
-                                        model: ListModel { id: genCategoryModel }
+                                        model: ListModel { id: genCategoryModel; objectName: "genCategoryModel" }
                                         background: Rectangle {
                                             color: "#ffffff"
                                             border.color: genCategoryCombo.activeFocus ? "#2563eb" : "#cbd5e1"
@@ -357,8 +358,7 @@ Rectangle {
                                 objectName: "genExistingBookCombo"
                                 Layout.fillWidth: true
                                 textRole: "display"
-                                model: ListModel { id: genExistingBooksModel }
-                                onCurrentIndexChanged: barcodeGenScreen.updateGenPreview()
+                                model: ListModel { id: genExistingBooksModel; objectName: "genExistingBooksModel" }
                                 background: Rectangle {
                                     color: "#ffffff"
                                     border.color: genExistingBookCombo.activeFocus ? "#2563eb" : "#cbd5e1"
@@ -384,7 +384,7 @@ Rectangle {
                         }
 
                         // Common: Copy count
-                        Text { text: "จำนวนเล่มที่ต้องการสร้าง (Copy Count) *"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
+                        Text { text: "จำนวนเล่มที่ต้องการบันทึก (Copy Count) *"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
@@ -397,7 +397,6 @@ Rectangle {
                                 selectByMouse: true
                                 padding: 8
                                 background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-                                onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
                             Item { Layout.fillWidth: true }
                             Button { text: "-1"; Layout.preferredWidth: 44; onClicked: { var c = Math.max(1, (parseInt(genCopyCountInput.text) || 1) - 1); genCopyCountInput.text = c.toString(); } }
@@ -407,7 +406,7 @@ Rectangle {
 
                         Rectangle { Layout.fillWidth: true; height: 1; color: "#e2e8f0" }
 
-                        // Submit & Action buttons
+                        // Submit Button & Hidden Refresh
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 10
@@ -415,8 +414,8 @@ Rectangle {
                             Button {
                                 id: btnRefreshPreview
                                 objectName: "btnRefreshPreview"
-                                text: "🔄 จำลองรหัส"
-                                onClicked: barcodeGenScreen.updateGenPreview()
+                                text: "🔄 รีเฟรชข้อมูล"
+                                onClicked: barcodeGenScreen.initGeneratorPage()
                             }
 
                             Button {
@@ -439,13 +438,12 @@ Rectangle {
                             color: text.indexOf("✗") !== -1 ? "#ef4444" : "#10b981"
                             visible: text !== ""
                             Layout.fillWidth: true
-                            Layout.preferredWidth: 320
                         }
                     }
                 }
             }
 
-            // Right Card: Barcode Live Generator Preview & PDF Export
+            // Right Card: Grouping / Category Management
             Rectangle {
                 Layout.fillHeight: true
                 Layout.fillWidth: true
@@ -460,6 +458,7 @@ Rectangle {
                     anchors.margins: 16
                     spacing: 12
 
+                    // Card Header
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
@@ -467,14 +466,13 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 2
                             Text {
-                                text: "ตัวอย่างบาร์โค้ดประจำเล่ม"
+                                text: "📁 จัดการหมวดหมู่หนังสือ (Grouping)"
                                 font.bold: true
                                 font.pixelSize: 16
                                 color: "#1e293b"
                             }
                             Text {
-                                id: genSummaryLabel
-                                text: "พร้อมสร้าง: 1 เล่ม"
+                                text: "เพิ่มและจัดการหมวดหมู่ รายการจะอัปเดตช่องหมวดหมู่ด้านซ้ายทันที"
                                 color: "#64748b"
                                 font.pixelSize: 12
                                 wrapMode: Text.Wrap
@@ -482,128 +480,149 @@ Rectangle {
                             }
                         }
                         Button {
-                            id: btnExportPdfSheet
-                            objectName: "btnExportPdfSheet"
-                            text: "📄 พิมพ์สติกเกอร์ PDF (A4)"
-                            highlighted: true
-                            enabled: genBarcodesModel.count > 0
-                            onClicked: barcodeGenScreen.exportGenPdf()
+                            text: "🔄 รีเฟรช"
+                            flat: true
+                            onClicked: barcodeGenScreen.loadCategoriesList()
                         }
                     }
 
                     Rectangle { Layout.fillWidth: true; height: 1; color: "#e2e8f0" }
 
-                    // List of generated or previewed barcodes
-                    ListView {
-                        id: genBarcodesList
-                        objectName: "genBarcodesList"
+                    // Category Add Input
+                    RowLayout {
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
                         spacing: 8
-                        model: ListModel { id: genBarcodesModel; objectName: "genBarcodesModel" }
+                        TextField {
+                            id: categoryNameInput
+                            objectName: "categoryNameInput"
+                            placeholderText: "ระบุชื่อหมวดหมู่ใหม่..."
+                            Layout.fillWidth: true
+                            font.pixelSize: 13
+                            selectByMouse: true
+                            padding: 8
+                            background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                            onAccepted: barcodeGenScreen.addNewCategory()
+                        }
+                        Button {
+                            id: btnAddCategory
+                            objectName: "btnAddCategory"
+                            text: "+ เพิ่มหมวดหมู่"
+                            highlighted: true
+                            Layout.preferredWidth: 120
+                            onClicked: barcodeGenScreen.addNewCategory()
+                        }
+                    }
 
-                        delegate: Rectangle {
-                            width: genBarcodesList.width
-                            height: 56
-                            radius: 6
-                            color: model.is_committed ? "#f0fdf4" : "#f8fafc"
-                            border.color: model.is_committed ? "#86efac" : "#cbd5e1"
-                            border.width: 1
+                    Text {
+                        id: categoryStatusText
+                        objectName: "categoryStatusText"
+                        text: ""
+                        font.pixelSize: 12
+                        visible: text !== ""
+                        Layout.fillWidth: true
+                    }
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 12
-                                anchors.topMargin: 6
-                                anchors.bottomMargin: 6
-                                spacing: 10
+                    Rectangle { Layout.fillWidth: true; height: 1; color: "#e2e8f0" }
 
-                                Rectangle {
-                                    width: 32
-                                    height: 32
-                                    radius: 16
-                                    color: model.is_committed ? "#dcfce7" : "#e2e8f0"
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "🏷️"
-                                        font.pixelSize: 15
-                                    }
-                                }
+                    // Category List Header
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "📋 รายการหมวดหมู่ทั้งหมด"
+                            font.bold: true
+                            font.pixelSize: 14
+                            color: "#1e293b"
+                        }
+                        Text {
+                            text: "(" + categoryListModel.count + " หมวดหมู่)"
+                            font.pixelSize: 12
+                            color: "#64748b"
+                        }
+                    }
 
-                                ColumnLayout {
-                                    spacing: 2
-                                    Layout.fillWidth: true
-                                    RowLayout {
-                                        spacing: 8
-                                        Text {
-                                            text: model.barcode
-                                            font.bold: true
-                                            font.family: "Monospace"
-                                            font.pixelSize: 14
-                                            color: "#0f766e"
-                                        }
-                                        Rectangle {
-                                            height: 18
-                                            width: statusText.contentWidth + 10
-                                            radius: 9
-                                            color: model.is_committed ? "#bbf7d0" : "#fed7aa"
-                                            Text {
-                                                id: statusText
-                                                anchors.centerIn: parent
-                                                text: model.is_committed ? "บันทึกแล้ว" : "จำลอง"
-                                                font.pixelSize: 10
-                                                font.bold: true
-                                                color: model.is_committed ? "#15803d" : "#c2410c"
-                                            }
-                                        }
-                                    }
-                                    Text {
-                                        text: (model.title || "-") + " | " + model.seq
-                                        font.pixelSize: 11
-                                        color: "#64748b"
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                    }
-                                }
+                    // Empty placeholder
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 80
+                        color: "#f8fafc"
+                        border.color: "#e2e8f0"
+                        radius: 6
+                        visible: categoryListModel.count === 0
 
-                                Text {
-                                    text: "Code128"
-                                    font.pixelSize: 10
-                                    color: "#94a3b8"
-                                    Layout.alignment: Qt.AlignRight
-                                }
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 4
+                            Text {
+                                text: "📂 ยังไม่มีหมวดหมู่ในระบบ"
+                                font.pixelSize: 13
+                                font.bold: true
+                                color: "#64748b"
+                                Layout.alignment: Qt.AlignHCenter
                             }
                         }
                     }
 
-                    // PDF Result feedback footer
-                    Rectangle {
+                    // Categories ListView
+                    ListView {
+                        id: categoryListView
+                        objectName: "categoryListView"
                         Layout.fillWidth: true
-                        height: 44
-                        radius: 6
-                        color: "#f1f5f9"
-                        border.color: "#e2e8f0"
-                        visible: genPdfStatusText.text !== ""
+                        Layout.fillHeight: true
+                        clip: true
+                        spacing: 6
+                        visible: categoryListModel.count > 0
+                        model: ListModel { id: categoryListModel; objectName: "categoryListModel" }
 
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 8
-                            spacing: 8
-                            Text {
-                                id: genPdfStatusText
-                                objectName: "genPdfStatusText"
-                                text: ""
-                                font.pixelSize: 11
-                                color: text.indexOf("✗") !== -1 ? "#ef4444" : "#0f766e"
-                                Layout.fillWidth: true
-                                wrapMode: Text.Wrap
-                            }
-                            Button {
-                                text: "📂 เปิดไฟล์ PDF"
-                                visible: barcodeGenScreen.lastPdfExported !== ""
-                                onClicked: {
-                                    Qt.openUrlExternally("file://" + barcodeGenScreen.lastPdfExported)
+                        delegate: Rectangle {
+                            width: categoryListView.width
+                            height: 44
+                            color: "#f8fafc"
+                            border.color: "#e2e8f0"
+                            radius: 6
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                spacing: 10
+
+                                Rectangle {
+                                    width: 32
+                                    height: 24
+                                    radius: 4
+                                    color: "#e0f2fe"
+                                    border.color: "#38bdf8"
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "#" + model.category_id
+                                        font.bold: true
+                                        color: "#0284c7"
+                                        font.pixelSize: 10
+                                    }
+                                }
+
+                                Text {
+                                    text: model.name
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                    color: "#1e293b"
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                }
+
+                                Button {
+                                    id: btnEditCategory
+                                    text: "✏️ แก้ไข"
+                                    font.pixelSize: 11
+                                    flat: true
+                                    onClicked: barcodeGenScreen.editCategoryRequested(model.category_id, model.name)
+                                }
+
+                                Button {
+                                    id: btnDeleteCategory
+                                    text: "🗑️ ลบ"
+                                    font.pixelSize: 11
+                                    flat: true
+                                    onClicked: barcodeGenScreen.deleteCategoryRequested(model.category_id, model.name)
                                 }
                             }
                         }

@@ -574,5 +574,31 @@ def test_category_rename_and_delete_with_reassign(lib_ui):
     assert reassign_dlg.property("visible") is False
 
 
+def test_book_and_grouping_split_page_saves_barcodes_and_manages_categories(lib_ui):
+    window = lib_ui["window"]
+    find(window, "navBtnGenerator").clicked.emit()
+    process(lib_ui["app"])
+
+    # Right side: add category and verify Left side genCategoryModel updates immediately
+    cat_input = find(window, "categoryNameInput")
+    add_cat_btn = find(window, "btnAddCategory")
+    cat_input.setProperty("text", "หมวดคอมพิวเตอร์")
+    add_cat_btn.clicked.emit()
+    process(lib_ui["app"])
+    assert find(window, "categoryListModel").property("count") >= 1
+    assert find(window, "genCategoryModel").property("count") >= 2
+
+    # Left side: add book and verify barcodes are generated and saved in database
+    find(window, "genBookTitle").setProperty("text", "Python เบื้องต้น")
+    find(window, "genCopyCountInput").setProperty("text", "3")
+    find(window, "btnExecuteGenerate").clicked.emit()
+    process(lib_ui["app"])
+
+    assert "✓" in find(window, "genStatusMessage").property("text")
+    books = json.loads(lib_ui["adapter"].getBooksWithBarcodes("Python"))
+    assert len(books) == 1
+    assert len(books[0]["barcodes"]) == 3
+
+
 
 
