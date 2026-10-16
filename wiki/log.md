@@ -100,6 +100,7 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Replaced static grey `Code128` text on printout rows with direct `+ เพิ่มเล่ม` button and multi-barcode list display.
 - Verified 5-copy book PDF export produces all 5 physical barcodes in output PDF.
 
-
-
-
+## [2026-10-16] ci | Dev vs Main Branch CI/CD Separation
+- Configured `.github/workflows/ci.yml` to run fast test suite only on `dev` pushes and PRs (`main`, `dev`) without building desktop packages.
+- Configured `.github/workflows/release.yml` to build and publish all desktop packages (`.exe`, `Setup.exe`, `.dmg`, `.deb`, `.rpm`, `.tar.gz`, `SHA256SUMS.txt`) when pushing/merging to `main`, pushing `v*.*.*` tags, or via `workflow_dispatch`.
+- Organized git branches with dedicated `dev` branch for active development and `main` for release builds.

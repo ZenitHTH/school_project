@@ -48,17 +48,17 @@ To prevent Qt QML font crashes, missing Wayland/X11 platform plugins, or GLX/Ope
 
 ---
 
-## 5. GitHub Actions Pipeline (`.github/workflows/`)
-The deployment architecture is split into two distinct workflows:
-1. **Continuous Integration (`.github/workflows/ci.yml`)**:
-   - Triggers on `push` and `pull_request` targeting `main`.
-   - Runs fast headless `pytest` (`QT_QPA_PLATFORM=offscreen`) with pip caching on `ubuntu-24.04`.
+## 5. GitHub Actions Pipeline & Git Branch Strategy (`.github/workflows/`)
+The repository separates active development (`dev`) from release packaging (`main`):
+1. **Development CI (`.github/workflows/ci.yml`)**:
+   - Triggers on `push` to `dev` and `pull_request` targeting `main` or `dev`.
+   - Runs fast headless `pytest` (`QT_QPA_PLATFORM=offscreen`) with pip caching on `ubuntu-24.04` — **no desktop packaging** on `dev` pushes.
    - Uses concurrency cancellation (`${{ github.workflow }}-${{ github.ref }}`) to drop redundant builds on fast pushes.
-2. **Tag-Driven Release Pipeline (`.github/workflows/release.yml`)**:
-   - Triggers only on semantic version tags (`v*.*.*`) or manual `workflow_dispatch`.
+2. **Main & Tag Release Pipeline (`.github/workflows/release.yml`)**:
+   - Triggers on `push` to `main` (e.g., merging `dev` -> `main`), semantic version tags (`v*.*.*`), or manual `workflow_dispatch`.
    - Gated behind a required `test` job before starting any OS builds.
-   - Matrix builds across 4 platforms: `windows-latest`, `macos-latest`, `ubuntu-24.04`, and `fedora:latest` container.
-   - Dynamically derives `VERSION` from the Git tag (`${GITHUB_REF_NAME#v}`) or dispatch input, passing it into all installer scripts.
+   - Matrix builds across 4 platforms: `windows-latest` (`.exe` & `Setup.exe`), `macos-latest` (`.app`, `.zip` & `.dmg`), `ubuntu-24.04` (`.tar.gz` & `.deb`), and `fedora:latest` container (`.tar.gz` & `.rpm`).
+   - Dynamically derives `VERSION` from the Git tag (`${GITHUB_REF_NAME#v}`) or defaults to `1.0.0`, passing it into all installer scripts.
    - Archives macOS `.app` bundles using native `ditto -c -k --sequesterRsrc --keepParent` to preserve Qt framework symlinks.
-   - Aggregates all artifacts, generates `SHA256SUMS.txt`, and publishes immutable releases with automated release notes via `softprops/action-gh-release@v2`.
+   - Aggregates all artifacts, generates `SHA256SUMS.txt`, and publishes to GitHub Releases (`latest` pre-release on `main` push, or versioned release on `v*.*.*` tag) via `softprops/action-gh-release@v2`.
 

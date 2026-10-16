@@ -96,19 +96,23 @@ def test_ci_and_release_workflows_follow_standard_release_pipeline():
 
     with open(ci_path, "r", encoding="utf-8") as f:
         ci_yml = f.read()
+    assert "branches: [dev]" in ci_yml
+    assert "branches: [main, dev]" in ci_yml
     assert "pull_request:" in ci_yml
     assert "pytest" in ci_yml
     assert "cache: 'pip'" in ci_yml
+    assert "pyinstaller" not in ci_yml
 
     with open(rel_path, "r", encoding="utf-8") as f:
         rel_yml = f.read()
+    assert "- main" in rel_yml
     assert "- 'v*.*.*'" in rel_yml
     assert "workflow_dispatch:" in rel_yml
     assert "needs: [test]" in rel_yml
     assert "ditto -c -k --sequesterRsrc --keepParent" in rel_yml
     assert "SHA256SUMS.txt" in rel_yml
     assert "generate_release_notes: true" in rel_yml
-    assert "startsWith(github.ref, 'refs/tags/v')" in rel_yml
+    assert "startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest'" in rel_yml
 
 
 def test_package_scripts_and_release_checksum_integrity():
