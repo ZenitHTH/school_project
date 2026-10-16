@@ -69,3 +69,17 @@ def test_dead_files_and_duplicate_docs_removed():
     ]:
         assert os.path.exists(os.path.join(repo_root, kept)), f"Required file missing: {kept}"
 
+
+def test_installer_iss_has_per_app_id_and_rpm_sanitizes_hyphen_version():
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    iss_path = os.path.join(repo_root, "packaging", "installers", "windows", "installer.iss")
+    with open(iss_path, "r", encoding="utf-8") as f:
+        iss_content = f.read()
+    assert "AppId={{C78DFE32-0941-4E7B-BFA6-92AE8997321F}-{#AppName}" in iss_content
+
+    rpm_path = os.path.join(repo_root, "packaging", "installers", "rpm", "build_rpm.sh")
+    with open(rpm_path, "r", encoding="utf-8") as f:
+        rpm_content = f.read()
+    assert 'RPM_VERSION="${VERSION//-/\\~}"' in rpm_content
+    assert "Version:        $RPM_VERSION" in rpm_content
+

@@ -27,7 +27,7 @@
 #endif
 
 [Setup]
-AppId={{C78DFE32-0941-4E7B-BFA6-92AE8997321F}
+AppId={{C78DFE32-0941-4E7B-BFA6-92AE8997321F}-{#AppName}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher=School Management System

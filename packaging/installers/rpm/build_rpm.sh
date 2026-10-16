@@ -5,6 +5,7 @@ APP_NAME="${1:-StudentManagement}"
 APP_BIN_NAME="${2:-StudentManagement}"
 PKG_NAME=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
 VERSION="${3:-1.0.0}"
+RPM_VERSION="${VERSION//-/\~}"
 DIST_BIN_PATH="${4:-dist/$APP_BIN_NAME}"
 OUTPUT_DIR="${5:-dist/installers}"
 
@@ -31,7 +32,7 @@ SPEC_FILE="$RPM_TOPDIR/SPECS/$PKG_NAME.spec"
 
 cat <<EOF > "$SPEC_FILE"
 Name:           $PKG_NAME
-Version:        $VERSION
+Version:        $RPM_VERSION
 Release:        1%{?dist}
 Summary:        $APP_NAME desktop application for SMTE School System
 License:        Proprietary
@@ -68,7 +69,7 @@ chmod 644 %{buildroot}/usr/share/applications/$PKG_NAME.desktop
 /usr/share/applications/$PKG_NAME.desktop
 
 %changelog
-* Fri Oct 02 2026 Admin <admin@school.local> - $VERSION-1
+* Fri Oct 02 2026 Admin <admin@school.local> - $RPM_VERSION-1
 - Package built for $APP_NAME
 EOF
 
