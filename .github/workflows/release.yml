@@ -1,17 +1,53 @@
-name: Build Installers
+name: Release
 
 on:
   push:
-    branches: [main]
-  release:
-    types: [published]
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: false
+        default: '1.0.0'
 
 permissions:
   contents: write
 
 jobs:
+  test:
+    name: Run Pytest Suite
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \
+            libxcb-xfixes0 libxcb-xinerama0
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test suite
+        run: QT_QPA_PLATFORM=offscreen pytest -v
+
   build-windows:
     name: Build Windows (.exe & Setup.exe)
+    needs: [test]
     runs-on: windows-latest
 
     steps:
@@ -21,12 +57,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
           pip install -r requirements.txt
+
+      - name: Set Release Version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER="${{ inputs.version || '1.0.0' }}"
+          fi
+          echo "VERSION=${VER}" >> $GITHUB_ENV
 
       - name: Build Windows Apps
         run: |
@@ -38,9 +85,9 @@ jobs:
       - name: Build Windows Installers (Inno Setup)
         run: |
           mkdir -Force dist\installers
-          iscc /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="1.0.0" /DSourceExe="${{ github.workspace }}\dist\LibrarianManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="1.0.0" /DSourceExe="${{ github.workspace }}\dist\StudentManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="1.0.0" /DSourceExe="${{ github.workspace }}\dist\BoothApp.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\LibrarianManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\StudentManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\BoothApp.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
         working-directory: ${{ github.workspace }}
 
       - name: Prepare Windows artifacts
@@ -60,6 +107,7 @@ jobs:
 
   build-macos:
     name: Build macOS (.app, .zip & .dmg)
+    needs: [test]
     runs-on: macos-latest
 
     steps:
@@ -69,12 +117,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
 
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           pip install pyinstaller
           pip install -r requirements.txt
+
+      - name: Set Release Version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER="${{ inputs.version || '1.0.0' }}"
+          fi
+          echo "VERSION=${VER}" >> $GITHUB_ENV
 
       - name: Build macOS Apps
         run: |
@@ -85,18 +143,16 @@ jobs:
 
       - name: Build macOS DMGs
         run: |
-          ./packaging/installers/macos/create_dmg.sh LibrarianManagement dist/LibrarianManagement.app 1.0.0 dist/installers
-          ./packaging/installers/macos/create_dmg.sh StudentManagement dist/StudentManagement.app 1.0.0 dist/installers
-          ./packaging/installers/macos/create_dmg.sh BoothApp dist/BoothApp.app 1.0.0 dist/installers
+          ./packaging/installers/macos/create_dmg.sh LibrarianManagement dist/LibrarianManagement.app "$VERSION" dist/installers
+          ./packaging/installers/macos/create_dmg.sh StudentManagement dist/StudentManagement.app "$VERSION" dist/installers
+          ./packaging/installers/macos/create_dmg.sh BoothApp dist/BoothApp.app "$VERSION" dist/installers
 
       - name: Package macOS artifacts
         run: |
-          mkdir macos-artifacts
-          cd dist
-          zip -r ../macos-artifacts/LibrarianManagement-macOS.zip LibrarianManagement.app LibrarianManagement
-          zip -r ../macos-artifacts/StudentManagement-macOS.zip StudentManagement.app StudentManagement
-          zip -r ../macos-artifacts/BoothApp-macOS.zip BoothApp.app BoothApp
-          cd ..
+          mkdir -p macos-artifacts
+          ditto -c -k --sequesterRsrc --keepParent dist/LibrarianManagement.app macos-artifacts/LibrarianManagement-macOS-${VERSION}.zip
+          ditto -c -k --sequesterRsrc --keepParent dist/StudentManagement.app macos-artifacts/StudentManagement-macOS-${VERSION}.zip
+          ditto -c -k --sequesterRsrc --keepParent dist/BoothApp.app macos-artifacts/BoothApp-macOS-${VERSION}.zip
           cp dist/installers/*.dmg macos-artifacts/
 
       - name: Upload macOS artifacts
@@ -108,6 +164,7 @@ jobs:
 
   build-ubuntu:
     name: Build Linux Ubuntu (.tar.gz & .deb)
+    needs: [test]
     runs-on: ubuntu-24.04
 
     steps:
@@ -117,6 +174,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'
 
       - name: Install system dependencies
         run: |
@@ -133,6 +191,15 @@ jobs:
           pip install pyinstaller
           pip install -r requirements.txt
 
+      - name: Set Release Version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER="${{ inputs.version || '1.0.0' }}"
+          fi
+          echo "VERSION=${VER}" >> $GITHUB_ENV
+
       - name: Build Ubuntu binaries
         run: |
           pyinstaller packaging/librarian_management.spec
@@ -142,13 +209,13 @@ jobs:
 
       - name: Build Debian packages (.deb)
         run: |
-          ./packaging/installers/deb/build_deb.sh LibrarianManagement LibrarianManagement 1.0.0 dist/LibrarianManagement dist/installers
-          ./packaging/installers/deb/build_deb.sh StudentManagement StudentManagement 1.0.0 dist/StudentManagement dist/installers
-          ./packaging/installers/deb/build_deb.sh BoothApp BoothApp 1.0.0 dist/BoothApp dist/installers
+          ./packaging/installers/deb/build_deb.sh LibrarianManagement LibrarianManagement "$VERSION" dist/LibrarianManagement dist/installers
+          ./packaging/installers/deb/build_deb.sh StudentManagement StudentManagement "$VERSION" dist/StudentManagement dist/installers
+          ./packaging/installers/deb/build_deb.sh BoothApp BoothApp "$VERSION" dist/BoothApp dist/installers
 
       - name: Package Ubuntu artifacts
         run: |
-          mkdir ubuntu-artifacts
+          mkdir -p ubuntu-artifacts
           chmod +x dist/LibrarianManagement dist/StudentManagement dist/BoothApp
           tar -czvf ubuntu-artifacts/LibrarianManagement-Linux-Ubuntu.tar.gz -C dist LibrarianManagement
           tar -czvf ubuntu-artifacts/StudentManagement-Linux-Ubuntu.tar.gz -C dist StudentManagement
@@ -164,14 +231,24 @@ jobs:
 
   build-fedora:
     name: Build Linux Fedora (.tar.gz & .rpm)
+    needs: [test]
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set Release Version
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+          else
+            VER="${{ inputs.version || '1.0.0' }}"
+          fi
+          echo "VERSION=${VER}" >> $GITHUB_ENV
+
       - name: Build and Package in Fedora Container
         run: |
-          docker run --rm -v "${{ github.workspace }}:/workspace" -w /workspace fedora:latest bash -c "
+          docker run --rm -e VERSION="${VERSION}" -v "${{ github.workspace }}:/workspace" -w /workspace fedora:latest bash -c "
             set -e
             dnf install -y python3 python3-pip gcc mesa-libEGL libxkbcommon-x11 tar rpm-build
             python3 -m pip install --upgrade pip
@@ -186,9 +263,9 @@ jobs:
             tar -czvf fedora-artifacts/StudentManagement-Linux-Fedora.tar.gz -C dist StudentManagement
             tar -czvf fedora-artifacts/BoothApp-Linux-Fedora.tar.gz -C dist BoothApp
             
-            ./packaging/installers/rpm/build_rpm.sh LibrarianManagement LibrarianManagement 1.0.0 dist/LibrarianManagement dist/installers
-            ./packaging/installers/rpm/build_rpm.sh StudentManagement StudentManagement 1.0.0 dist/StudentManagement dist/installers
-            ./packaging/installers/rpm/build_rpm.sh BoothApp BoothApp 1.0.0 dist/BoothApp dist/installers
+            ./packaging/installers/rpm/build_rpm.sh LibrarianManagement LibrarianManagement \"\$VERSION\" dist/LibrarianManagement dist/installers
+            ./packaging/installers/rpm/build_rpm.sh StudentManagement StudentManagement \"\$VERSION\" dist/StudentManagement dist/installers
+            ./packaging/installers/rpm/build_rpm.sh BoothApp BoothApp \"\$VERSION\" dist/BoothApp dist/installers
             cp dist/installers/*.rpm fedora-artifacts/
           "
 
@@ -202,6 +279,7 @@ jobs:
   publish-release:
     name: Publish to GitHub Releases
     needs: [build-windows, build-macos, build-ubuntu, build-fedora]
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
 
     steps:
@@ -209,37 +287,18 @@ jobs:
         with:
           path: all-artifacts
 
-      - name: List downloaded artifacts
-        run: ls -laR all-artifacts
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find all-artifacts -type f -exec cp {} release-assets/ \;
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
 
-      - name: Publish or Update Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'release' && github.event.release.tag_name || 'latest' }}
-          name: ${{ github.event_name == 'release' && github.event.release.name || 'Latest Multi-Platform Build & Installers' }}
-          prerelease: ${{ github.event_name != 'release' }}
-          body: |
-            Automated multi-platform standalone builds and native system installers for School Library & Student Management System.
-
-            ### 📚 Librarian Management App (ระบบจัดการห้องสมุด)
-            - **Windows**: `LibrarianManagement-Setup-1.0.0.exe` (Installer), `LibrarianManagement-Windows.exe` (Portable)
-            - **macOS**: `LibrarianManagement-1.0.0.dmg` (Installer), `LibrarianManagement-macOS.zip` (Portable)
-            - **Linux (Debian/Ubuntu)**: `librarianmanagement_1.0.0_amd64.deb`
-            - **Linux (Fedora/RHEL)**: `librarianmanagement-1.0.0-1.*.rpm`
-            - **Linux (Portable)**: `LibrarianManagement-Linux-Ubuntu.tar.gz`, `LibrarianManagement-Linux-Fedora.tar.gz`
-
-            ### 🎓 Student Management App (ระบบงานทะเบียนนักเรียน)
-            - **Windows**: `StudentManagement-Setup-1.0.0.exe` (Installer), `StudentManagement-Windows.exe` (Portable)
-            - **macOS**: `StudentManagement-1.0.0.dmg` (Installer), `StudentManagement-macOS.zip` (Portable)
-            - **Linux (Debian/Ubuntu)**: `studentmanagement_1.0.0_amd64.deb`
-            - **Linux (Fedora/RHEL)**: `studentmanagement-1.0.0-1.*.rpm`
-            - **Linux (Portable)**: `StudentManagement-Linux-Ubuntu.tar.gz`, `StudentManagement-Linux-Fedora.tar.gz`
-
-            ### 🤖 Self-Service Booth App (ตู้ยืม-คืนอัตโนมัติ)
-            - **Windows**: `BoothApp-Setup-1.0.0.exe` (Installer), `BoothApp-Windows.exe` (Portable)
-            - **macOS**: `BoothApp-1.0.0.dmg` (Installer), `BoothApp-macOS.zip` (Portable)
-            - **Linux (Debian/Ubuntu)**: `boothapp_1.0.0_amd64.deb`
-            - **Linux (Fedora/RHEL)**: `boothapp-1.0.0-1.*.rpm`
-            - **Linux (Portable)**: `BoothApp-Linux-Ubuntu.tar.gz`, `BoothApp-Linux-Fedora.tar.gz`
-          files: |
-            all-artifacts/**/*.*
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: release-assets/*

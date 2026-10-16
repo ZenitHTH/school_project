@@ -83,3 +83,30 @@ def test_installer_iss_has_per_app_id_and_rpm_sanitizes_hyphen_version():
     assert 'RPM_VERSION="${VERSION//-/\\~}"' in rpm_content
     assert "Version:        $RPM_VERSION" in rpm_content
 
+
+def test_ci_and_release_workflows_follow_standard_release_pipeline():
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    workflows_dir = os.path.join(repo_root, ".github", "workflows")
+
+    assert not os.path.exists(os.path.join(workflows_dir, "build.yml")), "Legacy build.yml must be removed"
+    ci_path = os.path.join(workflows_dir, "ci.yml")
+    rel_path = os.path.join(workflows_dir, "release.yml")
+    assert os.path.exists(ci_path), "ci.yml missing"
+    assert os.path.exists(rel_path), "release.yml missing"
+
+    with open(ci_path, "r", encoding="utf-8") as f:
+        ci_yml = f.read()
+    assert "pull_request:" in ci_yml
+    assert "pytest" in ci_yml
+    assert "cache: 'pip'" in ci_yml
+
+    with open(rel_path, "r", encoding="utf-8") as f:
+        rel_yml = f.read()
+    assert "- 'v*.*.*'" in rel_yml
+    assert "workflow_dispatch:" in rel_yml
+    assert "needs: [test]" in rel_yml
+    assert "ditto -c -k --sequesterRsrc --keepParent" in rel_yml
+    assert "SHA256SUMS.txt" in rel_yml
+    assert "generate_release_notes: true" in rel_yml
+    assert "startsWith(github.ref, 'refs/tags/v')" in rel_yml
+
