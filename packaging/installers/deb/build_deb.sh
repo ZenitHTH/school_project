@@ -5,6 +5,7 @@ APP_NAME="${1:-StudentManagement}"
 APP_BIN_NAME="${2:-StudentManagement}"
 PKG_NAME=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
 VERSION="${3:-1.0.0}"
+DEB_VERSION="${VERSION//-/~}"
 DIST_BIN_PATH="${4:-dist/$APP_BIN_NAME}"
 OUTPUT_DIR="${5:-dist/installers}"
 
@@ -55,7 +56,7 @@ chmod 644 "$DESKTOP_DIR/$PKG_NAME.desktop"
 # Create control file
 cat <<EOF > "$CONTROL_DIR/control"
 Package: $PKG_NAME
-Version: $VERSION
+Version: $DEB_VERSION
 Section: utils
 Priority: optional
 Architecture: $ARCH
@@ -67,7 +68,7 @@ EOF
 INSTALLED_SIZE=$(du -sk "$BUILD_ROOT" | cut -f1)
 echo "Installed-Size: $INSTALLED_SIZE" >> "$CONTROL_DIR/control"
 
-DEB_FILE="$OUTPUT_DIR/${PKG_NAME}_${VERSION}_${ARCH}.deb"
+DEB_FILE="$OUTPUT_DIR/${PKG_NAME}_${DEB_VERSION}_${ARCH}.deb"
 dpkg-deb --build --root-owner-group "$BUILD_ROOT" "$DEB_FILE"
 
 echo "Created DEB: $DEB_FILE"

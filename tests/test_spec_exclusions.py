@@ -80,7 +80,7 @@ def test_installer_iss_has_per_app_id_and_rpm_sanitizes_hyphen_version():
     rpm_path = os.path.join(repo_root, "packaging", "installers", "rpm", "build_rpm.sh")
     with open(rpm_path, "r", encoding="utf-8") as f:
         rpm_content = f.read()
-    assert 'RPM_VERSION="${VERSION//-/\\~}"' in rpm_content
+    assert 'RPM_VERSION="${VERSION//-/~}"' in rpm_content
     assert "Version:        $RPM_VERSION" in rpm_content
 
 
@@ -109,4 +109,22 @@ def test_ci_and_release_workflows_follow_standard_release_pipeline():
     assert "SHA256SUMS.txt" in rel_yml
     assert "generate_release_notes: true" in rel_yml
     assert "startsWith(github.ref, 'refs/tags/v')" in rel_yml
+
+
+def test_package_scripts_and_release_checksum_integrity():
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+    # Test debian pre-release version sanitization
+    deb_path = os.path.join(repo_root, "packaging", "installers", "deb", "build_deb.sh")
+    with open(deb_path, "r", encoding="utf-8") as f:
+        deb_content = f.read()
+    assert 'DEB_VERSION="${VERSION//-/~}"' in deb_content
+    assert "Version: $DEB_VERSION" in deb_content
+
+    # Test release workflow does not self-include SHA256SUMS.txt
+    rel_path = os.path.join(repo_root, ".github", "workflows", "release.yml")
+    with open(rel_path, "r", encoding="utf-8") as f:
+        rel_yml = f.read()
+    assert "sha256sum * > SHA256SUMS.txt" not in rel_yml
+    assert "sha256sum * > ../SHA256SUMS.txt" in rel_yml
 

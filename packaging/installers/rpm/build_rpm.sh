@@ -5,7 +5,7 @@ APP_NAME="${1:-StudentManagement}"
 APP_BIN_NAME="${2:-StudentManagement}"
 PKG_NAME=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
 VERSION="${3:-1.0.0}"
-RPM_VERSION="${VERSION//-/\~}"
+RPM_VERSION="${VERSION//-/~}"
 DIST_BIN_PATH="${4:-dist/$APP_BIN_NAME}"
 OUTPUT_DIR="${5:-dist/installers}"
 
