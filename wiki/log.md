@@ -78,6 +78,15 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Aligned `BookActionDialogs.qml` slot calls and explicit `@Slot(int, str)` / `@Slot(int, int)` overloads in `LibrarianAdminAdapter.addCopies`.
 - Deduplicated student search and count SQL query construction into shared `_build_student_search_clauses` in `data/repositories/student_repo.py`.
 
+## [2026-10-16] ci | Standard CI & Tag-Driven Release Pipeline
+- Replaced monolithic push-to-main `build.yml` with fast test-only `ci.yml` (on main pushes/PRs) and tag-driven `release.yml` (`v*.*.*` and `workflow_dispatch`).
+- Added test gate requiring pytest suite pass before triggering 4-OS installer builds.
+- Dynamically propagates semantic version from tag (`${GITHUB_REF_NAME#v}`) to all installer scripts.
+- Preserved macOS `.app` framework symlinks via `ditto -c -k --sequesterRsrc --keepParent`.
+- Isolated Windows Inno Setup `AppId` per application name to prevent uninstall key overwriting.
+- Sanitized RPM pre-release version hyphens with tildes (`${VERSION//-/\~}`).
+- Automated generation of `SHA256SUMS.txt` and GitHub Releases with release notes.
+
 
 
 

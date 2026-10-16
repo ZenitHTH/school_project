@@ -233,12 +233,17 @@ chmod +x LibrarianManagement
 ---
 
 ### 🚀 GitHub Actions Multi-Platform CI/CD
+ 
+- **Automated Testing (`ci.yml`)**:
+  ทุกครั้งที่มีการ push หรือเปิด Pull Request สู่ branch `main` ระบบจะรันชุดทดสอบ `pytest` แบบ headless offscreen อัตโนมัติ พร้อม pip caching
+ 
+- **Tag-Driven Release Pipeline (`release.yml`)**:
+  เมื่อทำการ push semantic version tag (เช่น `git tag v1.0.0 && git push origin v1.0.0`) หรือกด Run workflow (manual dispatch):
+  1. รันชุดทดสอบ `test` ให้ผ่านเป็น gate ก่อนเริ่ม build
+  2. Matrix Build สร้าง Binary และ Native Installer สำหรับ 4 แพลตฟอร์ม:
+     - **Windows x64**: `.exe` (Portable) & `Setup.exe` (Inno Setup พร้อม AppId แยกแต่ละแอป)
+     - **macOS**: `.dmg` (Apple Disk Image) & `.zip` (ใช้ `ditto` รักษา symlinks ของ Qt framework)
+     - **Linux Ubuntu (22.04+)**: `.deb` (Debian Package) & `.tar.gz` (Portable)
+     - **Linux Fedora / RHEL**: `.rpm` (RPM Package พร้อม sanitization สำหรับ pre-release) & `.tar.gz` (Portable)
+  3. คำนวณ `SHA256SUMS.txt` และสร้าง GitHub Release พร้อม release notes อัตโนมัติ
 
-ทุกครั้งที่มีการ push ขึ้นสู่ branch `main`:
-GitHub Actions จะรัน Matrix Build และสร้าง Binary สำหรับทั้ง 4 แพลตฟอร์มโดยอัตโนมัติ:
-- **Windows x64** (`.exe`)
-- **macOS** (`.app` & binary)
-- **Linux Ubuntu 22.04+** (`.tar.gz`)
-- **Linux Fedora** (`.tar.gz` via Fedora container)
-
-สามารถดาวน์โหลดตัวล่าสุดได้ที่แท็บ **Actions → Build Installers → Artifacts**
