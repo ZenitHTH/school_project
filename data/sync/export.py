@@ -15,6 +15,7 @@ def export_snapshot(
     Export minimal student snapshot file (students, active enrollments, id changes)
     from Student Management to be shared via LINE chat.
     """
+    out_conn = None
     try:
         if os.path.exists(output_path):
             os.remove(output_path)
@@ -111,7 +112,6 @@ def export_snapshot(
         )
 
         out_conn.commit()
-        out_conn.close()
 
         record_activity(
             conn,
@@ -130,3 +130,6 @@ def export_snapshot(
         })
     except Exception as e:
         return Result.fail(f"Snapshot export failed: {e}")
+    finally:
+        if out_conn:
+            out_conn.close()

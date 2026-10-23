@@ -179,3 +179,47 @@ def test_apply_sync_chained_id_renumber_preserves_loans_and_index_exists(tmp_pat
     assert idx_row is not None
     lib_conn.close()
 
+
+def test_export_snapshot_closes_connection_on_error(two_db_env, monkeypatch):
+    import os
+    s_conn = two_db_env["s"]
+    tmp = two_db_env["tmp"]
+    out_file = str(tmp / "failing_snapshot.sqlite")
+
+    real_connect = sqlite3.connect
+    was_closed = []
+
+    class MockConn:
+        def __init__(self, real):
+            self.real = real
+
+        def cursor(self):
+            cur = self.real.cursor()
+            class MockCursor:
+                def __init__(self, c):
+                    self.c = c
+                def execute(self, *a, **k):
+                    return self.c.execute(*a, **k)
+                def executemany(self, *a, **k):
+                    raise sqlite3.OperationalError("Simulated mid-export fail")
+                def fetchall(self):
+                    return self.c.fetchall()
+            return MockCursor(cur)
+
+        def close(self):
+            was_closed.append(True)
+            return self.real.close()
+
+        def __getattr__(self, name):
+            return getattr(self.real, name)
+
+    monkeypatch.setattr(sqlite3, "connect", lambda *a, **k: MockConn(real_connect(*a, **k)))
+
+    res = export_snapshot(s_conn, out_file)
+    assert res.ok is False
+    assert "Simulated mid-export fail" in res.error
+    assert len(was_closed) > 0, "out_conn.close() must be called in finally block"
+
+
+
+
