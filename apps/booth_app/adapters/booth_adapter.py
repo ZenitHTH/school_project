@@ -46,19 +46,22 @@ class BoothAdapter(QObject):
     def getCopyByBarcode(self, barcode: str) -> str:
         """Scan book barcode."""
         res = self.catalog_svc.get_copy_by_barcode(barcode)
-        return json.dumps({"ok": res.ok, "data": res.data, "error": res.error})
+        data = _sanitize_for_qml(res.data) if res.ok else {}
+        return json.dumps({"ok": res.ok, "data": data, "error": res.error})
 
     @Slot(int, str, result=str)
     def checkout(self, student_id: int, barcode: str) -> str:
         """Self checkout."""
         res = self.loan_svc.checkout(student_id=student_id, barcode=barcode, actor=f"Booth:{student_id}")
-        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        data = _sanitize_for_qml(res.data) if res.ok else {}
+        return json.dumps({"ok": res.ok, "error": res.error, "data": data})
 
     @Slot(int, result=str)
     def returnBook(self, loan_id: int) -> str:
         """Self return by loan ID."""
         res = self.loan_svc.return_book(loan_id, actor="Booth:Return")
-        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        data = _sanitize_for_qml(res.data) if res.ok else {}
+        return json.dumps({"ok": res.ok, "error": res.error, "data": data})
 
     @Slot(str, result=str)
     def returnByBarcode(self, barcode: str) -> str:
@@ -76,4 +79,5 @@ class BoothAdapter(QObject):
         if not row:
             return json.dumps({"ok": False, "error": "ไม่พบรายการยืมที่ค้างอยู่สำหรับบาร์โค้ดนี้"})
         res = self.loan_svc.return_book(row[0], actor="Booth:Return")
-        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        data = _sanitize_for_qml(res.data) if res.ok else {}
+        return json.dumps({"ok": res.ok, "error": res.error, "data": data})

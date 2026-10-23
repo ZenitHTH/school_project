@@ -253,7 +253,8 @@ class LibrarianAdminAdapter(QObject):
     def getCopyByBarcode(self, barcode: str) -> str:
         """Barcode scan lookup."""
         res = self.catalog_svc.get_copy_by_barcode(barcode)
-        return json.dumps({"ok": res.ok, "data": res.data, "error": res.error})
+        data = _sanitize_for_qml(res.data) if res.ok else {}
+        return json.dumps({"ok": res.ok, "data": data, "error": res.error})
 
     @Slot(int, str, result=str)
     def checkout(self, student_id: int, barcode: str) -> str:
@@ -277,25 +278,25 @@ class LibrarianAdminAdapter(QObject):
     def getActiveLoans(self) -> str:
         """Fetch all currently borrowed books."""
         res = self.loan_svc.get_active_loans()
-        return json.dumps(res.data if res.ok else [])
+        return json.dumps(_sanitize_for_qml(res.data) if res.ok else [])
 
     @Slot(int, result=str)
     def getStudentBorrowHistory(self, student_id: int) -> str:
         """Fetch borrow history for student."""
         res = self.loan_svc.get_student_history(student_id)
-        return json.dumps(res.data if res.ok else [])
+        return json.dumps(_sanitize_for_qml(res.data) if res.ok else [])
 
     @Slot(int, result=str)
     def getCopyBorrowHistory(self, copy_id: int) -> str:
         """Fetch lending trail for copy."""
         res = self.loan_svc.get_copy_history(copy_id)
-        return json.dumps(res.data if res.ok else [])
+        return json.dumps(_sanitize_for_qml(res.data) if res.ok else [])
 
     @Slot(result=str)
     def listFines(self) -> str:
         """Fetch all fines."""
         res = self.fine_svc.list_fines()
-        return json.dumps(res.data if res.ok else [])
+        return json.dumps(_sanitize_for_qml(res.data) if res.ok else [])
 
     @Slot(int, result=str)
     def payFine(self, fine_id: int) -> str:
@@ -354,7 +355,7 @@ class LibrarianAdminAdapter(QObject):
     def getActivityLogs(self) -> str:
         """Fetch local activity logs."""
         rows = log_repo.get_activity_logs(self.conn, limit=100)
-        return json.dumps([dict(r) for r in rows])
+        return json.dumps(_sanitize_for_qml([dict(r) for r in rows]))
 
     @Slot(int, str, str, str, str, str, result=str)
     def updateBook(

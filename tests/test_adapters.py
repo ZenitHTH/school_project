@@ -476,5 +476,33 @@ def test_normalize_file_path_thai_url_and_sanitize_preserves_bool():
     assert sanitized[0]["full_name"] == ""
 
 
+def test_adapter_endpoints_sanitize_null_values(librarian_adapter, booth_adapter):
+    lib_adapter, lib_conn = librarian_adapter
+    b_adapter, _ = booth_adapter
+
+    # Insert book with NULL author, isbn, publisher, shelf_location
+    cur = lib_conn.cursor()
+    cur.execute("INSERT INTO books (book_id, title) VALUES (99, 'Test Null Book')")
+    cur.execute("INSERT INTO book_copies (copy_id, book_id, barcode, status) VALUES (991, 99, 'NULL-01', 'available')")
+    lib_conn.commit()
+
+    raw_lib = json.loads(lib_adapter.getCopyByBarcode("NULL-01"))
+    assert raw_lib["ok"] is True
+    assert raw_lib["data"]["author"] == ""
+    assert raw_lib["data"]["isbn"] == ""
+
+    # Test booth copy lookup
+    b_conn = b_adapter.conn
+    b_conn.execute("INSERT INTO books (book_id, title) VALUES (99, 'Test Null Book')")
+    b_conn.execute("INSERT INTO book_copies (copy_id, book_id, barcode, status) VALUES (991, 99, 'NULL-01', 'available')")
+    b_conn.commit()
+
+    raw_booth = json.loads(b_adapter.getCopyByBarcode("NULL-01"))
+    assert raw_booth["ok"] is True
+    assert raw_booth["data"]["author"] == ""
+    assert raw_booth["data"]["isbn"] == ""
+
+
+
 
 

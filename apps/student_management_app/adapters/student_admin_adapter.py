@@ -130,7 +130,7 @@ class StudentAdminAdapter(QObject):
     def getHistory(self, student_id: int) -> str:
         """Fetch student audit history."""
         res = self.student_svc.get_history(student_id)
-        return json.dumps(res.data if res.ok else {})
+        return json.dumps(_sanitize_for_qml(res.data) if res.ok else {})
 
     @Slot(str, bool, str, result=str)
     def importXlsx(self, xlsx_path: str, force: bool = False, actor: str = "Admin") -> str:
@@ -207,4 +207,4 @@ class StudentAdminAdapter(QObject):
     def getActivityLogs(self) -> str:
         """Fetch local activity log entries."""
         rows = log_repo.get_activity_logs(self.conn, limit=100)
-        return json.dumps([dict(r) for r in rows])
+        return json.dumps(_sanitize_for_qml([dict(r) for r in rows]))
