@@ -1,9 +1,8 @@
 import sqlite3
 from typing import Any, Dict, List, Optional
 from core.shared.result import Result
+from core.library.policy import BARCODE_PREFIX, format_barcode
 from data.repositories import book_repo
-
-BARCODE_PREFIX = "SMTE"
 
 
 class CatalogService:
@@ -84,7 +83,7 @@ class CatalogService:
             generated_barcodes = []
             if copy_count > 0:
                 for seq in range(1, copy_count + 1):
-                    generated_barcodes.append(f"{BARCODE_PREFIX}-{book_id:05d}-{seq:02d}")
+                    generated_barcodes.append(format_barcode(book_id, seq))
             elif barcodes:
                 generated_barcodes = [b.strip() for b in barcodes if b.strip()]
 
@@ -150,7 +149,7 @@ class CatalogService:
         if additional_count > 0:
             existing = book_repo.count_copies_ever(self.conn, book_id)
             for seq in range(existing + 1, existing + additional_count + 1):
-                target_barcodes.append(f"{BARCODE_PREFIX}-{book_id:05d}-{seq:02d}")
+                target_barcodes.append(format_barcode(book_id, seq))
         elif barcodes:
             target_barcodes = [b.strip() for b in barcodes if b.strip()]
 

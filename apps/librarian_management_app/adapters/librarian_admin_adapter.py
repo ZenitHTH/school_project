@@ -215,7 +215,7 @@ class LibrarianAdminAdapter(QObject):
     def previewBarcodes(self, book_id: int, count: int) -> str:
         """Preview deterministic barcode generation before committing."""
         try:
-            from core.library.policy import BARCODE_PREFIX
+            from core.library.policy import format_barcode
             from data.repositories import book_repo
             count = max(1, count)
             if book_id <= 0:
@@ -227,7 +227,7 @@ class LibrarianAdminAdapter(QObject):
                 target_id = book_id
                 start_seq = book_repo.count_copies_ever(self.conn, book_id) + 1
 
-            barcodes = [f"{BARCODE_PREFIX}-{target_id:05d}-{seq:02d}" for seq in range(start_seq, start_seq + count)]
+            barcodes = [format_barcode(target_id, seq) for seq in range(start_seq, start_seq + count)]
             return json.dumps({"ok": True, "target_book_id": target_id, "barcodes": barcodes})
         except Exception as e:
             return json.dumps({"ok": False, "error": str(e), "barcodes": []})

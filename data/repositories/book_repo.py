@@ -349,15 +349,26 @@ def insert_copy(conn: sqlite3.Connection, book_id: int, barcode: str, status: st
 
 
 def list_books_with_barcodes(conn: sqlite3.Connection, query: str = "") -> List[Dict[str, Any]]:
-    """List active books with their active non-disposed/non-retired barcodes."""
+    """List active books with their active non-disposed barcodes in a single batched query."""
     books = search_books(conn, query=query, limit=500, offset=0)
+    if not books:
+        return []
+    book_ids = [b["book_id"] for b in books]
+    placeholders = ",".join("?" for _ in book_ids)
+    sql = f"""
+        SELECT book_id, barcode
+        FROM book_copies
+        WHERE book_id IN ({placeholders}) AND status NOT IN ('retired', 'disposed')
+        ORDER BY copy_id ASC
+    """
+    rows = conn.execute(sql, book_ids).fetchall()
+    barcode_map: Dict[int, List[str]] = {}
+    for r in rows:
+        barcode_map.setdefault(r["book_id"], []).append(r["barcode"])
+
     result = []
     for b in books:
         item = dict(b)
-        rows = conn.execute(
-            "SELECT barcode FROM book_copies WHERE book_id = ? AND status NOT IN ('retired', 'disposed') ORDER BY copy_id ASC",
-            (b["book_id"],),
-        ).fetchall()
-        item["barcodes"] = [r["barcode"] for r in rows]
+        item["barcodes"] = barcode_map.get(b["book_id"], [])
         result.append(item)
     return result

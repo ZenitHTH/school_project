@@ -178,3 +178,19 @@ def test_get_books_with_barcodes_returns_saved_active_barcodes(conn):
     assert books[0]["barcodes"] == [f"SMTE-{b1_id:05d}-01"]
 
 
+def test_format_barcode_and_batched_list(conn):
+    from core.library.policy import format_barcode
+    from data.repositories import book_repo
+
+    assert format_barcode(12, 3) == "SMTE-00012-03"
+    assert format_barcode(1, 100) == "SMTE-00001-100"
+
+    b_id = book_repo.add_book(conn, title="รวมเล่มบาร์โค้ด")
+    book_repo.add_copies(conn, b_id, barcodes=[format_barcode(b_id, 1), format_barcode(b_id, 2)])
+
+    results = book_repo.list_books_with_barcodes(conn, query="รวมเล่ม")
+    assert len(results) == 1
+    assert results[0]["barcodes"] == [f"SMTE-{b_id:05d}-01", f"SMTE-{b_id:05d}-02"]
+
+
+

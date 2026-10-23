@@ -15,3 +15,8 @@ class LibraryPolicy:
 
 DEFAULT_POLICY = LibraryPolicy()
 BARCODE_PREFIX = "SMTE"
+
+
+def format_barcode(book_id: int, seq: int) -> str:
+    """Format standardized library barcode."""
+    return f"{BARCODE_PREFIX}-{book_id:05d}-{seq:02d}"
