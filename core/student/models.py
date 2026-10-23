@@ -35,6 +35,7 @@ class Enrollment:
 LEGAL_STATUS_TRANSITIONS: Set[Tuple[str, str]] = {
     ("active", "on_leave"),
     ("active", "transferred_out"),
+    ("active", "graduated"),
     ("on_leave", "active"),
     ("on_leave", "transferred_out"),
     ("transferred_out", "active"),

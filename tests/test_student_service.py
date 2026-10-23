@@ -114,3 +114,24 @@ def test_enrollment_service_bulk_promote(service_conn):
     enr_301 = e_svc.current_enrollment(301).data
     assert enr_301["grade_level"] == "ม.2"
     assert enr_301["academic_year"] == 2568
+    assert s_svc.get_status(302) == "graduated"
+
+
+def test_promote_students_sets_grade_6_status_to_graduated(service_conn):
+    s_svc = StudentService(service_conn)
+    e_svc = EnrollmentService(service_conn)
+
+    service_conn.execute(
+        "INSERT INTO students (student_id, full_name, status) VALUES (601, 'นักเรียน จบการศึกษา', 'active')"
+    )
+    service_conn.commit()
+
+    e_svc.enroll_next_period(601, 2567, 1, "ม.6", 1)
+
+    res = e_svc.promote_students(source_year=2567, source_semester=1, target_year=2568, target_semester=1)
+    assert res.ok is True
+    assert res.data["graduated_count"] == 1
+
+    # Student must now be graduated
+    assert s_svc.get_status(601) == "graduated"
+

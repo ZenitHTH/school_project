@@ -159,6 +159,13 @@ class EnrollmentService:
                     promoted_count += 1
                 else:
                     # ม.6 graduates
+                    student_repo.update_status(
+                        self.conn,
+                        student_id=s["student_id"],
+                        new_status="graduated",
+                        reason=f"Graduated from {curr_grade} at end of {source_year}/{source_semester}",
+                        actor=actor,
+                    )
                     graduated_count += 1
 
         return Result.success({
