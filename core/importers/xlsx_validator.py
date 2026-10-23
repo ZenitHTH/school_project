@@ -63,7 +63,10 @@ def validate_xlsx_structure(file_path: str) -> Result:
     if _openpyxl_ok:
         try:
             wb = openpyxl.load_workbook(file_path, read_only=True)
-            sheet_names = wb.sheetnames
+            try:
+                sheet_names = list(wb.sheetnames)
+            finally:
+                wb.close()
         except Exception as e:
             return Result.fail(f"Cannot read file as Excel: {e}")
     else:

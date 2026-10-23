@@ -285,49 +285,53 @@ def import_roster(xlsx_path: str, conn: Optional[sqlite3.Connection] = None, db_
 
     try:
         wb = openpyxl.load_workbook(xlsx_path, data_only=True)
-        cur = conn.cursor()
-
-        # Turn foreign keys off during bulk roster load
-        conn.execute("PRAGMA foreign_keys = OFF;")
         try:
-            with conn:
-                # Clear student-domain tables only (never drop library tables or activity_log!)
-                for t in ["retentions", "leave_of_absence", "transfers_in", "transfers_out", "room_changes", "enrollments", "students"]:
-                    cur.execute(f"DELETE FROM {t};")
+            cur = conn.cursor()
 
-                for name in GRADE_SHEETS:
-                    if name in wb.sheetnames:
-                        parse_grade_sheet(wb[name], cur)
+            # Turn foreign keys off during bulk roster load
+            conn.execute("PRAGMA foreign_keys = OFF;")
+            try:
+                with conn:
+                    # Clear student-domain tables only (never drop library tables or activity_log!)
+                    for t in ["retentions", "leave_of_absence", "transfers_in", "transfers_out", "room_changes", "enrollments", "students"]:
+                        cur.execute(f"DELETE FROM {t};")
 
-                if "ย้ายออก" in wb.sheetnames:
-                    parse_transfers_out(wb["ย้ายออก"], cur, "ย้ายออก", header_rows=1)
-                if "ย้ายออกส่งเขต1" in wb.sheetnames:
-                    parse_transfers_out(wb["ย้ายออกส่งเขต1"], cur, "ย้ายออกส่งเขต1", header_rows=3)
-                if "ย้ายออกส่งเขต (2)" in wb.sheetnames:
-                    parse_transfers_out(wb["ย้ายออกส่งเขต (2)"], cur, "ย้ายออกส่งเขต (2)", header_rows=3)
-                if "ย้ายเข้า" in wb.sheetnames:
-                    parse_transfers_in(wb["ย้ายเข้า"], cur)
-                if "ย้ายห้อง" in wb.sheetnames:
-                    parse_room_changes(wb["ย้ายห้อง"], cur)
-                if "รายชื่อพักการเรียน" in wb.sheetnames:
-                    parse_leave(wb["รายชื่อพักการเรียน"], cur)
-                if "รายชื่อไม่ได้เลื่อนชั้นปี69" in wb.sheetnames:
-                    parse_retentions_69(wb["รายชื่อไม่ได้เลื่อนชั้นปี69"], cur, 2026)
-                if "รายชื่อไม่ได้เลื่อนชั้นปี68" in wb.sheetnames:
-                    parse_retentions_68(wb["รายชื่อไม่ได้เลื่อนชั้นปี68"], cur, 2025)
-                if "นักเรียนม.3ชั้น" in wb.sheetnames:
-                    parse_repeat_room(wb["นักเรียนม.3ชั้น"], cur)
+                    for name in GRADE_SHEETS:
+                        if name in wb.sheetnames:
+                            parse_grade_sheet(wb[name], cur)
 
-            counts = {}
-            for t in ["students", "enrollments", "room_changes", "transfers_out", "transfers_in", "leave_of_absence", "retentions"]:
-                n = cur.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-                counts[t] = n
+                    if "ย้ายออก" in wb.sheetnames:
+                        parse_transfers_out(wb["ย้ายออก"], cur, "ย้ายออก", header_rows=1)
+                    if "ย้ายออกส่งเขต1" in wb.sheetnames:
+                        parse_transfers_out(wb["ย้ายออกส่งเขต1"], cur, "ย้ายออกส่งเขต1", header_rows=3)
+                    if "ย้ายออกส่งเขต (2)" in wb.sheetnames:
+                        parse_transfers_out(wb["ย้ายออกส่งเขต (2)"], cur, "ย้ายออกส่งเขต (2)", header_rows=3)
+                    if "ย้ายเข้า" in wb.sheetnames:
+                        parse_transfers_in(wb["ย้ายเข้า"], cur)
+                    if "ย้ายห้อง" in wb.sheetnames:
+                        parse_room_changes(wb["ย้ายห้อง"], cur)
+                    if "รายชื่อพักการเรียน" in wb.sheetnames:
+                        parse_leave(wb["รายชื่อพักการเรียน"], cur)
+                    if "รายชื่อไม่ได้เลื่อนชั้นปี69" in wb.sheetnames:
+                        parse_retentions_69(wb["รายชื่อไม่ได้เลื่อนชั้นปี69"], cur, 2026)
+                    if "รายชื่อไม่ได้เลื่อนชั้นปี68" in wb.sheetnames:
+                        parse_retentions_68(wb["รายชื่อไม่ได้เลื่อนชั้นปี68"], cur, 2025)
+                    if "นักเรียนม.3ชั้น" in wb.sheetnames:
+                        parse_repeat_room(wb["นักเรียนม.3ชั้น"], cur)
 
-            return Result.success(counts)
-        except Exception as e:
-            return Result.fail(f"Failed to import roster: {e}")
+                counts = {}
+                for t in ["students", "enrollments", "room_changes", "transfers_out", "transfers_in", "leave_of_absence", "retentions"]:
+                    n = cur.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+                    counts[t] = n
+
+                return Result.success(counts)
+            except Exception as e:
+                return Result.fail(f"Failed to import roster: {e}")
+            finally:
+                conn.execute("PRAGMA foreign_keys = ON;")
+        finally:
+            wb.close()
     finally:
-        conn.execute("PRAGMA foreign_keys = ON;")
         if close_after:
             conn.close()
 
