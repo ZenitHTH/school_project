@@ -145,3 +145,33 @@ def test_overdue_fines_and_reservation_promotion(library_env):
     reservations = res_svc.list_reservations(status="ready").data
     assert len(reservations) == 1
     assert reservations[0]["student_id"] == 41
+
+
+def test_return_book_with_naive_iso_timestamp_calculates_overdue_fine(library_env):
+    loan_svc = library_env["loan"]
+    cat_svc = library_env["catalog"]
+    fine_svc = library_env["fine"]
+    conn = library_env["conn"]
+
+    conn.execute("INSERT INTO students (student_id, full_name, status) VALUES (501, 'นักเรียน ยืมหนังสือ', 'active')")
+    conn.commit()
+
+    cat_svc.add_book(title="หนังสือฟิสิกส์", barcodes=["PHY-01"])
+    res_co = loan_svc.checkout(student_id=501, barcode="PHY-01")
+    assert res_co.ok is True
+    loan_id = res_co.data["loan_id"]
+
+    # Overwrite due_at to 3 days ago in UTC
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    due_at = (now_utc - datetime.timedelta(days=3)).isoformat()
+    conn.execute("UPDATE loans SET due_at = ? WHERE loan_id = ?", (due_at, loan_id))
+    conn.commit()
+
+    # Pass an offset-naive string
+    naive_return_time = "2026-10-25T15:00:00"
+    res = loan_svc.return_book(loan_id=loan_id, returned_at=naive_return_time)
+    assert res.ok is True
+    assert res.data["fine"] is not None, "Fine must be assessed for late return with naive timestamp"
+    unpaid = fine_svc.get_unpaid_total(501)
+    assert unpaid > 0
+

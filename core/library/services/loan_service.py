@@ -133,6 +133,10 @@ class LoanService:
             try:
                 due_dt = datetime.datetime.fromisoformat(loan["due_at"])
                 ret_dt = datetime.datetime.fromisoformat(return_time)
+                if due_dt.tzinfo is not None and ret_dt.tzinfo is None:
+                    ret_dt = ret_dt.replace(tzinfo=datetime.timezone.utc)
+                elif due_dt.tzinfo is None and ret_dt.tzinfo is not None:
+                    due_dt = due_dt.replace(tzinfo=datetime.timezone.utc)
                 if ret_dt > due_dt:
                     days_late = (ret_dt.date() - due_dt.date()).days
                     if days_late > 0:
