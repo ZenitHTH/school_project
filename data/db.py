@@ -178,7 +178,7 @@ def backup_database(
     # Also copy salt file if it exists
     salt_file = Path(f"{db_path}.salt")
     if salt_file.exists():
-        shutil.copy2(salt_file, dest_dir / f"{salt_file.name}")
+        shutil.copy2(salt_file, dest_dir / f"{backup_db_path.name}.salt")
 
     return str(backup_db_path)
 

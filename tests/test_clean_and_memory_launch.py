@@ -189,3 +189,28 @@ def test_student_management_full_memory_flow(qapp, tmp_path):
     conn.close()
     engine.deleteLater()
 
+
+def test_backup_database_creates_matching_timestamped_salt(tmp_path):
+    from data.db import backup_database
+    from pathlib import Path
+    import sqlite3
+
+    db_path = str(tmp_path / "school.sqlite")
+    conn = sqlite3.connect(db_path)
+    conn.execute("CREATE TABLE test (id INT);")
+    conn.commit()
+
+    # Create dummy salt file
+    salt_file = tmp_path / "school.sqlite.salt"
+    salt_file.write_bytes(b"1234567890abcdef")
+
+    backup_path = backup_database(conn, db_path)
+    conn.close()
+
+    assert backup_path != ":memory:"
+    bp = Path(backup_path)
+    salt_backup = bp.parent / f"{bp.name}.salt"
+    assert salt_backup.exists()
+    assert salt_backup.read_bytes() == b"1234567890abcdef"
+
+
