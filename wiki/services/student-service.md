@@ -27,6 +27,7 @@ Enforced via `LEGAL_STATUS_TRANSITIONS`:
 - Allowed Transitions:
   - `active` ↔ `on_leave`
   - `active` → `transferred_out`
+  - `active` → `graduated`
   - `on_leave` → `transferred_out`
   - `transferred_out` → `active`
 - Inactive students (`on_leave`, `transferred_out`, `graduated`) are blocked from checking out library books.

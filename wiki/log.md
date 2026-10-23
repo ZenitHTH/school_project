@@ -104,3 +104,14 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Configured `.github/workflows/ci.yml` to run fast test suite only on `dev` pushes and PRs (`main`, `dev`) without building desktop packages.
 - Configured `.github/workflows/release.yml` to build and publish all desktop packages (`.exe`, `Setup.exe`, `.dmg`, `.deb`, `.rpm`, `.tar.gz`, `SHA256SUMS.txt`) when pushing/merging to `main`, pushing `v*.*.*` tags, or via `workflow_dispatch`.
 - Organized git branches with dedicated `dev` branch for active development and `main` for release builds.
+
+## [2026-10-23] fix | Audit Critical Bug Fixes & Code Quality Hardening
+- Fixed offset-naive vs offset-aware return timestamp comparison crash in `LoanService.return_book`.
+- Added `("active", "graduated")` transition in `core/student/models.py` and updated `EnrollmentService.promote_students` to graduate Grade 6 seniors.
+- Added LIKE fallback for <3 char search terms in `book_repo.search_books` to bypass FTS5 trigram 0-result bug.
+- Ensured deterministic `out_conn.close()` in `data/sync/export.py` on export failures.
+- Closed OpenPyXL workbooks with `try...finally: wb.close()` across XLSX importers.
+- Sanitized dictionary returns across all UI adapters (`BoothAdapter`, `LibrarianAdminAdapter`, `StudentAdminAdapter`) using `_sanitize_for_qml` to prevent QML null property crashes.
+- Centralized `format_barcode` in `core/library/policy.py` and eliminated N+1 query in `book_repo.list_books_with_barcodes` with single batched `IN (...)` query.
+- Timestamped backup salt file to match backup DB filename in `data/db.py:backup_database`.
+- Cleaned up SQLite connection fixtures and open file handles across test suite to eliminate all `ResourceWarning` leaks under Python 3.14.
