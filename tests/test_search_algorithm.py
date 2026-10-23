@@ -101,3 +101,19 @@ def test_search_and_count_share_clause_builder_and_match_counts(conn):
         assert len(rows) == total
 
 
+def test_book_search_short_query_fallback(conn):
+    from data.repositories import book_repo
+    book_repo.add_book(conn, title="AI and Machine Learning", author="John Doe", isbn="978-001")
+    book_repo.add_book(conn, title="เคมีพื้นฐาน", author="สมศักดิ์", isbn="978-002")
+
+    # Short query < 3 characters
+    res_ai = book_repo.search_books(conn, query="AI")
+    assert len(res_ai) == 1
+    assert res_ai[0]["title"] == "AI and Machine Learning"
+
+    res_chem = book_repo.search_books(conn, query="เค")
+    assert len(res_chem) == 1
+    assert res_chem[0]["title"] == "เคมีพื้นฐาน"
+
+
+

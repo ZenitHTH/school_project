@@ -171,11 +171,17 @@ def search_books(
     conditions = ["b.active = 1"]
     params: List[Any] = []
 
-    clean_query = query.strip().replace('"', '""')
+    clean_query = query.strip()
     if clean_query:
-        fts_query = f'"{clean_query}"*' if " " not in clean_query else f'"{clean_query}"'
-        conditions.append("b.book_id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)")
-        params.append(fts_query)
+        if len(clean_query) < 3:
+            conditions.append("(b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ?)")
+            like_param = f"%{clean_query}%"
+            params.extend([like_param, like_param, like_param])
+        else:
+            escaped = clean_query.replace('"', '""')
+            fts_query = f'"{escaped}"*' if " " not in escaped else f'"{escaped}"'
+            conditions.append("b.book_id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)")
+            params.append(fts_query)
 
     if category_id is not None:
         conditions.append("b.category_id = ?")
