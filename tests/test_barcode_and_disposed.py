@@ -14,7 +14,8 @@ def conn():
     c = sqlite3.connect(":memory:")
     c.row_factory = sqlite3.Row
     apply_migrations(c)
-    return c
+    yield c
+    c.close()
 
 
 def test_migration_disposed_status_and_books_trigram(conn):

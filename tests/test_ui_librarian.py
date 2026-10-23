@@ -732,7 +732,8 @@ def test_barcode_printout_exports_all_five_barcodes_to_pdf(lib_ui):
     cat_screen = find(window, "categoryScreen")
     pdf_path = cat_screen.property("lastPdfExported")
     assert os.path.exists(pdf_path)
-    pdf_bytes = open(pdf_path, "rb").read()
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
     barcodes_in_pdf = re.findall(rb"\((SMTE-\d{5}-\d{2})\)", pdf_bytes)
     assert len(barcodes_in_pdf) == 5
     assert barcodes_in_pdf[0].endswith(b"-01")

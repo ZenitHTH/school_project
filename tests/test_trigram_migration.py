@@ -17,3 +17,4 @@ def test_trigram_students_fts_creation():
     rows = cur.fetchall()
     assert len(rows) == 1
     assert rows[0][0] == 1001
+    conn.close()

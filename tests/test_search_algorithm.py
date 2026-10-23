@@ -27,7 +27,8 @@ def conn():
         "VALUES (2, 94321, 2567, 1, 'ม.1', 3)"
     )
     c.commit()
-    return c
+    yield c
+    c.close()
 
 
 def test_national_id_excluded(conn):

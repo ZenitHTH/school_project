@@ -1,5 +1,8 @@
+import datetime
 import hashlib
 import os
+from pathlib import Path
+import shutil
 import time
 from typing import Optional, Tuple
 
@@ -142,43 +145,41 @@ def get_connection(
     return conn
 
 
-def backup_database(
-    conn: sqlite3.Connection,
-    db_path: str,
-    backup_dest_dir: Optional[str] = None,
-) -> str:
-    """
-    Safely backup the database and its salt file before migration or import.
-    Flushes WAL journal via PRAGMA wal_checkpoint(TRUNCATE) so the main db file is complete.
-    """
-    import shutil
-    import datetime
-    from pathlib import Path
-
-    if db_path == ":memory:":
-        return ":memory:"
-
-    # 1. Truncate WAL so uncommitted sidecar pages are merged into main database file
+def _wal_checkpoint(conn: sqlite3.Connection) -> None:
     try:
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
     except Exception:
         pass
 
-    db_p = Path(db_path).resolve()
-    if backup_dest_dir is None:
-        dest_dir = db_p.parent / "backups"
-    else:
-        dest_dir = Path(backup_dest_dir).resolve()
+
+def _resolve_backup_dir(db_p: Path, backup_dest_dir: Optional[str]) -> Path:
+    dest_dir = db_p.parent / "backups" if backup_dest_dir is None else Path(backup_dest_dir).resolve()
     dest_dir.mkdir(parents=True, exist_ok=True)
+    return dest_dir
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_db_path = dest_dir / f"{db_p.stem}_{timestamp}{db_p.suffix}"
+
+def _copy_backup_files(db_p: Path, dest_dir: Path, backup_db_path: Path) -> None:
     shutil.copy2(db_p, backup_db_path)
-
-    # Also copy salt file if it exists
-    salt_file = Path(f"{db_path}.salt")
+    salt_file = Path(f"{db_p}.salt")
     if salt_file.exists():
         shutil.copy2(salt_file, dest_dir / f"{backup_db_path.name}.salt")
+        shutil.copy2(salt_file, dest_dir / f"{salt_file.name}")
 
+
+def backup_database(
+    conn: sqlite3.Connection,
+    db_path: str,
+    backup_dest_dir: Optional[str] = None,
+) -> str:
+    """Safely backup the database and salt file before migration or import."""
+    if db_path == ":memory:":
+        return ":memory:"
+
+    _wal_checkpoint(conn)
+    db_p = Path(db_path).resolve()
+    dest_dir = _resolve_backup_dir(db_p, backup_dest_dir)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_db_path = dest_dir / f"{db_p.stem}_{timestamp}{db_p.suffix}"
+    _copy_backup_files(db_p, dest_dir, backup_db_path)
     return str(backup_db_path)
 

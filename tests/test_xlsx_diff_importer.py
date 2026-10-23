@@ -1,14 +1,22 @@
 import sqlite3
 from unittest.mock import patch
+import pytest
 from core.importers.xlsx_diff_importer import apply_xlsx_diff, calculate_xlsx_diff
 from data.migrate import apply_migrations
 
 
-def test_xlsx_diff_categorization_and_atomic_apply():
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    apply_migrations(conn)
+@pytest.fixture
+def conn():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    apply_migrations(c)
+    try:
+        yield c
+    finally:
+        c.close()
 
+
+def test_xlsx_diff_categorization_and_atomic_apply(conn):
     # Seed initial student 101 and existing enrollment in 2566
     conn.execute(
         "INSERT INTO students (student_id, national_id, full_name, first_name, last_name, status) "
@@ -86,12 +94,9 @@ def test_xlsx_diff_categorization_and_atomic_apply():
         assert len(all_e) == 2
 
 
-def test_student_diff_import_and_promotion_real_file(tmp_path):
+def test_student_diff_import_and_promotion_real_file(conn, tmp_path):
     """End-to-end real xlsx diff calculation and promotion without mocks."""
     import openpyxl
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    apply_migrations(conn)
 
     # Insert existing student 1001 in ม.1/1
     conn.execute(
@@ -106,36 +111,39 @@ def test_student_diff_import_and_promotion_real_file(tmp_path):
 
     # Create real multi-sheet roster workbook
     wb = openpyxl.Workbook()
-    for g in ["ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"]:
-        if g not in wb.sheetnames:
-            wb.create_sheet(title=g)
+    try:
+        for g in ["ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"]:
+            if g not in wb.sheetnames:
+                wb.create_sheet(title=g)
 
-    # On sheet ม.2: student 1001 promoted to ม.2/1
-    ws_m2 = wb["ม.2"]
-    ws_m2.cell(row=1, column=1, value="ชั้นมัธยมศึกษาปีที่ 2/1 ภาคเรียนที่ 1 ปีการศึกษา 2568")
-    ws_m2.cell(row=2, column=1, value="ที่")
-    ws_m2.cell(row=2, column=2, value="รหัสนักเรียน")
-    ws_m2.cell(row=2, column=3, value="ชื่อ - สกุล")
-    ws_m2.cell(row=2, column=4, value="เลขประจำตัวประชาชน")
-    ws_m2.cell(row=3, column=1, value=1)
-    ws_m2.cell(row=3, column=2, value=1001)
-    ws_m2.cell(row=3, column=3, value="นายสมชาย มั่นคง")
-    ws_m2.cell(row=3, column=4, value="1100100200300")
+        # On sheet ม.2: student 1001 promoted to ม.2/1
+        ws_m2 = wb["ม.2"]
+        ws_m2.cell(row=1, column=1, value="ชั้นมัธยมศึกษาปีที่ 2/1 ภาคเรียนที่ 1 ปีการศึกษา 2568")
+        ws_m2.cell(row=2, column=1, value="ที่")
+        ws_m2.cell(row=2, column=2, value="รหัสนักเรียน")
+        ws_m2.cell(row=2, column=3, value="ชื่อ - สกุล")
+        ws_m2.cell(row=2, column=4, value="เลขประจำตัวประชาชน")
+        ws_m2.cell(row=3, column=1, value=1)
+        ws_m2.cell(row=3, column=2, value=1001)
+        ws_m2.cell(row=3, column=3, value="นายสมชาย มั่นคง")
+        ws_m2.cell(row=3, column=4, value="1100100200300")
 
-    # On sheet ม.1: new student 2002 entering ม.1/1
-    ws_m1 = wb["ม.1"]
-    ws_m1.cell(row=1, column=1, value="ชั้นมัธยมศึกษาปีที่ 1/1 ภาคเรียนที่ 1 ปีการศึกษา 2568")
-    ws_m1.cell(row=2, column=1, value="ที่")
-    ws_m1.cell(row=2, column=2, value="รหัสนักเรียน")
-    ws_m1.cell(row=2, column=3, value="ชื่อ - สกุล")
-    ws_m1.cell(row=2, column=4, value="เลขประจำตัวประชาชน")
-    ws_m1.cell(row=3, column=1, value=1)
-    ws_m1.cell(row=3, column=2, value=2002)
-    ws_m1.cell(row=3, column=3, value="เด็กหญิงปราณี สดใส")
-    ws_m1.cell(row=3, column=4, value="1100100200999")
+        # On sheet ม.1: new student 2002 entering ม.1/1
+        ws_m1 = wb["ม.1"]
+        ws_m1.cell(row=1, column=1, value="ชั้นมัธยมศึกษาปีที่ 1/1 ภาคเรียนที่ 1 ปีการศึกษา 2568")
+        ws_m1.cell(row=2, column=1, value="ที่")
+        ws_m1.cell(row=2, column=2, value="รหัสนักเรียน")
+        ws_m1.cell(row=2, column=3, value="ชื่อ - สกุล")
+        ws_m1.cell(row=2, column=4, value="เลขประจำตัวประชาชน")
+        ws_m1.cell(row=3, column=1, value=1)
+        ws_m1.cell(row=3, column=2, value=2002)
+        ws_m1.cell(row=3, column=3, value="เด็กหญิงปราณี สดใส")
+        ws_m1.cell(row=3, column=4, value="1100100200999")
 
-    xlsx_path = str(tmp_path / "roster_promotion_2568.xlsx")
-    wb.save(xlsx_path)
+        xlsx_path = str(tmp_path / "roster_promotion_2568.xlsx")
+        wb.save(xlsx_path)
+    finally:
+        wb.close()
 
     # Calculate diff
     diff_res = calculate_xlsx_diff(conn, xlsx_path)
@@ -165,15 +173,10 @@ def test_student_diff_import_and_promotion_real_file(tmp_path):
     s2002 = conn.execute("SELECT * FROM students WHERE student_id = 2002").fetchone()
     assert s2002 is not None
     assert s2002["status"] == "active"
-    conn.close()
 
 
-def test_xlsx_diff_warnings_on_conflict_and_missing():
+def test_xlsx_diff_warnings_on_conflict_and_missing(conn):
     """Verify Result warnings are populated when conflicts or missing students exist."""
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    apply_migrations(conn)
-
     # Student 1: National ID conflict
     conn.execute(
         "INSERT INTO students (student_id, national_id, full_name, first_name, last_name, status) "
