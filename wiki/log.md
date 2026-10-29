@@ -119,3 +119,15 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 ## [2026-10-29] ci | Canonical Setup Version (1.1.0) & Clean Versioned GitHub Releases
 - Added canonical `VERSION` (`1.1.0`) and `core/shared/version.py` (`APP_VERSION`), wired into `installer.iss`, `build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`, PyInstaller `.spec` files, and `QGuiApplication.setApplicationVersion`.
 - Refactored `.github/workflows/release.yml` to resolve `version` and `tag` (`v<VERSION>`) once in the `test` job, publish only clean native OS installers (`Setup.exe`, `.dmg`, `.deb`, `.rpm` + `SHA256SUMS.txt`), delete stale `latest` pre-release clutter, and generate a structured Markdown download table.
+
+## [2026-10-29] feat | Live Book Entry Preview, Inventory Grid Table & Dedicated Barcode Print Studio
+- Modularized Tab 6 right pane into `BookInventoryRightPane.qml`:
+  - Added live preview card (`incomingBookPreviewCard`) dynamically updating title, author, ISBN, category, shelf, copy count, and preview barcodes (`SMTE-xxxxx-01`...) as user types on the left pane.
+  - Added bordered inventory stock grid table (`inventoryBooksList` / `inventoryBooksModel`) displaying current library books with search filtering and direct inline actions (`+ เพิ่มเล่ม`, `✏️ แก้ไข`, `🗑️ ลบ`).
+  - Added direct navigation button `btnGoToPrintPage` to jump to dedicated barcode print studio.
+- Upgraded Tab 7 (`CategoryManagementView.qml`) into Dedicated Barcode Print Studio:
+  - Added live print queue summary cards (`selectedBooksCountText`, `selectedStickersCountText`, and `estimatedPagesText` calculating required A4 3x8 sheets).
+  - Added category filter combobox (`barcodeCategoryFilterCombo`) and selection checkboxes per row.
+  - Added catalog navigation button `btnOpenPrintPage` from Tab 0.
+- Maintained 100% test coverage with automated UI verification in `tests/test_ui_librarian.py` (213/213 passed, 0 warnings).
+

@@ -36,16 +36,23 @@ apps/librarian_management_app/
   2. Student has unpaid overdue fines exceeding policy threshold.
   3. Student has reached max concurrent book limit.
 
-### 2.3 Book Registration & Grouping Split View (`BarcodeGeneratorView.qml`, Tab 6)
+### 2.3 Book Registration, Live Preview & Inventory Grid (`BarcodeGeneratorView.qml` & `BookInventoryRightPane.qml`, Tab 6)
 - 2-column split screen:
   - **Left Card (Book Registration)**: Register new book or add copies to an existing book. Immediately commits deterministic `SMTE-xxxxx-xx` barcodes to `book_copies` in SQLite upon save. Auto-selects existing books upon switching to mode 1 and supports topping up copies to a target count.
-  - **Right Card (Grouping Management)**: Add, edit, or delete classification categories. Changes instantly refresh `genCategoryCombo` on the left card without losing typed input.
+  - **Right Card (Live Incoming Preview & Inventory Grid Table)**:
+    - **Top Bordered Table Box**: Displays real-time live preview of the book currently being entered/modified (`incomingBookPreviewCard`), including Title, Author, ISBN, Category, Shelf Location, Copy Count, and deterministic barcode sequence preview (`SMTE-xxxxx-01` ...).
+    - **Middle Bordered Table Box**: Structured inventory table (`inventoryBooksList` / `inventoryBooksModel`) showing all books currently in library stock with search filter, copy count badges, and inline actions (`+ เพิ่มเล่ม`, `✏️ แก้ไข`, `🗑️ ลบ`).
+    - **Bottom Compact Category Strip**: Quick addition, editing, and deletion of classification categories.
+    - **Direct Navigation Button**: `btnGoToPrintPage` to jump directly to the Dedicated Barcode Print Studio (Tab 7).
 
-### 2.4 Dedicated Barcode Printout Generator (`CategoryManagementView.qml`, Tab 7)
-- Staff can search books, select specific books via checkboxes, and export their active barcodes (`exportSelectedBooksPdf`).
-- Or print all active barcodes across the library (`exportAllBooksPdf` / `btnExportPdfSheet`) to standard A4 sticker sheets (3 columns x 8 rows = 24 labels/sheet).
-- Displays all copy barcodes clearly (up to 5 barcodes inline, or range with count).
-- Includes direct per-row `+ เพิ่มเล่ม` action button to add additional physical copies without navigating away.
+### 2.4 Dedicated Barcode Print Studio (`CategoryManagementView.qml`, Tab 7)
+- Staff can search books and filter by category (`barcodeCategoryFilterCombo`).
+- Live Print Queue Metrics display:
+  - Selected books count (`selectedBooksCountText`)
+  - Total barcode stickers count (`selectedStickersCountText`)
+  - Estimated A4 sticker sheets (`estimatedPagesText`, 24 stickers/sheet at 3 columns x 8 rows).
+- Clickable bordered table rows with checkboxes for selective printing (`exportSelectedBooksPdf`) or full printout (`exportAllBooksPdf` / `btnExportPdfSheet`).
+- Includes direct per-row `+ เล่ม` action button to top up physical copies without leaving the page.
 - Automatically excludes retired and disposed copies (`status NOT IN ('retired', 'disposed')`).
 
 ### 2.5 Student Snapshot Sync (`StudentSyncView.qml`)
