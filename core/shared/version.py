@@ -85,3 +85,8 @@ def update_version_files(target_ver: str, repo_root: Optional[str] = None) -> Li
 
 
 APP_VERSION = get_version()
+
+if __name__ == "__main__":
+    from scripts.bump_version import main as _bump_main
+    _bump_main()
+

@@ -53,3 +53,31 @@ def test_update_version_files_syncs_version_and_iss(tmp_path):
     new_iss = iss_file.read_text(encoding="utf-8")
     assert '#define AppVersion "1.1.1"' in new_iss
     assert ";   /DAppVersion=1.1.1" in new_iss
+
+
+def test_cli_bump_version_duplicate_abort(monkeypatch, capsys):
+    import scripts.bump_version as bump_mod
+
+    # Current is 1.1.0, and v1.1.0 is already tagged
+    monkeypatch.setattr(bump_mod, "get_git_tags", lambda: ["v1.1.0"])
+    with pytest.raises(SystemExit) as exc:
+        bump_mod.main(["1.1.0"])
+    assert exc.value.code == 1
+    out = capsys.readouterr().err
+    assert "already tagged" in out
+
+
+def test_cli_bump_version_dry_run(tmp_path, monkeypatch, capsys):
+    import scripts.bump_version as bump_mod
+
+    v_file = tmp_path / "VERSION"
+    v_file.write_text("1.1.0\n", encoding="utf-8")
+    monkeypatch.setattr(bump_mod, "_resolve_repo_root", lambda: str(tmp_path))
+    monkeypatch.setattr(bump_mod, "get_git_tags", lambda: ["v1.1.0"])
+
+    bump_mod.main(["patch", "--dry-run"])
+    out = capsys.readouterr().out
+    assert "1.1.0 -> 1.1.1" in out
+    # Dry run must not modify the file
+    assert v_file.read_text(encoding="utf-8").strip() == "1.1.0"
+
