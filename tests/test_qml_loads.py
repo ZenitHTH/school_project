@@ -43,6 +43,8 @@ def test_librarian_qml_loads(qapp, tmp_path):
 
     adapter = LibrarianAdminAdapter(conn)
     engine = QQmlApplicationEngine()
+    warnings = []
+    engine.warnings.connect(lambda ws: warnings.extend([w.toString() for w in ws]))
     engine.addImportPath(os.path.abspath("apps/common_qml"))
     engine.addImportPath(os.path.abspath("apps"))
     engine.rootContext().setContextProperty("librarianAdmin", adapter)
@@ -50,6 +52,8 @@ def test_librarian_qml_loads(qapp, tmp_path):
     qml_file = os.path.abspath("apps/librarian_management_app/qml/Main.qml")
     engine.load(qml_file)
     assert len(engine.rootObjects()) > 0, "Librarian Management Main.qml failed to load!"
+    ref_errors = [w for w in warnings if "ReferenceError" in w or "TypeError" in w]
+    assert not ref_errors, f"Unexpected QML errors: {ref_errors}"
     conn.close()
 
 

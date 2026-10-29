@@ -319,7 +319,7 @@ Item {
     // 4. Edit Book Dialog (Modular Component)
     EditBookDialog {
         id: editBookDialog
-        rootWindow: bookActionDialogs.rootWindow
+        rootWindow: root.rootWindow
         onSaved: submitEditBook()
     }
 

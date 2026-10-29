@@ -576,6 +576,8 @@ ApplicationWindow {
 
     function loadBooksForExistingSelector() {
         barcodeGenView.loadBooksForExistingSelector()
+        barcodeGenView.loadInventoryGrid()
+        barcodeGenView.updateGenPreview()
     }
 
     function updateGenPreview() {

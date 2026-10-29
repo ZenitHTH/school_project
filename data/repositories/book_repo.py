@@ -404,9 +404,16 @@ def get_copies_for_book(conn: sqlite3.Connection, book_id: int) -> List[sqlite3.
 
 
 def count_copies_ever(conn: sqlite3.Connection, book_id: int) -> int:
-    """Count all copies ever registered for this book (including lost, damaged, retired, disposed)."""
-    row = conn.execute("SELECT count(*) FROM book_copies WHERE book_id = ?", (book_id,)).fetchone()
-    return row[0] if row else 0
+    """Return highest sequence index or total count ever registered for this book."""
+    rows = conn.execute("SELECT barcode FROM book_copies WHERE book_id = ?", (book_id,)).fetchall()
+    max_seq = len(rows)
+    for r in rows:
+        bc = r["barcode"] or ""
+        if "-" in bc:
+            suffix = bc.rsplit("-", 1)[-1]
+            if suffix.isdigit():
+                max_seq = max(max_seq, int(suffix))
+    return max_seq
 
 
 def insert_copy(conn: sqlite3.Connection, book_id: int, barcode: str, status: str = "available") -> int:

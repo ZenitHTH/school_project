@@ -326,4 +326,17 @@ def test_catalog_service_adjust_total_copies(conn):
     assert r_to_one.ok
     assert r_to_one.data["total_copies"] == 1
 
+    # 5. Sequence non-collision when tail copy is on loan and middle copy is removed
+    r_add2 = cat_svc.add_book(title="ธรณีวิทยา", copy_count=3)
+    b2_id = r_add2.data["book_id"]
+    tail_bc = r_add2.data["barcodes"][-1]  # SMTE-xxxxx-03
+    assert loan_svc.checkout(student_id=1001, barcode=tail_bc).ok
+    # Reduce 3 -> 2 (deletes -02 while -03 stays on loan)
+    assert cat_svc.adjust_total_copies(b2_id, target_total=2).ok
+    # Increase 2 -> 3 (must generate -04, not collide with -03)
+    r_readd = cat_svc.adjust_total_copies(b2_id, target_total=3)
+    assert r_readd.ok
+    assert r_readd.data["barcodes"][0].endswith("-04")
+
+
 

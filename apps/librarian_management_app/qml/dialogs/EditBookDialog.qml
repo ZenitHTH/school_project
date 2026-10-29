@@ -17,6 +17,7 @@ Dialog {
     property int currentTotalCopies: 1
     property int availableCopies: 1
     property int onLoanCopies: 0
+    property int minAllowedCopies: 1
     property var rootWindow: null
 
     property alias editBookTitleInput: titleInput
@@ -40,6 +41,11 @@ Dialog {
                 editDialog.availableCopies = res.data.available_copies
                 editDialog.onLoanCopies = res.data.on_loan_copies
                 var copies = res.data.copies || []
+                var rank = 0
+                for (var r = copies.length - 1; r >= 0; r--) {
+                    copies[r].remove_rank = copies[r].can_remove ? (++rank) : 0
+                }
+                editDialog.minAllowedCopies = Math.max(1, copies.length - rank)
                 for (var i = 0; i < copies.length; i++) {
                     copiesListModel.append(copies[i])
                 }
@@ -60,7 +66,7 @@ Dialog {
 
     function isBelowOnLoan() {
         var target = parseInt(copiesInput.text) || editDialog.currentTotalCopies
-        return target < editDialog.onLoanCopies
+        return target < editDialog.minAllowedCopies
     }
 
     background: Rectangle {
@@ -462,7 +468,7 @@ Dialog {
                                     }
                                     text: {
                                         if (editDialog.isBelowOnLoan()) {
-                                            return "ไม่สามารถลดต่ำกว่า " + editDialog.onLoanCopies + " เล่มได้ เนื่องจากมีหนังสือที่กำลังถูกยืมอยู่"
+                                            return "ไม่สามารถลดต่ำกว่า " + editDialog.minAllowedCopies + " เล่มได้ เนื่องจากติดการยืมหรือมีประวัติการยืมแล้ว"
                                         }
                                         var d = editDialog.calculateDiff()
                                         if (d > 0) {
@@ -496,8 +502,7 @@ Dialog {
                                     property bool willBeRemoved: {
                                         var d = editDialog.calculateDiff()
                                         if (d >= 0) return false
-                                        var removeCount = Math.abs(d)
-                                        return index >= (copiesListModel.count - removeCount) && model.status === "available"
+                                        return model.remove_rank > 0 && model.remove_rank <= Math.abs(d)
                                     }
                                     color: willBeRemoved ? "#fee2e2" : (model.status === "available" ? "#f1f5f9" : "#e0f2fe")
                                     border.color: willBeRemoved ? "#ef4444" : (model.status === "available" ? "#cbd5e1" : "#7dd3fc")

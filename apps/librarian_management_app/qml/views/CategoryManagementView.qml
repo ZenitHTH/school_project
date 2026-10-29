@@ -41,16 +41,30 @@ Rectangle {
         estimatedPagesText.text = pages + " แผ่น (A4 3x8)"
     }
 
+    property bool _reloadingFilter: false
+
     function reloadCategoryFilter() {
+        var prevName = (barcodeCategoryFilterCombo && barcodeCategoryFilterCombo.currentIndex > 0 && barcodeCategoryFilterCombo.currentIndex < barcodeCategoryFilterModel.count)
+            ? barcodeCategoryFilterModel.get(barcodeCategoryFilterCombo.currentIndex).name
+            : ""
+        _reloadingFilter = true
         barcodeCategoryFilterModel.clear()
         barcodeCategoryFilterModel.append({ "category_id": 0, "name": "📚 ทุกหมวดหมู่" })
+        var targetIndex = 0
         try {
             var raw = librarianAdmin.listCategories()
             var cats = JSON.parse(raw)
             for (var i = 0; i < cats.length; i++) {
                 barcodeCategoryFilterModel.append(cats[i])
+                if (prevName && cats[i].name === prevName) {
+                    targetIndex = i + 1
+                }
             }
         } catch (e) {}
+        if (barcodeCategoryFilterCombo) {
+            barcodeCategoryFilterCombo.currentIndex = targetIndex
+        }
+        _reloadingFilter = false
     }
 
     function loadPrintableBooks(query) {
@@ -334,7 +348,11 @@ Rectangle {
                     implicitHeight: 34
                     textRole: "name"
                     model: ListModel { id: barcodeCategoryFilterModel; objectName: "barcodeCategoryFilterModel" }
-                    onCurrentIndexChanged: barcodePrintScreen.loadPrintableBooks()
+                    onCurrentIndexChanged: {
+                        if (!barcodePrintScreen._reloadingFilter) {
+                            barcodePrintScreen.loadPrintableBooks()
+                        }
+                    }
                 }
 
                 Button {

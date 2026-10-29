@@ -812,9 +812,19 @@ def test_dedicated_barcode_print_page_selection_metrics_and_navigation(lib_ui):
     row0_copies = find(window, "genBarcodesModel").get(0).property("copy_count").toInt()
     assert str(row0_copies) in stickers_text.property("text")
 
+    # Filter by category ("วิทยาศาสตร์") -> preserves currentIndex and filters rows
+    cat_combo = find(window, "barcodeCategoryFilterCombo")
+    cat_combo.setProperty("currentIndex", 1)
+    process(lib_ui["app"])
+    assert cat_combo.property("currentIndex") == 1
+    assert find(window, "genBarcodesModel").property("count") == 1
+
 
 def test_edit_book_reduce_mistakenly_entered_copies(lib_ui):
     window = lib_ui["window"]
+    find(window, "navBtnGenerator").clicked.emit()
+    process(lib_ui["app"])
+
     # Register book with 5 copies by mistake
     res = json.loads(lib_ui["adapter"].addBook("ดาราศาสตร์เบื้องต้น", "9786161234567", "ดร.ดาว", "", "", "D-1", "5"))
     assert res["ok"] is True
@@ -843,10 +853,12 @@ def test_edit_book_reduce_mistakenly_entered_copies(lib_ui):
     invoke(window, "submitEditBook")
     process(lib_ui["app"])
 
-    # Verify database and barcode listing now reflect 2 copies
+    # Verify database, barcode listing, and Tab 6 inventory grid all reflect 2 copies
     books = json.loads(lib_ui["adapter"].getBooksWithBarcodes("ดาราศาสตร์"))
     assert len(books) == 1
     assert len(books[0]["barcodes"]) == 2
+    inv_model = find(window, "inventoryBooksModel")
+    assert inv_model.get(0).property("total_copies").toInt() == 2
 
 
 
