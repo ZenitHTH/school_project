@@ -5,7 +5,7 @@ from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
 _ver_file = os.path.join(SPECPATH, '..', 'VERSION')
-APP_VERSION = open(_ver_file, encoding='utf-8').read().strip() if os.path.exists(_ver_file) else '1.1.0'
+APP_VERSION = open(_ver_file, encoding='utf-8').read().strip() if os.path.exists(_ver_file) else '0.0.0'
 
 datas = [
     ('../VERSION', '.'),

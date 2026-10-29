@@ -5,7 +5,7 @@ APP_NAME="${1:-StudentManagement}"
 APP_BUNDLE="${2:-dist/$APP_NAME.app}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_VERSION_FILE="$SCRIPT_DIR/../../../VERSION"
-DEFAULT_VERSION=$( [ -f "$REPO_VERSION_FILE" ] && tr -d '[:space:]' < "$REPO_VERSION_FILE" || echo "1.1.0" )
+DEFAULT_VERSION=$( [ -f "$REPO_VERSION_FILE" ] && tr -d '[:space:]' < "$REPO_VERSION_FILE" || echo "0.0.0" )
 VERSION="${3:-$DEFAULT_VERSION}"
 OUTPUT_DIR="${4:-dist/installers}"
 

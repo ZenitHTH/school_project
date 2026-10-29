@@ -125,7 +125,8 @@ def test_setup_files_and_app_version_synchronized():
     with open(version_file, "r", encoding="utf-8") as f:
         ver = f.read().strip()
 
-    assert ver == "1.1.0"
+    import re
+    assert re.match(r"^\d+\.\d+\.\d+", ver)
     assert APP_VERSION == ver
     assert get_version() == ver
 
@@ -143,7 +144,7 @@ def test_setup_files_and_app_version_synchronized():
         with open(os.path.join(repo_root, script_rel), "r", encoding="utf-8") as f:
             script_txt = f.read()
         assert "REPO_VERSION_FILE=" in script_txt
-        assert f'echo "{ver}"' in script_txt
+        assert 'DEFAULT_VERSION=$( [ -f "$REPO_VERSION_FILE" ]' in script_txt
 
     for spec_rel in [
         "packaging/librarian_management.spec",
