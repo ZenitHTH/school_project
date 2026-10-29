@@ -56,8 +56,20 @@ The repository separates active development (`dev`) from release packaging (`mai
    - Uses concurrency cancellation (`${{ github.workflow }}-${{ github.ref }}`) to drop redundant builds on fast pushes.
 2. **Main & Tag Release Pipeline (`.github/workflows/release.yml`)**:
    - Triggers on `push` to `main`, semantic version tags (`v*.*.*`), or manual `workflow_dispatch`.
-   - Single version source of truth: `VERSION` file (`1.1.0`) and `core/shared/version.py` (`APP_VERSION`), synchronized across `installer.iss`, `build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`, PyInstaller `.spec` bundles, and `QGuiApplication.setApplicationVersion`.
+   - Single version source of truth: `VERSION` file and `core/shared/version.py` (`APP_VERSION`), synchronized across `installer.iss`, `build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`, PyInstaller `.spec` bundles, and `QGuiApplication.setApplicationVersion`.
    - `test` job runs headless `pytest` and resolves `outputs.version` and `outputs.tag` (`v<VERSION>`) once for all downstream build jobs.
    - Builds native OS installers only (no duplicate raw binaries): Windows (`*-Setup-<ver>.exe`), macOS (`*-<ver>.dmg`), Debian/Ubuntu (`*_<ver>_amd64.deb`), and Fedora/RHEL (`*-<ver>-1.*.rpm`).
    - Cleans stale tags/releases before publishing versioned release `v<VERSION>` with structured download table (`RELEASE_NOTES.md`) and `SHA256SUMS.txt`.
+
+## 6. Single-Command Version Management (`scripts/bump_version.py`)
+To bump or set the release version:
+```bash
+python scripts/bump_version.py patch      # e.g. 1.1.1 -> 1.1.2
+python scripts/bump_version.py minor      # e.g. 1.1.1 -> 1.2.0
+python scripts/bump_version.py major      # e.g. 1.1.1 -> 2.0.0
+python scripts/bump_version.py 1.1.3      # Explicit version
+```
+- **Duplicate Tag Protection**: Inspects `git tag --list` and aborts if `v<version>` already exists, preventing duplicate/corrupted GitHub Releases.
+- **One-Touch Sync**: Automatically syncs `VERSION` and `packaging/installers/windows/installer.iss` (`#define AppVersion`). All packaging scripts read dynamically from `VERSION`.
+
 

@@ -143,4 +143,14 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
   - Exposed `LibrarianAdminAdapter.adjustBookCopies` and `LibrarianAdminAdapter.getBookCopiesDetail` with QML sanitization.
 - Maintained 100% test coverage with 217 passing unit and UI tests.
 
+## [2026-10-29] ci | Release v1.1.1 & Single-Command Version Bump CLI
+- Bumped project version to `1.1.1` via single-command workflow (`python scripts/bump_version.py patch`).
+- Introduced `scripts/bump_version.py` and `python -m core.shared.version`:
+  - Added duplicate tag collision check querying `git tag --list` to strictly prevent releasing existing tags (e.g. `v1.1.0`).
+  - Added automatic SemVer calculations (`patch`, `minor`, `major`) and explicit version targets.
+  - Automatically synchronizes `VERSION` and `packaging/installers/windows/installer.iss` (`#define AppVersion`).
+- Decoupled packaging shell scripts (`build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`) and PyInstaller `.spec` files from hardcoded version literals.
+- Maintained 100% test coverage with 224 unit and UI tests.
+
+
 
