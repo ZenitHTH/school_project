@@ -39,6 +39,7 @@ ApplicationWindow {
     property alias catalogList: catalogView.catalogList
     property alias catalogModel: catalogView.catalogModel
     property alias btnOpenGeneratorPage: catalogView.btnOpenGeneratorPage
+    property alias btnOpenPrintPage: catalogView.btnOpenPrintPage
 
     property alias studentLookupInput: deskView.studentLookupInput
     property alias btnLookupStudent: deskView.btnLookupStudent
@@ -97,6 +98,10 @@ ApplicationWindow {
     property alias genBarcodesList: categoryView.genBarcodesList
     property alias genBarcodesModel: categoryView.genBarcodesModel
     property alias genPdfStatusText: categoryView.genPdfStatusText
+    property alias selectedBooksCountText: categoryView.selectedBooksCountText
+    property alias selectedStickersCountText: categoryView.selectedStickersCountText
+    property alias estimatedPagesText: categoryView.estimatedPagesText
+    property alias barcodeCategoryFilterCombo: categoryView.barcodeCategoryFilterCombo
 
     property alias categoryScreen: categoryView
     property alias categoryNameInput: barcodeGenView.categoryNameInput
@@ -301,6 +306,10 @@ ApplicationWindow {
                 onOpenGeneratorRequested: {
                     window.initGeneratorPage()
                     stackLayout.currentIndex = 6
+                }
+                onOpenPrintPageRequested: {
+                    categoryView.loadPrintableBooks()
+                    stackLayout.currentIndex = 7
                 }
                 onAddCopiesRequested: function(bookId, title) {
                     bookDialogs.openAddCopiesDialog(bookId, title)

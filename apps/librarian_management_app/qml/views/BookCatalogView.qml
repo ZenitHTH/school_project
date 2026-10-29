@@ -11,9 +11,11 @@ Rectangle {
     property alias catalogList: catalogList
     property alias catalogModel: catalogModel
     property alias btnOpenGeneratorPage: btnOpenGeneratorPage
+    property alias btnOpenPrintPage: btnOpenPrintPage
 
     signal searchRequested()
     signal openGeneratorRequested()
+    signal openPrintPageRequested()
     signal addCopiesRequested(int bookId, string title)
     signal editBookRequested(int bookId, string title, string author, string isbn, int categoryId, string shelfLocation, int totalCopies)
     signal deleteBookRequested(int bookId, string title)
@@ -35,9 +37,15 @@ Rectangle {
             Button {
                 id: btnOpenGeneratorPage
                 objectName: "btnOpenGeneratorPage"
-                text: "🏷️ สร้างบาร์โค้ดและเพิ่มหนังสือ"
-                highlighted: true
+                text: "📚 เพิ่มหนังสือ / หมวดหมู่"
                 onClicked: root.openGeneratorRequested()
+            }
+            Button {
+                id: btnOpenPrintPage
+                objectName: "btnOpenPrintPage"
+                text: "🏷️ พิมพ์สติกเกอร์บาร์โค้ด"
+                highlighted: true
+                onClicked: root.openPrintPageRequested()
             }
         }
 

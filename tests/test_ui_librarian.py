@@ -777,6 +777,43 @@ def test_book_entry_page_shows_live_incoming_preview_and_current_inventory_grid(
     assert inv_model.property("count") == initial_inv_count + 1
 
 
+def test_dedicated_barcode_print_page_selection_metrics_and_navigation(lib_ui):
+    window = lib_ui["window"]
+    stack = find(window, "librarianStack")
+
+    # Add two books in different categories
+    cat_res = json.loads(lib_ui["adapter"].addCategory("วิทยาศาสตร์"))
+    cat_id = str(cat_res["data"]["category_id"])
+    lib_ui["adapter"].addBook("ฟิสิกส์นิวเคลียร์", "978111", "อ.สมชาย", "", cat_id, "S-1", "3")
+    lib_ui["adapter"].addBook("ประวัติศาสตร์ไทย", "978222", "อ.สมหญิง", "", "", "H-1", "2")
+
+    # Navigate from Book Entry page (Tab 6) to Dedicated Print page (Tab 7) via btnGoToPrintPage
+    find(window, "navBtnGenerator").clicked.emit()
+    process(lib_ui["app"])
+    go_print_btn = find(window, "btnGoToPrintPage")
+    assert go_print_btn is not None
+    go_print_btn.clicked.emit()
+    process(lib_ui["app"])
+    assert stack.property("currentIndex") == 7
+
+    # Verify live selection metrics (books selected & total barcode stickers)
+    stickers_text = find(window, "selectedStickersCountText")
+    assert stickers_text is not None
+    assert "ดวง" in stickers_text.property("text")
+
+    # Deselect all -> 0 stickers selected
+    invoke(window, "deselectAllPrintableBooks")
+    process(lib_ui["app"])
+    assert "0" in stickers_text.property("text")
+
+    # Select first book -> sticker count updates to match first book's copy_count
+    invoke(window, "setPrintableBookSelected", Q_ARG("QVariant", 0), Q_ARG("QVariant", True))
+    process(lib_ui["app"])
+    row0_copies = find(window, "genBarcodesModel").get(0).property("copy_count").toInt()
+    assert str(row0_copies) in stickers_text.property("text")
+
+
+
 
 
 
