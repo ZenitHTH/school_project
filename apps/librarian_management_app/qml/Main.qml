@@ -79,6 +79,17 @@ ApplicationWindow {
     property alias btnRefreshPreview: barcodeGenView.btnRefreshPreview
     property alias btnExecuteGenerate: barcodeGenView.btnExecuteGenerate
     property alias genStatusMessage: barcodeGenView.genStatusMessage
+    property alias incomingBookPreviewCard: barcodeGenView.incomingBookPreviewCard
+    property alias incomingTitleText: barcodeGenView.incomingTitleText
+    property alias incomingMetaText: barcodeGenView.incomingMetaText
+    property alias incomingLocationText: barcodeGenView.incomingLocationText
+    property alias incomingCopyCountText: barcodeGenView.incomingCopyCountText
+    property alias incomingBarcodePreviewText: barcodeGenView.incomingBarcodePreviewText
+    property alias incomingBarcodesModel: barcodeGenView.incomingBarcodesModel
+    property alias inventorySearchInput: barcodeGenView.inventorySearchInput
+    property alias inventoryBooksList: barcodeGenView.inventoryBooksList
+    property alias inventoryBooksModel: barcodeGenView.inventoryBooksModel
+    property alias btnGoToPrintPage: barcodeGenView.btnGoToPrintPage
     property alias barcodePrintSearchInput: categoryView.barcodePrintSearchInput
     property alias btnSelectAllBooks: categoryView.btnSelectAllBooks
     property alias btnPrintSelectedPdf: categoryView.btnPrintSelectedPdf
@@ -351,6 +362,19 @@ ApplicationWindow {
                 }
                 onCategoryAdded: {
                     barcodeGenView.loadCategoriesList()
+                }
+                onGoToPrintPageRequested: {
+                    categoryView.loadPrintableBooks()
+                    stackLayout.currentIndex = 7
+                }
+                onAddCopiesRequested: function(bookId, title) {
+                    bookDialogs.openAddCopiesDialog(bookId, title)
+                }
+                onEditBookRequested: function(bookId, title, author, isbn, categoryId, shelf, totalCopies) {
+                    bookDialogs.openEditBookDialog(bookId, title, author, isbn, categoryId, shelf, totalCopies)
+                }
+                onDeleteBookRequested: function(bookId, title) {
+                    bookDialogs.openDeleteBookDialog(bookId, title)
                 }
             }
 

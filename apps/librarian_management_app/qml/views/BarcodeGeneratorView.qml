@@ -8,6 +8,7 @@ Rectangle {
     color: "#f8fafc"
 
     property int currentGenMode: 0 // 0: New Book, 1: Add Copies to Existing
+    onCurrentGenModeChanged: updateGenPreview()
 
     property alias btnModeNewBook: btnModeNewBook
     property alias btnModeAddCopies: btnModeAddCopies
@@ -24,18 +25,35 @@ Rectangle {
     property alias btnExecuteGenerate: btnExecuteGenerate
     property alias genStatusMessage: genStatusMessage
 
-    // Grouping / Category Management aliases
-    property alias categoryNameInput: categoryNameInput
-    property alias btnAddCategory: btnAddCategory
-    property alias categoryStatusText: categoryStatusText
-    property alias categoryListView: categoryListView
-    property alias categoryListModel: categoryListModel
+    // Grouping / Category Management & Inventory aliases
+    property alias categoryNameInput: rightInventoryPane.categoryNameInput
+    property alias btnAddCategory: rightInventoryPane.btnAddCategory
+    property alias categoryStatusText: rightInventoryPane.categoryStatusText
+    property alias categoryListView: rightInventoryPane.categoryListView
+    property alias categoryListModel: rightInventoryPane.categoryListModel
+
+    property alias incomingBookPreviewCard: rightInventoryPane.incomingBookPreviewCard
+    property alias incomingTitleText: rightInventoryPane.incomingTitleText
+    property alias incomingMetaText: rightInventoryPane.incomingMetaText
+    property alias incomingLocationText: rightInventoryPane.incomingLocationText
+    property alias incomingCopyCountText: rightInventoryPane.incomingCopyCountText
+    property alias incomingBarcodePreviewText: rightInventoryPane.incomingBarcodePreviewText
+    property alias incomingBarcodesModel: rightInventoryPane.incomingBarcodesModel
+
+    property alias inventorySearchInput: rightInventoryPane.inventorySearchInput
+    property alias inventoryBooksList: rightInventoryPane.inventoryBooksList
+    property alias inventoryBooksModel: rightInventoryPane.inventoryBooksModel
+    property alias btnGoToPrintPage: rightInventoryPane.btnGoToPrintPage
 
     signal backToCatalogRequested()
     signal bookSaved()
     signal editCategoryRequested(int catId, string catName)
     signal deleteCategoryRequested(int catId, string catName)
     signal categoryAdded()
+    signal goToPrintPageRequested()
+    signal addCopiesRequested(int bookId, string title)
+    signal editBookRequested(int bookId, string title, string author, string isbn, int categoryId, string shelf, int totalCopies)
+    signal deleteBookRequested(int bookId, string title)
 
     function reloadCategories() {
         var prevCatId = 0
@@ -63,9 +81,23 @@ Rectangle {
         } catch (e) {}
     }
 
+    function loadInventoryGrid(query) {
+        inventoryBooksModel.clear()
+        try {
+            var q = (typeof query === "string") ? query : (inventorySearchInput ? inventorySearchInput.text : "")
+            var raw = librarianAdmin.searchBooks(q)
+            var books = JSON.parse(raw)
+            for (var i = 0; i < books.length; i++) {
+                inventoryBooksModel.append(books[i])
+            }
+        } catch (e) {}
+    }
+
     function initGeneratorPage() {
         reloadCategories()
         loadBooksForExistingSelector()
+        loadInventoryGrid()
+        updateGenPreview()
     }
 
     function loadCategoriesList() {
@@ -134,7 +166,52 @@ Rectangle {
     }
 
     function updateGenPreview() {
-        // Kept for backward compatibility
+        var count = parseInt(genCopyCountInput.text) || 1
+        if (count <= 0) count = 1
+
+        if (barcodeGenScreen.currentGenMode === 0) {
+            var t = genBookTitle.text.trim()
+            incomingTitleText.text = t ? t : "(ยังไม่ได้ระบุชื่อหนังสือ)"
+            var a = genBookAuthor.text.trim()
+            var isbn = genBookIsbn.text.trim()
+            incomingMetaText.text = "ผู้แต่ง: " + (a ? a : "-") + " | ISBN: " + (isbn ? isbn : "-")
+
+            var catName = "-"
+            if (genCategoryCombo.currentIndex > 0 && genCategoryCombo.currentIndex < genCategoryModel.count) {
+                catName = genCategoryModel.get(genCategoryCombo.currentIndex).name
+            }
+            var shelf = genShelfLocation.text.trim()
+            incomingLocationText.text = "หมวด: " + catName + " | ชั้นวาง: " + (shelf ? shelf : "-")
+            incomingCopyCountText.text = "จำนวน: " + count + " เล่ม"
+
+            try {
+                var previewRes = JSON.parse(librarianAdmin.previewBarcodes(0, count))
+                if (previewRes.ok && previewRes.barcodes && previewRes.barcodes.length > 0) {
+                    var bcs = previewRes.barcodes
+                    incomingBarcodePreviewText.text = (bcs.length <= 4)
+                        ? bcs.join(", ")
+                        : (bcs[0] + " ... " + bcs[bcs.length - 1] + " (รวม " + bcs.length + " เล่ม)")
+                }
+            } catch (e) {}
+        } else {
+            if (genExistingBooksModel.count > 0 && genExistingBookCombo.currentIndex >= 0) {
+                var sel = genExistingBooksModel.get(genExistingBookCombo.currentIndex)
+                incomingTitleText.text = sel.title + " (เพิ่มเล่มเดิม)"
+                incomingMetaText.text = "ผู้แต่ง: " + (sel.author || "-") + " | มีอยู่แล้ว: " + sel.total_copies + " เล่ม"
+                incomingLocationText.text = "รหัสหนังสือเดิม: #" + sel.book_id
+                incomingCopyCountText.text = "เพิ่มเล่มใหม่: +" + count + " เล่ม"
+
+                try {
+                    var prevCopiesRes = JSON.parse(librarianAdmin.previewBarcodes(sel.book_id, count))
+                    if (prevCopiesRes.ok && prevCopiesRes.barcodes && prevCopiesRes.barcodes.length > 0) {
+                        var cbcs = prevCopiesRes.barcodes
+                        incomingBarcodePreviewText.text = (cbcs.length <= 4)
+                            ? cbcs.join(", ")
+                            : (cbcs[0] + " ... " + cbcs[cbcs.length - 1] + " (รวม " + cbcs.length + " เล่ม)")
+                    }
+                } catch (e) {}
+            }
+        }
     }
 
     function executeGenerateAndSave() {
@@ -175,6 +252,8 @@ Rectangle {
                     genStatusMessage.text = "✓ ปรับจำนวนเล่มหนังสือ '" + title + "' เป็น " + count + " เล่ม (สร้างบาร์โค้ดเพิ่ม " + diff + " เล่ม)"
                     barcodeGenScreen.bookSaved()
                     loadBooksForExistingSelector(existingBook.book_id)
+                    loadInventoryGrid()
+                    updateGenPreview()
                 } else {
                     genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
                 }
@@ -184,6 +263,8 @@ Rectangle {
                     genStatusMessage.text = "✓ บันทึกหนังสือ '" + title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
                     barcodeGenScreen.bookSaved()
                     loadBooksForExistingSelector(res.data.book_id)
+                    loadInventoryGrid()
+                    updateGenPreview()
                 } else {
                     genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
                 }
@@ -199,6 +280,8 @@ Rectangle {
                 genStatusMessage.text = "✓ เพิ่มเล่มหนังสือ '" + selBook.title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
                 barcodeGenScreen.bookSaved()
                 loadBooksForExistingSelector(selBook.book_id)
+                loadInventoryGrid()
+                updateGenPreview()
             } else {
                 genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
             }
@@ -305,6 +388,7 @@ Rectangle {
                                 selectByMouse: true
                                 padding: 8
                                 background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
 
                             Text { text: "ผู้แต่ง (Author)"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
@@ -316,6 +400,7 @@ Rectangle {
                                 selectByMouse: true
                                 padding: 8
                                 background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
 
                             Text { text: "ISBN จากสำนักพิมพ์"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
@@ -327,6 +412,7 @@ Rectangle {
                                 selectByMouse: true
                                 padding: 8
                                 background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
 
                             RowLayout {
@@ -342,6 +428,7 @@ Rectangle {
                                         implicitHeight: 36
                                         textRole: "name"
                                         model: ListModel { id: genCategoryModel; objectName: "genCategoryModel" }
+                                        onCurrentIndexChanged: barcodeGenScreen.updateGenPreview()
                                         background: Rectangle {
                                             implicitHeight: 36
                                             color: "#ffffff"
@@ -377,6 +464,7 @@ Rectangle {
                                         selectByMouse: true
                                         padding: 8
                                         background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                        onTextChanged: barcodeGenScreen.updateGenPreview()
                                     }
                                 }
                             }
@@ -425,6 +513,7 @@ Rectangle {
                                     } else {
                                         existingBookInfoText.text = ""
                                     }
+                                    barcodeGenScreen.updateGenPreview()
                                 }
                             }
                             Text {
@@ -451,6 +540,7 @@ Rectangle {
                                 selectByMouse: true
                                 padding: 8
                                 background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
                             Item { Layout.fillWidth: true }
                             Button { text: "-1"; Layout.preferredWidth: 44; onClicked: { var c = Math.max(1, (parseInt(genCopyCountInput.text) || 1) - 1); genCopyCountInput.text = c.toString(); } }
@@ -505,191 +595,22 @@ Rectangle {
                 }
             }
 
-            // Right Card: Grouping / Category Management
-            Rectangle {
+            // Right Card: Live Incoming Preview & Inventory Grid Table
+            BookInventoryRightPane {
+                id: rightInventoryPane
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 360
-                color: "#ffffff"
-                radius: 8
-                border.color: "#e2e8f0"
-                clip: true
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 12
-
-                    // Card Header
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text {
-                                text: "📁 จัดการหมวดหมู่หนังสือ (Grouping)"
-                                font.bold: true
-                                font.pixelSize: 16
-                                color: "#1e293b"
-                            }
-                            Text {
-                                text: "เพิ่มและจัดการหมวดหมู่ รายการจะอัปเดตช่องหมวดหมู่ด้านซ้ายทันที"
-                                color: "#64748b"
-                                font.pixelSize: 12
-                                wrapMode: Text.Wrap
-                                Layout.fillWidth: true
-                            }
-                        }
-                        Button {
-                            text: "🔄 รีเฟรช"
-                            flat: true
-                            onClicked: barcodeGenScreen.loadCategoriesList()
-                        }
-                    }
-
-                    Rectangle { Layout.fillWidth: true; height: 1; color: "#e2e8f0" }
-
-                    // Category Add Input
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        TextField {
-                            id: categoryNameInput
-                            objectName: "categoryNameInput"
-                            placeholderText: "ระบุชื่อหมวดหมู่ใหม่..."
-                            Layout.fillWidth: true
-                            font.pixelSize: 13
-                            selectByMouse: true
-                            padding: 8
-                            background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-                            onAccepted: barcodeGenScreen.addNewCategory()
-                        }
-                        Button {
-                            id: btnAddCategory
-                            objectName: "btnAddCategory"
-                            text: "+ เพิ่มหมวดหมู่"
-                            highlighted: true
-                            Layout.preferredWidth: 120
-                            onClicked: barcodeGenScreen.addNewCategory()
-                        }
-                    }
-
-                    Text {
-                        id: categoryStatusText
-                        objectName: "categoryStatusText"
-                        text: ""
-                        font.pixelSize: 12
-                        visible: text !== ""
-                        Layout.fillWidth: true
-                    }
-
-                    Rectangle { Layout.fillWidth: true; height: 1; color: "#e2e8f0" }
-
-                    // Category List Header
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text {
-                            text: "📋 รายการหมวดหมู่ทั้งหมด"
-                            font.bold: true
-                            font.pixelSize: 14
-                            color: "#1e293b"
-                        }
-                        Text {
-                            text: "(" + categoryListModel.count + " หมวดหมู่)"
-                            font.pixelSize: 12
-                            color: "#64748b"
-                        }
-                    }
-
-                    // Empty placeholder
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 80
-                        color: "#f8fafc"
-                        border.color: "#e2e8f0"
-                        radius: 6
-                        visible: categoryListModel.count === 0
-
-                        ColumnLayout {
-                            anchors.centerIn: parent
-                            spacing: 4
-                            Text {
-                                text: "📂 ยังไม่มีหมวดหมู่ในระบบ"
-                                font.pixelSize: 13
-                                font.bold: true
-                                color: "#64748b"
-                                Layout.alignment: Qt.AlignHCenter
-                            }
-                        }
-                    }
-
-                    // Categories ListView
-                    ListView {
-                        id: categoryListView
-                        objectName: "categoryListView"
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        spacing: 6
-                        visible: categoryListModel.count > 0
-                        model: ListModel { id: categoryListModel; objectName: "categoryListModel" }
-
-                        delegate: Rectangle {
-                            width: categoryListView.width
-                            height: 44
-                            color: "#f8fafc"
-                            border.color: "#e2e8f0"
-                            radius: 6
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 8
-                                spacing: 10
-
-                                Rectangle {
-                                    width: 32
-                                    height: 24
-                                    radius: 4
-                                    color: "#e0f2fe"
-                                    border.color: "#38bdf8"
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "#" + model.category_id
-                                        font.bold: true
-                                        color: "#0284c7"
-                                        font.pixelSize: 10
-                                    }
-                                }
-
-                                Text {
-                                    text: model.name
-                                    font.pixelSize: 13
-                                    font.bold: true
-                                    color: "#1e293b"
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                }
-
-                                Button {
-                                    id: btnEditCategory
-                                    text: "✏️ แก้ไข"
-                                    font.pixelSize: 11
-                                    flat: true
-                                    onClicked: barcodeGenScreen.editCategoryRequested(model.category_id, model.name)
-                                }
-
-                                Button {
-                                    id: btnDeleteCategory
-                                    text: "🗑️ ลบ"
-                                    font.pixelSize: 11
-                                    flat: true
-                                    onClicked: barcodeGenScreen.deleteCategoryRequested(model.category_id, model.name)
-                                }
-                            }
-                        }
-                    }
+                Layout.minimumWidth: 400
+                onAddNewCategoryRequested: barcodeGenScreen.addNewCategory()
+                onEditCategoryRequested: function(catId, catName) { barcodeGenScreen.editCategoryRequested(catId, catName) }
+                onDeleteCategoryRequested: function(catId, catName) { barcodeGenScreen.deleteCategoryRequested(catId, catName) }
+                onRefreshInventoryRequested: barcodeGenScreen.loadInventoryGrid(inventorySearchInput.text)
+                onAddCopiesRequested: function(bookId, title) { barcodeGenScreen.addCopiesRequested(bookId, title) }
+                onEditBookRequested: function(bookId, title, author, isbn, categoryId, shelf, totalCopies) {
+                    barcodeGenScreen.editBookRequested(bookId, title, author, isbn, categoryId, shelf, totalCopies)
                 }
+                onDeleteBookRequested: function(bookId, title) { barcodeGenScreen.deleteBookRequested(bookId, title) }
+                onGoToPrintPageRequested: barcodeGenScreen.goToPrintPageRequested()
             }
         }
     }

@@ -740,6 +740,44 @@ def test_barcode_printout_exports_all_five_barcodes_to_pdf(lib_ui):
     assert barcodes_in_pdf[4].endswith(b"-05")
 
 
+def test_book_entry_page_shows_live_incoming_preview_and_current_inventory_grid(lib_ui):
+    window = lib_ui["window"]
+    stack = find(window, "librarianStack")
+
+    # Open Book Entry & Management page (Tab 6)
+    find(window, "navBtnGenerator").clicked.emit()
+    process(lib_ui["app"])
+    assert stack.property("currentIndex") == 6
+
+    # Verify right-side current inventory grid displays existing seeded book(s)
+    inv_model = find(window, "inventoryBooksModel")
+    assert inv_model is not None
+    initial_inv_count = inv_model.property("count")
+    assert initial_inv_count >= 1
+
+    # Type new book on the left -> verify right-side incoming preview updates live
+    find(window, "genBookTitle").setProperty("text", "ดาราศาสตร์และอวกาศ ม.ปลาย")
+    find(window, "genBookAuthor").setProperty("text", "ดร.เอกภพ")
+    find(window, "genBookIsbn").setProperty("text", "978-616-111-222-3")
+    find(window, "genShelfLocation").setProperty("text", "A-09")
+    find(window, "genCopyCountInput").setProperty("text", "3")
+    process(lib_ui["app"])
+
+    inc_title = find(window, "incomingTitleText")
+    inc_barcodes = find(window, "incomingBarcodePreviewText")
+    assert inc_title is not None
+    assert "ดาราศาสตร์และอวกาศ ม.ปลาย" in inc_title.property("text")
+    assert "SMTE-" in inc_barcodes.property("text")
+    assert "-01" in inc_barcodes.property("text")
+    assert "-03" in inc_barcodes.property("text")
+
+    # Save book -> verify it immediately appears in right-side current inventory grid
+    find(window, "btnExecuteGenerate").clicked.emit()
+    process(lib_ui["app"])
+    assert inv_model.property("count") == initial_inv_count + 1
+
+
+
 
 
 
