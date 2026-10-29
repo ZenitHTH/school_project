@@ -161,14 +161,13 @@ def test_return_book_with_naive_iso_timestamp_calculates_overdue_fine(library_en
     assert res_co.ok is True
     loan_id = res_co.data["loan_id"]
 
-    # Overwrite due_at to 3 days ago in UTC
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
-    due_at = (now_utc - datetime.timedelta(days=3)).isoformat()
+    # Set fixed due_at in UTC
+    due_at = "2026-01-01T12:00:00+00:00"
     conn.execute("UPDATE loans SET due_at = ? WHERE loan_id = ?", (due_at, loan_id))
     conn.commit()
 
-    # Pass an offset-naive string
-    naive_return_time = "2026-10-25T15:00:00"
+    # Pass an offset-naive string 3 days after due_at
+    naive_return_time = "2026-01-04T12:00:00"
     res = loan_svc.return_book(loan_id=loan_id, returned_at=naive_return_time)
     assert res.ok is True
     assert res.data["fine"] is not None, "Fine must be assessed for late return with naive timestamp"
