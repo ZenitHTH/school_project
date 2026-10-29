@@ -4,8 +4,11 @@ import sys
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 block_cipher = None
+_ver_file = os.path.join(SPECPATH, '..', 'VERSION')
+APP_VERSION = open(_ver_file, encoding='utf-8').read().strip() if os.path.exists(_ver_file) else '1.1.0'
 
 datas = [
+    ('../VERSION', '.'),
     ('../data/migrations/*.sql', 'data/migrations'),
     ('../apps/student_management_app/qml/*.qml', 'apps/student_management_app/qml'),
     ('../apps/student_management_app/qml/views/*.qml', 'apps/student_management_app/qml/views'),
@@ -75,4 +78,5 @@ if sys.platform == 'darwin':
         name='StudentManagement.app',
         icon=None,
         bundle_identifier='com.school.studentmanagement',
+        version=APP_VERSION,
     )

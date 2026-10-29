@@ -4,7 +4,10 @@ set -euo pipefail
 APP_NAME="${1:-StudentManagement}"
 APP_BIN_NAME="${2:-StudentManagement}"
 PKG_NAME=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
-VERSION="${3:-1.0.0}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_VERSION_FILE="$SCRIPT_DIR/../../../VERSION"
+DEFAULT_VERSION=$( [ -f "$REPO_VERSION_FILE" ] && tr -d '[:space:]' < "$REPO_VERSION_FILE" || echo "1.1.0" )
+VERSION="${3:-$DEFAULT_VERSION}"
 DEB_VERSION="${VERSION//-/~}"
 DIST_BIN_PATH="${4:-dist/$APP_BIN_NAME}"
 OUTPUT_DIR="${5:-dist/installers}"

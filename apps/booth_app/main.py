@@ -10,6 +10,7 @@ from apps.common_linux_env import setup_linux_runtime_env
 
 setup_linux_runtime_env()
 
+from core.shared.version import APP_VERSION
 from data.db import get_connection
 from data.migrate import apply_migrations
 from apps.booth_app.adapters.booth_adapter import BoothAdapter
@@ -60,6 +61,7 @@ def main():
     QQuickStyle.setStyle("Fusion")
 
     app = QGuiApplication(sys.argv)
+    app.setApplicationVersion(APP_VERSION)
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("boothAdapter", adapter)
 

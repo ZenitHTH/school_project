@@ -11,6 +11,7 @@ from apps.common_linux_env import setup_linux_runtime_env
 setup_linux_runtime_env()
 
 import json
+from core.shared.version import APP_VERSION
 from data.db import get_connection
 from data.migrate import apply_migrations
 from apps.student_management_app.adapters.student_admin_adapter import StudentAdminAdapter
@@ -82,6 +83,7 @@ def main():
     QQuickStyle.setStyle("Fusion")
 
     app = QGuiApplication(sys.argv)
+    app.setApplicationVersion(APP_VERSION)
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("studentAdmin", adapter)
     engine.rootContext().setContextProperty("searchStudents", adapter.searchStudents)

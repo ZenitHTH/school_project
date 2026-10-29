@@ -55,10 +55,9 @@ The repository separates active development (`dev`) from release packaging (`mai
    - Runs fast headless `pytest` (`QT_QPA_PLATFORM=offscreen`) with pip caching on `ubuntu-24.04` — **no desktop packaging** on `dev` pushes.
    - Uses concurrency cancellation (`${{ github.workflow }}-${{ github.ref }}`) to drop redundant builds on fast pushes.
 2. **Main & Tag Release Pipeline (`.github/workflows/release.yml`)**:
-   - Triggers on `push` to `main` (e.g., merging `dev` -> `main`), semantic version tags (`v*.*.*`), or manual `workflow_dispatch`.
-   - Gated behind a required `test` job before starting any OS builds.
-   - Matrix builds across 4 platforms: `windows-latest` (`.exe` & `Setup.exe`), `macos-latest` (`.app`, `.zip` & `.dmg`), `ubuntu-24.04` (`.tar.gz` & `.deb`), and `fedora:latest` container (`.tar.gz` & `.rpm`).
-   - Dynamically derives `VERSION` from the Git tag (`${GITHUB_REF_NAME#v}`) or defaults to `1.0.0`, passing it into all installer scripts.
-   - Archives macOS `.app` bundles using native `ditto -c -k --sequesterRsrc --keepParent` to preserve Qt framework symlinks.
-   - Aggregates all artifacts, generates `SHA256SUMS.txt`, and publishes to GitHub Releases (`latest` pre-release on `main` push, or versioned release on `v*.*.*` tag) via `softprops/action-gh-release@v2`.
+   - Triggers on `push` to `main`, semantic version tags (`v*.*.*`), or manual `workflow_dispatch`.
+   - Single version source of truth: `VERSION` file (`1.1.0`) and `core/shared/version.py` (`APP_VERSION`), synchronized across `installer.iss`, `build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`, PyInstaller `.spec` bundles, and `QGuiApplication.setApplicationVersion`.
+   - `test` job runs headless `pytest` and resolves `outputs.version` and `outputs.tag` (`v<VERSION>`) once for all downstream build jobs.
+   - Builds native OS installers only (no duplicate raw binaries): Windows (`*-Setup-<ver>.exe`), macOS (`*-<ver>.dmg`), Debian/Ubuntu (`*_<ver>_amd64.deb`), and Fedora/RHEL (`*-<ver>-1.*.rpm`).
+   - Cleans stale tags/releases before publishing versioned release `v<VERSION>` with structured download table (`RELEASE_NOTES.md`) and `SHA256SUMS.txt`.
 

@@ -4,8 +4,11 @@ import sys
 from PyInstaller.utils.hooks import collect_all
 
 block_cipher = None
+_ver_file = os.path.join(SPECPATH, '..', 'VERSION')
+APP_VERSION = open(_ver_file, encoding='utf-8').read().strip() if os.path.exists(_ver_file) else '1.1.0'
 
 datas = [
+    ('../VERSION', '.'),
     ('../data/migrations/*.sql', 'data/migrations'),
     ('../apps/booth_app/qml/*.qml', 'apps/booth_app/qml'),
     ('../apps/common_qml/*.qml', 'apps/common_qml'),
@@ -73,4 +76,5 @@ if sys.platform == 'darwin':
         name='BoothApp.app',
         icon=None,
         bundle_identifier='com.school.boothapp',
+        version=APP_VERSION,
     )

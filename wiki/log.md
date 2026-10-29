@@ -115,3 +115,7 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Centralized `format_barcode` in `core/library/policy.py` and eliminated N+1 query in `book_repo.list_books_with_barcodes` with single batched `IN (...)` query.
 - Timestamped backup salt file to match backup DB filename in `data/db.py:backup_database`.
 - Cleaned up SQLite connection fixtures and open file handles across test suite to eliminate all `ResourceWarning` leaks under Python 3.14.
+
+## [2026-10-29] ci | Canonical Setup Version (1.1.0) & Clean Versioned GitHub Releases
+- Added canonical `VERSION` (`1.1.0`) and `core/shared/version.py` (`APP_VERSION`), wired into `installer.iss`, `build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`, PyInstaller `.spec` files, and `QGuiApplication.setApplicationVersion`.
+- Refactored `.github/workflows/release.yml` to resolve `version` and `tag` (`v<VERSION>`) once in the `test` job, publish only clean native OS installers (`Setup.exe`, `.dmg`, `.deb`, `.rpm` + `SHA256SUMS.txt`), delete stale `latest` pre-release clutter, and generate a structured Markdown download table.

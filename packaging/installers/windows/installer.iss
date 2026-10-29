@@ -2,7 +2,7 @@
 ; Variables expected from command line:
 ;   /DAppName=StudentManagement
 ;   /DAppExe=StudentManagement.exe
-;   /DAppVersion=1.0.0
+;   /DAppVersion=1.1.0
 ;   /DSourceExe=..\..\..\dist\StudentManagement.exe
 ;   /DOutputDir=..\..\..\dist\installers
 
@@ -15,7 +15,7 @@
 #endif
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.1.0"
 #endif
 
 #ifndef SourceExe
@@ -30,6 +30,11 @@
 AppId={{C78DFE32-0941-4E7B-BFA6-92AE8997321F}-{#AppName}
 AppName={#AppName}
 AppVersion={#AppVersion}
+AppVerName={#AppName} v{#AppVersion}
+UninstallDisplayName={#AppName} v{#AppVersion}
+VersionInfoProductName={#AppName}
+VersionInfoProductVersion={#AppVersion}
+VersionInfoTextVersion={#AppVersion}
 AppPublisher=School Management System
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}

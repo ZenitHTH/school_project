@@ -109,10 +109,51 @@ def test_ci_and_release_workflows_follow_standard_release_pipeline():
     assert "- 'v*.*.*'" in rel_yml
     assert "workflow_dispatch:" in rel_yml
     assert "needs: [test]" in rel_yml
-    assert "ditto -c -k --sequesterRsrc --keepParent" in rel_yml
+    assert "needs.test.outputs.version" in rel_yml
+    assert "needs.test.outputs.tag" in rel_yml
+    assert "RELEASE_NOTES.md" in rel_yml
     assert "SHA256SUMS.txt" in rel_yml
     assert "generate_release_notes: true" in rel_yml
-    assert "startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'latest'" in rel_yml
+
+
+def test_setup_files_and_app_version_synchronized():
+    from core.shared.version import APP_VERSION, get_version
+
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    version_file = os.path.join(repo_root, "VERSION")
+    assert os.path.exists(version_file)
+    with open(version_file, "r", encoding="utf-8") as f:
+        ver = f.read().strip()
+
+    assert ver == "1.1.0"
+    assert APP_VERSION == ver
+    assert get_version() == ver
+
+    iss_path = os.path.join(repo_root, "packaging", "installers", "windows", "installer.iss")
+    with open(iss_path, "r", encoding="utf-8") as f:
+        iss_content = f.read()
+    assert f'#define AppVersion "{ver}"' in iss_content
+    assert "VersionInfoProductVersion={#AppVersion}" in iss_content
+
+    for script_rel in [
+        "packaging/installers/deb/build_deb.sh",
+        "packaging/installers/rpm/build_rpm.sh",
+        "packaging/installers/macos/create_dmg.sh",
+    ]:
+        with open(os.path.join(repo_root, script_rel), "r", encoding="utf-8") as f:
+            script_txt = f.read()
+        assert "REPO_VERSION_FILE=" in script_txt
+        assert f'echo "{ver}"' in script_txt
+
+    for spec_rel in [
+        "packaging/librarian_management.spec",
+        "packaging/student_management.spec",
+        "packaging/booth_app.spec",
+    ]:
+        with open(os.path.join(repo_root, spec_rel), "r", encoding="utf-8") as f:
+            spec_txt = f.read()
+        assert "version=APP_VERSION" in spec_txt
+        assert "('../VERSION', '.')" in spec_txt
 
 
 def test_package_scripts_and_release_checksum_integrity():
