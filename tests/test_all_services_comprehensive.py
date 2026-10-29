@@ -279,3 +279,51 @@ def test_reservation_and_fine_services(conn):
     # Assess lost book fee
     r_lost = fine_svc.assess_lost_book(loan_id)
     assert r_lost.ok
+
+
+def test_catalog_service_adjust_total_copies(conn):
+    cat_svc = CatalogService(conn)
+    r_add = cat_svc.add_book(title="วรรณคดีไทย", copy_count=5)
+    assert r_add.ok
+    book_id = r_add.data["book_id"]
+
+    # Verify initial summary
+    r_summary = cat_svc.get_book_copies_summary(book_id)
+    assert r_summary.ok
+    assert r_summary.data["total_copies"] == 5
+    assert r_summary.data["available_copies"] == 5
+
+    # 1. Decrease mistakenly entered copies (5 -> 2)
+    r_dec = cat_svc.adjust_total_copies(book_id, target_total=2)
+    assert r_dec.ok
+    assert r_dec.data["action"] == "reduced"
+    assert r_dec.data["removed_count"] == 3
+    assert r_dec.data["total_copies"] == 2
+
+    # 2. Increase copies (2 -> 4)
+    r_inc = cat_svc.adjust_total_copies(book_id, target_total=4)
+    assert r_inc.ok
+    assert len(r_inc.data["barcodes"]) == 2
+
+    # 3. Target total < 1 fails
+    r_zero = cat_svc.adjust_total_copies(book_id, target_total=0)
+    assert not r_zero.ok
+
+    # 4. Loan one copy and verify cannot reduce below on-loan count
+    loan_svc = LoanService(conn)
+    avail = book_repo.get_available_copy(conn, book_id)
+    r_loan = loan_svc.checkout(student_id=1001, barcode=avail["barcode"])
+    assert r_loan.ok
+
+    # Now 1 copy is on loan, 3 are available (total 4).
+    # Attempting to reduce below 1 should fail because 1 copy is on loan.
+    r_fail = cat_svc.adjust_total_copies(book_id, target_total=0)
+    assert not r_fail.ok
+
+    # Attempting to reduce down to 0 copies when on loan is 1 is rejected.
+    # Reducing to 1 (removing 3 unloaned available copies) should succeed.
+    r_to_one = cat_svc.adjust_total_copies(book_id, target_total=1)
+    assert r_to_one.ok
+    assert r_to_one.data["total_copies"] == 1
+
+

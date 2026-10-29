@@ -236,6 +236,83 @@ def add_copies(
     return inserted_ids
 
 
+def get_book_copy_breakdown(conn: sqlite3.Connection, book_id: int) -> Dict[str, Any]:
+    """Return count breakdown and copy details for a book."""
+    sql = """
+        SELECT c.copy_id, c.barcode, c.status,
+               (SELECT count(*) FROM loans l WHERE l.copy_id = c.copy_id) AS loan_count
+        FROM book_copies c
+        WHERE c.book_id = ?
+        ORDER BY c.copy_id ASC
+    """
+    rows = conn.execute(sql, (book_id,)).fetchall()
+    copies = []
+    available = sum(1 for r in rows if r["status"] == "available")
+    on_loan = sum(1 for r in rows if r["status"] == "on_loan")
+    for r in rows:
+        st = r["status"]
+        copies.append({
+            "copy_id": r["copy_id"],
+            "barcode": r["barcode"],
+            "status": st,
+            "loan_count": r["loan_count"],
+            "can_remove": (st == "available" and r["loan_count"] == 0),
+        })
+    return {
+        "book_id": book_id,
+        "total_copies": len(rows),
+        "available_copies": available,
+        "on_loan_copies": on_loan,
+        "other_copies": len(rows) - available - on_loan,
+        "copies": copies,
+    }
+
+
+def remove_excess_copies(
+    conn: sqlite3.Connection,
+    book_id: int,
+    count_to_remove: int,
+    actor: Optional[str] = None,
+) -> List[str]:
+    """Safely remove unloaned available copies for a book (e.g. entered by mistake)."""
+    if count_to_remove <= 0:
+        return []
+    sql = """
+        SELECT c.copy_id, c.barcode
+        FROM book_copies c
+        WHERE c.book_id = ? AND c.status = 'available'
+          AND NOT EXISTS (SELECT 1 FROM loans l WHERE l.copy_id = c.copy_id)
+        ORDER BY c.copy_id DESC
+        LIMIT ?
+    """
+    candidates = conn.execute(sql, (book_id, count_to_remove)).fetchall()
+    if len(candidates) < count_to_remove:
+        raise ValueError(
+            f"Cannot remove {count_to_remove} copies; only {len(candidates)} unloaned available copies found."
+        )
+    removed_barcodes = []
+    with conn:
+        for row in candidates:
+            cid = row["copy_id"]
+            conn.execute("DELETE FROM book_copy_status_log WHERE copy_id = ?", (cid,))
+            conn.execute("DELETE FROM book_copies WHERE copy_id = ?", (cid,))
+            removed_barcodes.append(row["barcode"])
+        conn.execute(
+            "UPDATE books SET total_copies = (SELECT count(*) FROM book_copies WHERE book_id = ?) WHERE book_id = ?",
+            (book_id, book_id),
+        )
+        record_activity(
+            conn,
+            action="catalog.remove_copies",
+            entity_type="book",
+            entity_id=book_id,
+            detail=f"Removed {len(removed_barcodes)} cop(ies): {', '.join(removed_barcodes)}",
+            actor=actor,
+        )
+    return removed_barcodes
+
+
+
 def mark_copy(
     conn: sqlite3.Connection,
     copy_id: int,

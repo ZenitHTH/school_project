@@ -813,6 +813,43 @@ def test_dedicated_barcode_print_page_selection_metrics_and_navigation(lib_ui):
     assert str(row0_copies) in stickers_text.property("text")
 
 
+def test_edit_book_reduce_mistakenly_entered_copies(lib_ui):
+    window = lib_ui["window"]
+    # Register book with 5 copies by mistake
+    res = json.loads(lib_ui["adapter"].addBook("ดาราศาสตร์เบื้องต้น", "9786161234567", "ดร.ดาว", "", "", "D-1", "5"))
+    assert res["ok"] is True
+    book_id = res["data"]["book_id"]
+
+    # Open edit book dialog
+    invoke(
+        window,
+        "openEditBookDialog",
+        Q_ARG("QVariant", book_id),
+        Q_ARG("QVariant", "ดาราศาสตร์เบื้องต้น"),
+        Q_ARG("QVariant", "ดร.ดาว"),
+        Q_ARG("QVariant", "9786161234567"),
+        Q_ARG("QVariant", 0),
+        Q_ARG("QVariant", "D-1"),
+        Q_ARG("QVariant", 5),
+    )
+    process(lib_ui["app"])
+
+    copies_input = find(window, "editBookCopiesInput")
+    assert copies_input is not None
+    assert copies_input.property("text") == "5"
+
+    # Librarian entered 5 by mistake, corrects it to 2 copies
+    copies_input.setProperty("text", "2")
+    invoke(window, "submitEditBook")
+    process(lib_ui["app"])
+
+    # Verify database and barcode listing now reflect 2 copies
+    books = json.loads(lib_ui["adapter"].getBooksWithBarcodes("ดาราศาสตร์"))
+    assert len(books) == 1
+    assert len(books[0]["barcodes"]) == 2
+
+
+
 
 
 

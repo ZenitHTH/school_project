@@ -167,6 +167,56 @@ class CatalogService:
         except Exception as e:
             return Result.fail(f"Failed to add copies: {e}")
 
+    def get_book_copies_summary(self, book_id: int) -> Result:
+        """Fetch copy breakdown and active barcodes for a book."""
+        try:
+            summary = book_repo.get_book_copy_breakdown(self.conn, book_id)
+            return Result.success(summary)
+        except Exception as e:
+            return Result.fail(f"Failed to fetch copy summary: {e}")
+
+    def adjust_total_copies(
+        self,
+        book_id: int,
+        target_total: int,
+        actor: Optional[str] = None,
+    ) -> Result:
+        """Adjust total copies up (generate barcodes) or down (remove unloaned copies)."""
+        if target_total < 1:
+            return Result.fail("จำนวนเล่มต้องมีอย่างน้อย 1 เล่ม")
+        summary = book_repo.get_book_copy_breakdown(self.conn, book_id)
+        current = summary["total_copies"]
+        if target_total == current:
+            return Result.success({"book_id": book_id, "action": "unchanged", "total_copies": current})
+        if target_total > current:
+            return self.add_copies(book_id, additional_count=target_total - current, actor=actor)
+        return self._reduce_copies(book_id, summary, current - target_total, target_total, actor)
+
+    def _reduce_copies(
+        self,
+        book_id: int,
+        summary: Dict[str, Any],
+        to_remove: int,
+        target_total: int,
+        actor: Optional[str],
+    ) -> Result:
+        """Helper to validate and safely remove excess unloaned copies."""
+        removable = sum(1 for c in summary["copies"] if c["can_remove"])
+        if removable < to_remove:
+            msg = f"ไม่สามารถลดเหลือ {target_total} เล่มได้ (มีเล่มว่างไม่ติดประวัติยืม {removable} เล่ม, กำลังยืม {summary['on_loan_copies']} เล่ม)"
+            return Result.fail(msg)
+        try:
+            removed = book_repo.remove_excess_copies(self.conn, book_id, to_remove, actor=actor)
+            return Result.success({
+                "book_id": book_id,
+                "action": "reduced",
+                "removed_count": len(removed),
+                "removed_barcodes": removed,
+                "total_copies": target_total,
+            })
+        except Exception as e:
+            return Result.fail(f"Failed to reduce copies: {e}")
+
     def mark_copy(
         self,
         copy_id: int,

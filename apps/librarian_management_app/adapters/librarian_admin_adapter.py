@@ -385,3 +385,18 @@ class LibrarianAdminAdapter(QObject):
         res = self.catalog_svc.retire_book(book_id)
         return json.dumps({"ok": res.ok, "error": res.error})
 
+    @Slot(int, result=str)
+    def getBookCopiesDetail(self, book_id: int) -> str:
+        """Get copy breakdown, active loans, and barcode details for editing."""
+        res = self.catalog_svc.get_book_copies_summary(book_id)
+        data = _sanitize_for_qml(res.data) if res.ok else None
+        return json.dumps({"ok": res.ok, "error": res.error, "data": data})
+
+    @Slot(int, int, result=str)
+    def adjustBookCopies(self, book_id: int, target_total: int) -> str:
+        """Adjust total copies up or down for a book."""
+        res = self.catalog_svc.adjust_total_copies(book_id, target_total, actor="Librarian")
+        data = _sanitize_for_qml(res.data) if res.ok else None
+        return json.dumps({"ok": res.ok, "error": res.error, "data": data})
+
+

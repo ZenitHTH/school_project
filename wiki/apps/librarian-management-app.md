@@ -17,7 +17,8 @@ apps/librarian_management_app/
     │   ├── BarcodeGeneratorView.qml  # Tab 6: Book Registration (left) + Grouping Management (right)
     │   └── CategoryManagementView.qml# Tab 7: Dedicated Barcode Printout Generator (Selectable / Print All A4 PDF)
     └── dialogs/
-        ├── BookActionDialogs.qml     # addBook, addCopies, barcodeConfirm, editBook, deleteBook
+        ├── BookActionDialogs.qml     # addBook, addCopies, barcodeConfirm, deleteBook
+        ├── EditBookDialog.qml        # Dedicated modern edit dialog with copy count corrections
         └── CategoryActionDialogs.qml # renameCategory, reassignCategory, simpleDeleteCategory
 ```
 
@@ -25,8 +26,14 @@ apps/librarian_management_app/
 
 ## 2. Key Modules & Workflows
 
-### 2.1 Book Catalog & Copies
+### 2.1 Book Catalog & Copies (`BookCatalogView.qml` & `EditBookDialog.qml`)
 - Books are classified under categories. Each book can have multiple copies (`SMTE-00001-01`, `SMTE-00001-02`).
+- **Book Metadata & Copy Correction Studio (`EditBookDialog.qml`)**:
+  - Modal card supporting simultaneous metadata updates (Title, Author, ISBN, Category, Shelf) and copy adjustments.
+  - **Copy Count Corrections ("เมื่อกรอกผิด")**:
+    - Supports adjusting total copies upward (automatically generating subsequent barcodes) or downward (safely removing unloaned available copies).
+    - Blocks reductions below current on-loan copy count with visual error prevention.
+    - Interactive steppers (`[-]`, `[+]`, `+1`, `+5`, `-1`) and real-time barcode tray preview with deletion strikethrough badges.
 - Deleting a book checks if copies have active loans; if so, deletion is blocked.
 
 ### 2.2 Circulation Desk (`CirculationDeskView.qml`)

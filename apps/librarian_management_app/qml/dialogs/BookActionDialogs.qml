@@ -23,14 +23,14 @@ Item {
     property alias pdfExportStatusText: pdfExportStatusText
 
     property alias editBookDialog: editBookDialog
-    property alias editBookTitleInput: editBookTitleInput
-    property alias editBookAuthorInput: editBookAuthorInput
-    property alias editBookIsbnInput: editBookIsbnInput
-    property alias editBookCategoryCombo: editBookCategoryCombo
-    property alias editBookCategoryModel: editBookCategoryModel
-    property alias editBookShelfInput: editBookShelfInput
-    property alias editBookCopiesInput: editBookCopiesInput
-    property alias editBookStatusText: editBookStatusText
+    property alias editBookTitleInput: editBookDialog.editBookTitleInput
+    property alias editBookAuthorInput: editBookDialog.editBookAuthorInput
+    property alias editBookIsbnInput: editBookDialog.editBookIsbnInput
+    property alias editBookCategoryCombo: editBookDialog.editBookCategoryCombo
+    property alias editBookCategoryModel: editBookDialog.editBookCategoryModel
+    property alias editBookShelfInput: editBookDialog.editBookShelfInput
+    property alias editBookCopiesInput: editBookDialog.editBookCopiesInput
+    property alias editBookStatusText: editBookDialog.editBookStatusText
 
     property alias deleteBookDialog: deleteBookDialog
     property alias deleteBookConfirmText: deleteBookConfirmText
@@ -67,6 +67,7 @@ Item {
             }
         } catch (e) {}
         editBookCategoryCombo.currentIndex = selectedIndex
+        editBookDialog.loadCopiesBreakdown(bookId)
         editBookDialog.open()
     }
 
@@ -88,22 +89,27 @@ Item {
             catId,
             editBookShelfInput.text.trim()
         ))
-        if (res.ok) {
-            var newTotal = parseInt(editBookCopiesInput.text) || editBookDialog.currentTotalCopies
-            if (newTotal > editBookDialog.currentTotalCopies) {
-                var diff = newTotal - editBookDialog.currentTotalCopies
-                librarianAdmin.addCopies(editBookDialog.targetBookId, diff.toString())
-            }
-            editBookDialog.close()
-            if (rootWindow) {
-                rootWindow.searchBooks()
-                rootWindow.loadBooksForExistingSelector()
-                if (typeof rootWindow.loadPrintableBooks === "function") {
-                    rootWindow.loadPrintableBooks("")
-                }
-            }
-        } else {
+        if (!res.ok) {
             editBookStatusText.text = "✗ " + (res.error || "แก้ไขไม่สำเร็จ")
+            return
+        }
+
+        var newTotal = parseInt(editBookCopiesInput.text) || editBookDialog.currentTotalCopies
+        if (newTotal !== editBookDialog.currentTotalCopies) {
+            var copyRes = JSON.parse(librarianAdmin.adjustBookCopies(editBookDialog.targetBookId, newTotal))
+            if (!copyRes.ok) {
+                editBookStatusText.text = "✗ " + (copyRes.error || "ปรับปรุงจำนวนเล่มไม่สำเร็จ")
+                return
+            }
+        }
+
+        editBookDialog.close()
+        if (rootWindow) {
+            rootWindow.searchBooks()
+            rootWindow.loadBooksForExistingSelector()
+            if (typeof rootWindow.loadPrintableBooks === "function") {
+                rootWindow.loadPrintableBooks("")
+            }
         }
     }
 
@@ -310,130 +316,11 @@ Item {
         }
     }
 
-    // 4. Edit Book Dialog
-    Dialog {
+    // 4. Edit Book Dialog (Modular Component)
+    EditBookDialog {
         id: editBookDialog
-        objectName: "editBookDialog"
-        title: "✏️ แก้ไขข้อมูลหนังสือ"
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-        anchors.centerIn: parent
-        width: Math.min(460, rootWindow ? rootWindow.width - 40 : 440)
-        standardButtons: Dialog.NoButton
-        property int targetBookId: 0
-        property int currentTotalCopies: 1
-
-        ColumnLayout {
-            anchors.fill: parent
-            spacing: 10
-
-            Text { text: "ชื่อหนังสือ (Title) *"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-            TextField {
-                id: editBookTitleInput
-                objectName: "editBookTitleInput"
-                Layout.fillWidth: true
-                selectByMouse: true
-                padding: 8
-                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-            }
-
-            Text { text: "ผู้แต่ง (Author)"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-            TextField {
-                id: editBookAuthorInput
-                objectName: "editBookAuthorInput"
-                Layout.fillWidth: true
-                selectByMouse: true
-                padding: 8
-                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-            }
-
-            Text { text: "ISBN"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-            TextField {
-                id: editBookIsbnInput
-                objectName: "editBookIsbnInput"
-                Layout.fillWidth: true
-                selectByMouse: true
-                padding: 8
-                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-            }
-
-            Text { text: "หมวดหมู่"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-            ComboBox {
-                id: editBookCategoryCombo
-                objectName: "editBookCategoryCombo"
-                Layout.fillWidth: true
-                textRole: "name"
-                model: ListModel { id: editBookCategoryModel }
-                background: Rectangle {
-                    color: "#ffffff"
-                    border.color: editBookCategoryCombo.activeFocus ? "#2563eb" : "#cbd5e1"
-                    radius: 4
-                }
-                contentItem: Text {
-                    leftPadding: 8
-                    text: editBookCategoryCombo.displayText
-                    color: "#1e293b"
-                    font.pixelSize: 13
-                    verticalAlignment: Text.AlignVCenter
-                    elide: Text.ElideRight
-                }
-            }
-
-            Text { text: "ตำแหน่งชั้นวาง"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-            TextField {
-                id: editBookShelfInput
-                objectName: "editBookShelfInput"
-                Layout.fillWidth: true
-                selectByMouse: true
-                padding: 8
-                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-            }
-
-            Text { text: "จำนวนเล่มทั้งหมด (Total Copies)"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                TextField {
-                    id: editBookCopiesInput
-                    objectName: "editBookCopiesInput"
-                    Layout.preferredWidth: 90
-                    text: "1"
-                    validator: IntValidator { bottom: 1; top: 99 }
-                    selectByMouse: true
-                    padding: 8
-                    background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-                }
-                Text {
-                    text: "(หากระบุมากกว่าเดิม ระบบจะสร้างบาร์โค้ดประจำเล่มเพิ่มอัตโนมัติ)"
-                    color: "#64748b"
-                    font.pixelSize: 11
-                    Layout.fillWidth: true
-                    wrapMode: Text.Wrap
-                }
-            }
-
-            Text {
-                id: editBookStatusText
-                objectName: "editBookStatusText"
-                Layout.fillWidth: true
-                text: ""
-                font.pixelSize: 12
-                wrapMode: Text.Wrap
-                color: text.indexOf("✗") !== -1 ? "#ef4444" : "#10b981"
-                visible: text !== ""
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                Item { Layout.fillWidth: true }
-                Button { text: "ยกเลิก"; onClicked: editBookDialog.close() }
-                Button {
-                    text: "💾 บันทึก"
-                    highlighted: true
-                    onClicked: submitEditBook()
-                }
-            }
-        }
+        rootWindow: bookActionDialogs.rootWindow
+        onSaved: submitEditBook()
     }
 
     // 5. Delete Book Confirm Dialog

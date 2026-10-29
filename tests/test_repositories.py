@@ -174,3 +174,27 @@ def test_validator_and_live_data_check(repo_db):
     has_live, reason = check_live_data_exists(repo_db)
     assert has_live is True
     assert "activity_log" in reason
+
+
+def test_book_copy_breakdown_and_remove_excess_copies(repo_db):
+    book_id = book_repo.add_book(repo_db, title="ชีววิทยา ม.ปลาย")
+    book_repo.add_copies(repo_db, book_id=book_id, barcodes=["BIO-01", "BIO-02", "BIO-03", "BIO-04"])
+
+    breakdown = book_repo.get_book_copy_breakdown(repo_db, book_id)
+    assert breakdown["total_copies"] == 4
+    assert breakdown["available_copies"] == 4
+    assert breakdown["on_loan_copies"] == 0
+    assert len(breakdown["copies"]) == 4
+
+    removed = book_repo.remove_excess_copies(repo_db, book_id, 2)
+    assert len(removed) == 2
+    assert "BIO-04" in removed
+    assert "BIO-03" in removed
+
+    updated_book = book_repo.get_book(repo_db, book_id)
+    assert updated_book["total_copies"] == 2
+
+    # Attempting to remove more than available should raise ValueError
+    with pytest.raises(ValueError):
+        book_repo.remove_excess_copies(repo_db, book_id, 3)
+

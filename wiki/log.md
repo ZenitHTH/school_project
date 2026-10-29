@@ -131,3 +131,16 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
   - Added catalog navigation button `btnOpenPrintPage` from Tab 0.
 - Maintained 100% test coverage with automated UI verification in `tests/test_ui_librarian.py` (213/213 passed, 0 warnings).
 
+## [2026-10-29] feat | Modern Edit Book Studio & Copy Count Corrections
+- Extracted and redesigned `EditBookDialog.qml` with high-aesthetic styling:
+  - Two structured visual cards for bibliographic metadata and copy inventory adjustments.
+  - Added live copy status pills (Available, On Loan, Total).
+  - Added interactive steppers (`[-]`, `[+]`, `+1`, `+5`, `-1`) and dynamic feedback banners for increasing or reducing copies.
+  - Added live barcode tray with real-time deletion strikethrough previews.
+- Implemented copy reduction and inventory adjustment in backend:
+  - Added `book_repo.get_book_copy_breakdown` and `book_repo.remove_excess_copies` to safely prune unloaned available copies when entered by mistake.
+  - Added `CatalogService.adjust_total_copies` with guardrails preventing reductions below active on-loan counts.
+  - Exposed `LibrarianAdminAdapter.adjustBookCopies` and `LibrarianAdminAdapter.getBookCopiesDetail` with QML sanitization.
+- Maintained 100% test coverage with 217 passing unit and UI tests.
+
+

@@ -503,6 +503,29 @@ def test_adapter_endpoints_sanitize_null_values(librarian_adapter, booth_adapter
     assert raw_booth["data"]["isbn"] == ""
 
 
+def test_librarian_adapter_adjust_book_copies(librarian_adapter):
+    lib_adapter, _ = librarian_adapter
+    add_raw = json.loads(lib_adapter.addBook("ชีวเคมี", "978111222", "ดร.ไบโอ", "", "", "B-1", "4"))
+    assert add_raw["ok"] is True
+    book_id = add_raw["data"]["book_id"]
+
+    detail_raw = json.loads(lib_adapter.getBookCopiesDetail(book_id))
+    assert detail_raw["ok"] is True
+    assert detail_raw["data"]["total_copies"] == 4
+    assert len(detail_raw["data"]["copies"]) == 4
+
+    # Reduce from 4 to 2
+    adj_raw = json.loads(lib_adapter.adjustBookCopies(book_id, 2))
+    assert adj_raw["ok"] is True
+    assert adj_raw["data"]["action"] == "reduced"
+    assert adj_raw["data"]["total_copies"] == 2
+
+    # Check updated detail
+    detail2 = json.loads(lib_adapter.getBookCopiesDetail(book_id))
+    assert detail2["data"]["total_copies"] == 2
+
+
+
 
 
 
