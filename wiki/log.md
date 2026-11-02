@@ -158,11 +158,14 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Added `[🔍 ดึงข้อมูล]` action buttons in `BarcodeGeneratorView.qml` (Tab 6) and `BookActionDialogs.qml` (`addBookDialog`) with non-overwriting autofill (preserves existing user-typed Title/Author).
 - Added comprehensive unit tests in `tests/test_isbn_service.py` and UI tests in `tests/test_ui_librarian.py`.
 
-## [2026-11-02] fix | ISBN Scrutinize Hardening & Authoritative Precedence
-- Prioritized authoritative `books` table query over `isbn_cache` in `core/library/services/isbn_service.py` with `ORDER BY active DESC, book_id DESC LIMIT 1`. Local catalog hits are directly returned without copying into `isbn_cache`, preventing stale cache from shadowing catalog edits.
-- Added `QEventLoop.ExcludeUserInputEvents` to `QCoreApplication.processEvents()` during future polling and disabled `btnExecuteGenerate` during `fetchIsbnAndAutofill` in `BarcodeGeneratorView.qml` to prevent re-entrancy.
-- Uppercased ISBN-10 check digit `'X'` and normalized hyphens/spaces within `normalize_isbn` and `save_cache`.
-- Maintained Clean Code standards (<200 lines file cap, <=20 lines per function) and 100% test coverage with expanded tests in `tests/test_isbn_service.py`.
+## [2026-11-02] feat | 3-Provider ISBN Lookup Pipeline (NLT Primo VE -> SE-ED BFF -> Open Library)
+- Extracted remote JSON provider fetchers and parsers into `core/library/services/isbn_providers.py` (<180 lines).
+- Implemented chained fallback:
+  1. NLT Primo VE API for National Library deposits with MARC `$$` subfield stripping.
+  2. SE-ED Web-BFF API for commercial Thai exam-prep/tutor books with SKU verification and Lexical AST text extraction.
+  3. Open Library API for international titles.
+- Refactored `core/library/services/isbn_service.py` (<130 lines) to orchestrate `IsbnLookupService` with thread pool futures and Qt event pumping.
+- Achieved 100% test coverage across `isbn_providers.py` and `isbn_service.py` with 238 passed tests.
 
 
 

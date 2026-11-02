@@ -3,33 +3,26 @@ import json
 import sqlite3
 import urllib.error
 import pytest
-from core.library.services.isbn_service import (
-    IsbnLookupService,
-    _TableRowParser,
-    _fetch_nlt_page,
+
+from core.library.services.isbn_providers import (
+    _clean_primo_field,
+    _collect_lexical_texts,
+    _extract_primo_text,
+    _extract_seed_detail,
+    _fetch_json,
+    _fetch_openlibrary,
+    _fetch_primo,
+    _fetch_seed,
+    _find_next_text,
+    _match_seed_sku,
+    fetch_remote_providers,
     is_valid_isbn,
     normalize_isbn,
-    parse_nlt_html,
+    parse_nlt_primo_json,
+    parse_openlibrary_json,
+    parse_seed_product,
 )
-
-SAMPLE_NLT_TABLE_HTML = """
-<html><body>
-<table class="table">
-  <thead><tr><th>ลำดับ</th><th>ชื่อเรื่อง</th><th>ผู้แต่ง</th><th>สำนักพิมพ์</th><th>ISBN</th></tr></thead>
-  <tbody>
-    <tr>
-      <td>1</td>
-      <td>คณิตศาสตร์คิดเรียงลำดับเป็นระบบ : ชุดเรขาคณิต เล่ม 2</td>
-      <td>ฝ่ายวิชาการ</td>
-      <td>ภูมิบัณฑิต</td>
-      <td>9786167706955</td>
-    </tr>
-  </tbody>
-</table>
-</body></html>
-"""
-
-SAMPLE_NEWS_ONLY_HTML = "<html><body><table><tr><td>27/09/2569</td><td>ปิดทำการ</td></tr></table></body></html>"
+from core.library.services.isbn_service import IsbnLookupService
 
 
 def test_normalize_and_validate_isbn():
@@ -45,26 +38,7 @@ def test_normalize_and_validate_isbn():
     assert is_valid_isbn("SMTE-00001-01") is False
 
 
-def test_parse_nlt_html():
-    assert parse_nlt_html("", "9786167706955") is None
-    parsed = parse_nlt_html(SAMPLE_NLT_TABLE_HTML, "9786167706955")
-    assert parsed is not None
-    assert parsed["title"] == "คณิตศาสตร์คิดเรียงลำดับเป็นระบบ : ชุดเรขาคณิต เล่ม 2"
-    assert parsed["author"] == "ฝ่ายวิชาการ"
-    assert parsed["publisher"] == "ภูมิบัณฑิต"
-    assert parse_nlt_html(SAMPLE_NEWS_ONLY_HTML, "9786167706955") is None
-
-    class ExplodingParser(_TableRowParser):
-        def feed(self, data):
-            raise RuntimeError("parse error")
-
-    orig = _TableRowParser.feed
-    _TableRowParser.feed = ExplodingParser.feed
-    assert parse_nlt_html(SAMPLE_NLT_TABLE_HTML, "9786167706955") is None
-    _TableRowParser.feed = orig
-
-
-def test_fetch_nlt_page(monkeypatch):
+def test_fetch_json(monkeypatch):
     class DummyHeaders:
         def __init__(self, charset="utf-8"):
             self._charset = charset
@@ -77,7 +51,7 @@ def test_fetch_nlt_page(monkeypatch):
             self.headers = DummyHeaders(charset)
 
         def read(self):
-            return "<html>ทดสอบ</html>".encode("utf-8")
+            return b'{"status": "ok"}'
 
         def __enter__(self):
             return self
@@ -86,12 +60,232 @@ def test_fetch_nlt_page(monkeypatch):
             pass
 
     monkeypatch.setattr("urllib.request.urlopen", lambda req, timeout, context: DummyResponse("utf-8"))
-    res = _fetch_nlt_page("9786167706955")
-    assert "ทดสอบ" in res
+    res = _fetch_json("https://example.com/api")
+    assert res == {"status": "ok"}
 
     monkeypatch.setattr("urllib.request.urlopen", lambda req, timeout, context: DummyResponse(None))
-    res2 = _fetch_nlt_page("9786167706955")
-    assert "ทดสอบ" in res2
+    res2 = _fetch_json("https://example.com/api")
+    assert res2 == {"status": "ok"}
+
+
+def test_primo_helpers_and_parser():
+    assert _clean_primo_field("") == ""
+    assert _clean_primo_field("Title$$QExtra") == "Title"
+    assert _extract_primo_text({}, "missing") == ""
+    assert _extract_primo_text({"k": []}, "k") == ""
+    assert _extract_primo_text({"k": [""]}, "k") == ""
+    assert _extract_primo_text({"k": ["  Val$$Sub  "]}, "k") == "Val"
+
+    assert parse_nlt_primo_json({}, "9786167706955") is None
+    assert parse_nlt_primo_json({"docs": []}, "9786167706955") is None
+    assert parse_nlt_primo_json({"docs": ["not a dict"]}, "9786167706955") is None
+    assert parse_nlt_primo_json({"docs": [{"pnx": {}}]}, "9786167706955") is None
+
+    sample_doc = {
+        "docs": [{
+            "pnx": {
+                "addata": {
+                    "btitle": ["คณิตศาสตร์ ม.ต้น"],
+                    "au": ["อาจารย์ ก."],
+                    "pub": ["สำนักพิมพ์ ธรรม"]
+                },
+                "display": {
+                    "creator": ["อาจารย์ ก.$$QSub"],
+                    "publisher": ["สำนักพิมพ์ ธรรม"]
+                }
+            }
+        }]
+    }
+    parsed = parse_nlt_primo_json(sample_doc, "9786167706955")
+    assert parsed is not None
+    assert parsed["title"] == "คณิตศาสตร์ ม.ต้น"
+    assert parsed["author"] == "อาจารย์ ก"
+    assert parsed["publisher"] == "สำนักพิมพ์ ธรรม"
+
+    # Fallback author to publisher when author is missing
+    sample_no_author = {
+        "docs": [{
+            "pnx": {
+                "display": {
+                    "title": ["คู่มือฟิสิกส์"],
+                    "publisher": ["จุฬาลงกรณ์มหาวิทยาลัย"]
+                }
+            }
+        }]
+    }
+    parsed_no_au = parse_nlt_primo_json(sample_no_author, "9786167706955")
+    assert parsed_no_au is not None
+    assert parsed_no_au["author"] == "จุฬาลงกรณ์มหาวิทยาลัย"
+    assert parsed_no_au["publisher"] == "จุฬาลงกรณ์มหาวิทยาลัย"
+
+
+def test_seed_helpers_and_parser():
+    texts = []
+    _collect_lexical_texts({"text": "หัวข้อ", "other": 123}, texts)
+    _collect_lexical_texts([{"text": "เนื้อหา"}], texts)
+    assert texts == ["หัวข้อ", "เนื้อหา"]
+    assert _find_next_text(["a", "b"], "a") == "b"
+    assert _find_next_text(["a"], "a") == ""
+    assert _find_next_text(["x"], "a") == ""
+    assert _find_next_text(["ผู้เขียน : สมชาย"], "ผู้เขียน") == "สมชาย"
+    assert _find_next_text(["สำนักพิมพ์:\xa0หจก.ซีเอ็ด"], "สำนักพิมพ์") == "หจก.ซีเอ็ด"
+
+    assert _extract_seed_detail(None) == ("", "")
+    assert _extract_seed_detail({}) == ("", "")
+    assert _extract_seed_detail({"physicalProduct": None}) == ("", "")
+    assert _extract_seed_detail({"physicalProduct": {"detail": "invalid json"}}) == ("", "")
+
+    detail_json = json.dumps({
+        "root": {
+            "children": [
+                {"text": "ผู้เขียน"},
+                {"text": "ณัฐวุฒิ ขานภูเขียว"},
+                {"text": "สำนักพิมพ์"},
+                {"text": "ธรรมบัณฑิต, สนพ."}
+            ]
+        }
+    })
+    au, pub = _extract_seed_detail({"physicalProduct": {"detail": detail_json}})
+    assert au == "ณัฐวุฒิ ขานภูเขียว"
+    assert pub == "ธรรมบัณฑิต, สนพ."
+
+    assert _match_seed_sku([], "9786167706603") is True
+    assert _match_seed_sku(["bad"], "9786167706603") is False
+    assert _match_seed_sku([{"sku": "978-616-7706-60-3"}], "9786167706603") is True
+    assert _match_seed_sku([{"sku": "9999999999999"}], "9786167706603") is False
+
+    assert parse_seed_product({}, None, "9786167706603") is None
+    assert parse_seed_product({"products": ["bad"]}, None, "9786167706603") is None
+    assert parse_seed_product({"products": [{"physicalProduct": None}]}, {"physicalProduct": None}, "9786167706603") is None
+    mismatch_search = {
+        "products": [{"physicalProduct": {"physicalProduct": {"variants": [{"sku": "111"}]}}}]
+    }
+    assert parse_seed_product(mismatch_search, None, "9786167706603") is None
+
+    no_name_search = {
+        "products": [{"physicalProduct": {"physicalProduct": {"name": ""}}}]
+    }
+    assert parse_seed_product(no_name_search, None, "9786167706603") is None
+
+    valid_search = {
+        "products": [{
+            "id": "prod123",
+            "physicalProduct": {
+                "physicalProduct": {
+                    "name": "ลุยโจทย์คณิตศาสตร์",
+                    "variants": [{"sku": "9786167706603"}]
+                }
+            }
+        }]
+    }
+    res = parse_seed_product(valid_search, {"physicalProduct": {"detail": detail_json}}, "9786167706603")
+    assert res is not None
+    assert res["title"] == "ลุยโจทย์คณิตศาสตร์"
+    assert res["author"] == "ณัฐวุฒิ ขานภูเขียว"
+    assert res["publisher"] == "ธรรมบัณฑิต, สนพ."
+
+
+def test_openlibrary_parser():
+    assert parse_openlibrary_json({}, "9780132350884") is None
+    assert parse_openlibrary_json({"ISBN:9780132350884": "not dict"}, "9780132350884") is None
+    assert parse_openlibrary_json({"ISBN:9780132350884": {"title": ""}}, "9780132350884") is None
+
+    ol_data = {
+        "ISBN:9780132350884": {
+            "title": "Clean Code",
+            "authors": [{"name": "Robert C. Martin"}],
+            "publishers": [{"name": "Prentice Hall"}]
+        }
+    }
+    parsed = parse_openlibrary_json(ol_data, "9780132350884")
+    assert parsed is not None
+    assert parsed["title"] == "Clean Code"
+    assert parsed["author"] == "Robert C. Martin"
+    assert parsed["publisher"] == "Prentice Hall"
+
+    # Fallback author to publisher if authors empty
+    ol_no_author = {
+        "ISBN:9780132350884": {
+            "title": "Clean Architecture",
+            "authors": [],
+            "publishers": [{"name": "Prentice Hall"}]
+        }
+    }
+    parsed_no_au = parse_openlibrary_json(ol_no_author, "9780132350884")
+    assert parsed_no_au is not None
+    assert parsed_no_au["author"] == "Prentice Hall"
+
+
+def test_fetch_remote_providers_chain(monkeypatch):
+    # Provider 1: Primo hit
+    monkeypatch.setattr(
+        "core.library.services.isbn_providers._fetch_primo",
+        lambda isbn, timeout: {"isbn": isbn, "title": "Primo Book", "author": "A1", "publisher": "P1"}
+    )
+    res_primo = fetch_remote_providers("9786167706955")
+    assert res_primo["title"] == "Primo Book"
+
+    # Provider 2: Primo miss, SE-ED hit
+    monkeypatch.setattr("core.library.services.isbn_providers._fetch_primo", lambda isbn, timeout: None)
+    monkeypatch.setattr(
+        "core.library.services.isbn_providers._fetch_seed",
+        lambda isbn, timeout: {"isbn": isbn, "title": "SEED Book", "author": "A2", "publisher": "P2"}
+    )
+    res_seed = fetch_remote_providers("9786167706603")
+    assert res_seed["title"] == "SEED Book"
+
+    # Provider 3: Primo & SE-ED miss, Open Library hit
+    monkeypatch.setattr("core.library.services.isbn_providers._fetch_seed", lambda isbn, timeout: None)
+    monkeypatch.setattr(
+        "core.library.services.isbn_providers._fetch_openlibrary",
+        lambda isbn, timeout: {"isbn": isbn, "title": "OL Book", "author": "A3", "publisher": "P3"}
+    )
+    res_ol = fetch_remote_providers("9780132350884")
+    assert res_ol["title"] == "OL Book"
+
+    # All miss
+    monkeypatch.setattr("core.library.services.isbn_providers._fetch_openlibrary", lambda isbn, timeout: None)
+    assert fetch_remote_providers("9780000000000") is None
+
+
+def test_provider_fetch_exceptions(monkeypatch):
+    monkeypatch.setattr(
+        "core.library.services.isbn_providers._fetch_json",
+        lambda *a, **k: (_ for _ in ()).throw(urllib.error.URLError("network error"))
+    )
+    assert _fetch_primo("9786167706955", 1.0) is None
+    assert _fetch_seed("9786167706603", 1.0) is None
+    assert _fetch_openlibrary("9780132350884", 1.0) is None
+
+
+def test_fetch_seed_with_valid_json(monkeypatch):
+    def fake_fetch_json(url, timeout=5.0):
+        if "search-product" in url:
+            return {
+                "products": [{
+                    "id": "prod123",
+                    "physicalProduct": {
+                        "physicalProduct": {
+                            "name": "Hi-Speed Math",
+                            "variants": [{"sku": "9786167706603"}]
+                        }
+                    }
+                }]
+            }
+        return {
+            "physicalProduct": {
+                "detail": json.dumps({"root": {"children": [{"text": "ผู้เขียน"}, {"text": "ชินวัตร"}]}})
+            }
+        }
+
+    monkeypatch.setattr("core.library.services.isbn_providers._fetch_json", fake_fetch_json)
+    book = _fetch_seed("9786167706603", 1.0)
+    assert book is not None
+    assert book["title"] == "Hi-Speed Math"
+    assert book["author"] == "ชินวัตร"
+
+    monkeypatch.setattr("core.library.services.isbn_providers._fetch_json", lambda url, timeout: {"products": []})
+    assert _fetch_seed("9786167706603", 1.0) is None
 
 
 def test_service_cache_and_save_cache():
@@ -102,7 +296,6 @@ def test_service_cache_and_save_cache():
     assert res.ok is True
     assert res.data["title"] == "คู่มือ"
 
-    # Verify save_cache normalizes hyphenated input
     svc.save_cache("978-616-7706-95-5", "คู่มือฉบับขีดคั่น", "ผู้แต่ง")
     res_hyphen = svc.lookup("9786167706955")
     assert res_hyphen.ok is True
@@ -122,10 +315,8 @@ def test_service_books_table_matching():
         "active INTEGER DEFAULT 1)"
     )
     svc = IsbnLookupService(conn)
-    # Stale cache entry should be shadowed by authoritative books row
     svc.save_cache("978-616-7706-95-5", "ชื่อหนังสือเก่าในแคช", "ผู้แต่งเดิม")
 
-    # Insert retired book (active=0, newer ID) and active book (active=1, older ID)
     conn.execute(
         "INSERT INTO books (book_id, title, author, publisher, isbn, active) "
         "VALUES (1, 'คณิตศาสตร์ ฉบับใช้งาน', 'ฝ่ายวิชาการ', 'ภูมิบัณฑิต', '978-616-7706-95-5', 1)"
@@ -136,20 +327,17 @@ def test_service_books_table_matching():
     )
     conn.commit()
 
-    # Active book (active=1) must take precedence and override stale isbn_cache
     res = svc.lookup("9786167706955")
     assert res.ok is True
     assert res.data["title"] == "คณิตศาสตร์ ฉบับใช้งาน"
     assert res.data["publisher"] == "ภูมิบัณฑิต"
 
-    # When books table is edited, new title is returned immediately (not cached/shadowed)
     conn.execute("UPDATE books SET title = 'คณิตศาสตร์ ฉบับปรับปรุงใหม่' WHERE book_id = 1")
     conn.commit()
     res_updated = svc.lookup("9786167706955")
     assert res_updated.ok is True
     assert res_updated.data["title"] == "คณิตศาสตร์ ฉบับปรับปรุงใหม่"
 
-    # Case-insensitivity check with ISBN-10 'X'
     conn.execute(
         "INSERT INTO books (book_id, title, author, publisher, isbn, active) "
         "VALUES (3, 'Refactoring', 'Martin Fowler', 'Addison-Wesley', '0-201-61622-x', 1)"
@@ -176,15 +364,15 @@ def test_service_operational_error_and_timeout(monkeypatch):
             attempts += 1
             if attempts == 1:
                 raise concurrent.futures.TimeoutError()
-            return SAMPLE_NLT_TABLE_HTML
+            return {"isbn": "9786167706955", "title": "Step Book", "author": "A", "publisher": "P"}
 
-    res_step = svc._wait_for_future(SteppingFuture(), "9786167706955")
+    res_step = svc._wait_for_future(SteppingFuture())
     assert res_step is not None
-    assert res_step["isbn"] == "9786167706955"
+    assert res_step["title"] == "Step Book"
 
     monkeypatch.setattr(
-        "core.library.services.isbn_service._fetch_nlt_page",
-        lambda *a, **k: (_ for _ in ()).throw(urllib.error.URLError("fail")),
+        "core.library.services.isbn_service.fetch_remote_providers",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("fail")),
     )
     res_err = svc.lookup("9786167706955")
     assert res_err.ok is False
@@ -194,7 +382,7 @@ def test_service_operational_error_and_timeout(monkeypatch):
         def result(self, timeout=None):
             raise concurrent.futures.TimeoutError()
 
-    assert svc._wait_for_future(HangingFuture(), "9786167706955") is None
+    assert svc._wait_for_future(HangingFuture()) is None
     conn.close()
 
 
@@ -222,8 +410,8 @@ def test_adapter_fetch_isbn_metadata_and_signals(tmp_path, monkeypatch):
     adapter.isbnLookupCompleted.connect(on_completed)
 
     monkeypatch.setattr(
-        "core.library.services.isbn_service._fetch_nlt_page",
-        lambda *a, **k: SAMPLE_NLT_TABLE_HTML,
+        "core.library.services.isbn_service.fetch_remote_providers",
+        lambda isbn, timeout: {"isbn": isbn, "title": "Adapter Book", "author": "Auth", "publisher": "Pub"},
     )
     raw_json = adapter.fetchIsbnMetadata("9786167706955")
     payload = json.loads(raw_json)

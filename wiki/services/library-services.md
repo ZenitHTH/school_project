@@ -71,13 +71,16 @@ Generates printable A4 PDF sheets with barcode labels and dashed cut lines.
 
 ---
 
-## 7. ISBN Lookup Service (`core.library.services.isbn_service`)
+## 7. ISBN Lookup Service (`core.library.services.isbn_service` & `isbn_providers`)
 Provides ISBN validation and metadata retrieval for book registration.
-- **Pure-Stdlib HTTP Scraper**: Scrapes National Library of Thailand (NLT) search endpoint (`https://e-service.nlt.go.th/ISBNReq/ListSearchPub`) using `urllib.request` and `html.parser` without external dependencies.
+- **3-Provider JSON Pipeline (`isbn_providers.py`)**:
+  1. **NLT Primo VE REST API** (`nlt.primo.exlibrisgroup.com`): Primary authoritative endpoint for books deposited with the National Library of Thailand. Extracts `title`, `author` (stripped of MARC `$$` subfields and trailing `.`), and `publisher`.
+  2. **SE-ED Web-BFF REST API** (`mp-api.se-ed.com/web-bff`): Secondary endpoint for commercial Thai exam-prep, tutor, and publisher books. Verifies SKU in `physicalProduct.variants`, extracts title, and parses the Lexical JSON AST to extract author and publisher.
+  3. **Open Library Books API** (`openlibrary.org`): Tertiary endpoint for international and English literature/textbooks.
 - **Two-Tier Authoritative Local Lookup**:
   1. Authoritative local `books` table checked first (`ORDER BY active DESC, book_id DESC`), ensuring active copies take precedence and edits in the catalog are never shadowed by stale cache entries.
   2. Persistent SQLite `isbn_cache` table queried on local catalog miss.
-  3. Queries NLT endpoint on local miss and populates `isbn_cache` upon successful retrieval.
+  3. Queries chained remote providers on local miss and populates `isbn_cache` upon successful retrieval.
 - **Safe Overwrite Policy & Re-entrancy Protection**: QML autofill never overwrites existing non-blank `Title` or `Author` text entered by the librarian. Input and generation actions are disabled during event-loop pump (`ExcludeUserInputEvents`) to prevent re-entrant submissions.
 - **Error Handling**: Network timeouts, non-book tables, redirects, or malformed inputs return `Err("cannot fetch data")` safely trapped in a Rust-style `Result[Dict[str, str], str]`.
 

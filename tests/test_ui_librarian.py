@@ -893,7 +893,7 @@ def test_isbn_autofill_does_not_overwrite_existing_fields(lib_ui, monkeypatch):
     assert author_input.property("text") == "สกายบุ๊กส์"
 
     # 3. Unknown ISBN -> does not overwrite, shows cannot fetch data
-    monkeypatch.setattr("core.library.services.isbn_service._fetch_nlt_page", lambda i, t: "")
+    monkeypatch.setattr("core.library.services.isbn_service.fetch_remote_providers", lambda *a, **k: None)
     isbn_input.setProperty("text", "9786167082493")
     barcode_view.fetchIsbnAndAutofill()
     assert title_input.property("text") == "ชื่อที่พิมพ์เอง"
@@ -932,7 +932,7 @@ def test_dialog_isbn_autofill_does_not_overwrite_existing_fields(lib_ui, monkeyp
     assert author_input.property("text") == "สกายบุ๊กส์"
 
     # 3. Unknown ISBN -> preserves and reports error
-    monkeypatch.setattr("core.library.services.isbn_service._fetch_nlt_page", lambda i, t: "")
+    monkeypatch.setattr("core.library.services.isbn_service.fetch_remote_providers", lambda *a, **k: None)
     isbn_input.setProperty("text", "9786167082493")
     dialog_root.fetchDialogIsbnAndAutofill()
     assert title_input.property("text") == "พิมพ์เองในไดอะล็อก"

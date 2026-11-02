@@ -1,108 +1,39 @@
-"""ISBN metadata lookup service using local SQLite cache and NLT web scraper."""
+"""ISBN metadata lookup service using local SQLite cache and chained remote JSON providers."""
 
 import concurrent.futures
-import html.parser
 import sqlite3
-import ssl
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
+from core.library.services.isbn_providers import (
+    _fetch_json,
+    fetch_remote_providers,
+    is_valid_isbn,
+    normalize_isbn,
+    parse_nlt_primo_json,
+    parse_openlibrary_json,
+    parse_seed_product,
+)
 from core.shared.mock_qt import HAVE_QT
 from core.shared.result import Err, Ok, Result
 
 if HAVE_QT:
     from PySide6.QtCore import QCoreApplication, QEventLoop
 
-NLT_SEARCH_URL = "https://e-service.nlt.go.th/ISBNReq/ListSearchPub"
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-
-
-def normalize_isbn(raw: str) -> str:
-    """Strip whitespace and hyphens from raw ISBN and convert to uppercase."""
-    if not raw:
-        return ""
-    return "".join(raw.split()).replace("-", "").upper()
-
-
-def is_valid_isbn(isbn: str) -> bool:
-    """Validate whether normalized ISBN is a valid 10 or 13-character string."""
-    if not isbn:
-        return False
-    if len(isbn) == 13 and isbn.isdigit():
-        return True
-    if len(isbn) == 10 and isbn[:-1].isdigit() and (isbn[-1].isdigit() or isbn[-1].upper() == "X"):
-        return True
-    return False
-
-
-class _TableRowParser(html.parser.HTMLParser):
-    """Parse table rows and cells into a list of row values."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.rows: List[List[str]] = []
-        self._current_row: Optional[List[str]] = None
-        self._current_cell: Optional[List[str]] = None
-
-    def handle_starttag(self, tag: str, attrs: list) -> None:
-        if tag == "tr":
-            self._current_row = []
-        elif tag in ("td", "th") and self._current_row is not None:
-            self._current_cell = []
-
-    def handle_data(self, data: str) -> None:
-        if self._current_cell is not None:
-            self._current_cell.append(data)
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag in ("td", "th") and self._current_cell is not None:
-            self._current_row.append("".join(self._current_cell).strip())  # type: ignore
-            self._current_cell = None
-        elif tag == "tr" and self._current_row is not None:
-            if self._current_row:
-                self.rows.append(self._current_row)
-            self._current_row = None
-
-
-def _extract_book_from_row(row: List[str], isbn: str) -> Optional[Dict[str, str]]:
-    """Extract book dict from table row matching the target ISBN."""
-    if len(row) < 5 or normalize_isbn(row[4]) != isbn:
-        return None
-    return {"title": row[1].strip(), "author": row[2].strip(), "publisher": row[3].strip(), "isbn": isbn}
-
-
-def parse_nlt_html(html_text: str, isbn: str) -> Optional[Dict[str, str]]:
-    """Parse NLT HTML table to extract book metadata matching ISBN."""
-    if not html_text:
-        return None
-    parser = _TableRowParser()
-    try:
-        parser.feed(html_text)
-    except Exception:
-        return None
-    for row in parser.rows:
-        book = _extract_book_from_row(row, isbn)
-        if book:
-            return book
-    return None
-
-
-def _fetch_nlt_page(isbn: str, timeout: float = 5.0) -> str:
-    """Fetch raw HTML from NLT search endpoint."""
-    query = urllib.parse.urlencode({"KeywordTypeKey": "4", "Keyword": isbn, "ISBNReqTypeKey": ""})
-    url = f"{NLT_SEARCH_URL}?{query}"
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    ctx = ssl.create_default_context()
-    with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
-        charset = resp.headers.get_content_charset() or "utf-8"
-        return resp.read().decode(charset, errors="replace")
+__all__ = [
+    "normalize_isbn",
+    "is_valid_isbn",
+    "_fetch_json",
+    "parse_nlt_primo_json",
+    "parse_seed_product",
+    "parse_openlibrary_json",
+    "fetch_remote_providers",
+    "IsbnLookupService",
+]
 
 
 class IsbnLookupService:
-    """Lookup ISBN metadata via cache and National Library of Thailand."""
+    """Lookup ISBN metadata via authoritative catalog, local cache, and chained remote providers."""
 
     def __init__(self, conn: sqlite3.Connection, timeout: float = 5.0) -> None:
         self.conn = conn
@@ -138,14 +69,11 @@ class IsbnLookupService:
         except sqlite3.OperationalError:
             return None
 
-    def _wait_for_future(
-        self, future: concurrent.futures.Future, isbn: str
-    ) -> Optional[Dict[str, str]]:
+    def _wait_for_future(self, future: concurrent.futures.Future) -> Optional[Dict[str, str]]:
         deadline = time.monotonic() + self.timeout
         while time.monotonic() < deadline:
             try:
-                html_text = future.result(timeout=0.02)
-                return parse_nlt_html(html_text, isbn)
+                return future.result(timeout=0.02)
             except concurrent.futures.TimeoutError:
                 if HAVE_QT:
                     QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
@@ -153,9 +81,9 @@ class IsbnLookupService:
 
     def _fetch_remote(self, isbn: str) -> Optional[Dict[str, str]]:
         executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(_fetch_nlt_page, isbn, timeout=self.timeout)
+        future = executor.submit(fetch_remote_providers, isbn, timeout=self.timeout)
         try:
-            return self._wait_for_future(future, isbn)
+            return self._wait_for_future(future)
         except Exception:
             return None
         finally:
@@ -182,7 +110,7 @@ class IsbnLookupService:
         return self._query_cache(isbn)
 
     def lookup(self, raw_isbn: str) -> Result[Dict[str, str], str]:
-        """Lookup book metadata by ISBN from cache, books, or NLT."""
+        """Lookup book metadata by ISBN from books, cache, or remote providers."""
         isbn = normalize_isbn(raw_isbn)
         if not is_valid_isbn(isbn):
             return Err("cannot fetch data")
