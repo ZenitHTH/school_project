@@ -158,14 +158,12 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Added `[🔍 ดึงข้อมูล]` action buttons in `BarcodeGeneratorView.qml` (Tab 6) and `BookActionDialogs.qml` (`addBookDialog`) with non-overwriting autofill (preserves existing user-typed Title/Author).
 - Added comprehensive unit tests in `tests/test_isbn_service.py` and UI tests in `tests/test_ui_librarian.py`.
 
-## [2026-11-02] feat | 3-Provider ISBN Lookup Pipeline (NLT Primo VE -> SE-ED BFF -> Open Library)
-- Extracted remote JSON provider fetchers and parsers into `core/library/services/isbn_providers.py` (<180 lines).
-- Implemented chained fallback:
-  1. NLT Primo VE API for National Library deposits with MARC `$$` subfield stripping.
-  2. SE-ED Web-BFF API for commercial Thai exam-prep/tutor books with SKU verification and Lexical AST text extraction.
-  3. Open Library API for international titles.
-- Refactored `core/library/services/isbn_service.py` (<130 lines) to orchestrate `IsbnLookupService` with thread pool futures and Qt event pumping.
-- Achieved 100% test coverage across `isbn_providers.py` and `isbn_service.py` with 238 passed tests.
+## [2026-11-02] feat | ISBN Autofill Overwrite on Match & Auto-Fetch on Scan
+- Updated autofill policy in `BarcodeGeneratorView.qml` and `BookActionDialogs.qml` to overwrite existing Title/Author when matching database metadata is retrieved, while safely preserving existing text on lookup failure.
+- Added "ค้นหาอัตโนมัติเมื่อสแกน (Auto-fetch on scan)" toggle checkbox (`chkAutoFetchIsbn` and `chkDialogAutoFetchIsbn`, checked by default).
+- Added barcode scanner enter (`onAccepted`) trigger and 13-digit debounce timer (300ms) while retaining manual `[🔍 ดึงข้อมูล]` action buttons.
+- Updated UI test assertions in `tests/test_ui_librarian.py` covering match overwrite, failure text preservation, and auto-fetch controls.
+- Maintained 100% test coverage across all services and adapters.
 
 
 

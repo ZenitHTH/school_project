@@ -16,6 +16,7 @@ Rectangle {
     property alias genBookAuthor: genBookAuthor
     property alias genBookIsbn: genBookIsbn
     property alias btnFetchIsbn: btnFetchIsbn
+    property alias chkAutoFetchIsbn: chkAutoFetchIsbn
     property alias genCategoryCombo: genCategoryCombo
     property alias genCategoryModel: genCategoryModel
     property alias genShelfLocation: genShelfLocation
@@ -230,10 +231,10 @@ Rectangle {
                 genStatusMessage.text = "✗ cannot fetch data"
                 return
             }
-            if (!genBookTitle.text.trim() && res.data.title) {
+            if (res.data.title) {
                 genBookTitle.text = res.data.title
             }
-            if (!genBookAuthor.text.trim() && res.data.author) {
+            if (res.data.author !== undefined) {
                 genBookAuthor.text = res.data.author
             }
             genStatusMessage.text = "✓ ดึงข้อมูลสำเร็จ"
@@ -243,6 +244,17 @@ Rectangle {
         } finally {
             btnFetchIsbn.enabled = true
             btnExecuteGenerate.enabled = true
+        }
+    }
+
+    Timer {
+        id: isbnAutoFetchTimer
+        interval: 300
+        repeat: false
+        onTriggered: {
+            if (chkAutoFetchIsbn.checked) {
+                barcodeGenScreen.fetchIsbnAndAutofill()
+            }
         }
     }
 
@@ -447,7 +459,18 @@ Rectangle {
                                     selectByMouse: true
                                     padding: 8
                                     background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-                                    onTextChanged: barcodeGenScreen.updateGenPreview()
+                                    onAccepted: {
+                                        if (chkAutoFetchIsbn.checked) {
+                                            barcodeGenScreen.fetchIsbnAndAutofill()
+                                        }
+                                    }
+                                    onTextChanged: {
+                                        barcodeGenScreen.updateGenPreview()
+                                        var clean = text.replace(/[-\s]/g, "")
+                                        if (chkAutoFetchIsbn.checked && clean.length === 13) {
+                                            isbnAutoFetchTimer.restart()
+                                        }
+                                    }
                                 }
                                 Button {
                                     id: btnFetchIsbn
@@ -468,6 +491,14 @@ Rectangle {
                                     }
                                     onClicked: barcodeGenScreen.fetchIsbnAndAutofill()
                                 }
+                            }
+
+                            CheckBox {
+                                id: chkAutoFetchIsbn
+                                objectName: "chkAutoFetchIsbn"
+                                text: "ค้นหาอัตโนมัติเมื่อสแกน (Auto-fetch on scan)"
+                                checked: true
+                                font.pixelSize: 12
                             }
 
                             RowLayout {

@@ -81,6 +81,10 @@ Provides ISBN validation and metadata retrieval for book registration.
   1. Authoritative local `books` table checked first (`ORDER BY active DESC, book_id DESC`), ensuring active copies take precedence and edits in the catalog are never shadowed by stale cache entries.
   2. Persistent SQLite `isbn_cache` table queried on local catalog miss.
   3. Queries chained remote providers on local miss and populates `isbn_cache` upon successful retrieval.
-- **Safe Overwrite Policy & Re-entrancy Protection**: QML autofill never overwrites existing non-blank `Title` or `Author` text entered by the librarian. Input and generation actions are disabled during event-loop pump (`ExcludeUserInputEvents`) to prevent re-entrant submissions.
+- **Autofill Overwrite Policy & Re-entrancy Protection**:
+  - **Match Found**: When matching metadata is retrieved from local cache or remote providers, QML autofill overwrites any existing `Title` and `Author` fields to ensure newly scanned books receive authoritative catalog metadata.
+  - **Error Preservation**: When lookup fails (`cannot fetch data`), user-entered text is preserved intact without deletion or corruption.
+  - **Auto-Fetch on Scan Option**: Supported via toggle checkbox (`chkAutoFetchIsbn` in `BarcodeGeneratorView`, `chkDialogAutoFetchIsbn` in `BookActionDialogs`, checked by default). Triggers autofill automatically on scanner enter (`onAccepted`) or when 13 digits are scanned (300ms debounce), while keeping manual `[🔍 ดึงข้อมูล]` buttons accessible.
+  - Input and generation actions are disabled during event-loop pump (`ExcludeUserInputEvents`) to prevent re-entrant submissions.
 - **Error Handling**: Network timeouts, non-book tables, redirects, or malformed inputs return `Err("cannot fetch data")` safely trapped in a Rust-style `Result[Dict[str, str], str]`.
 

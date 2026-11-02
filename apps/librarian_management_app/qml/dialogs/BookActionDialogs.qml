@@ -13,6 +13,7 @@ Item {
     property alias newBookTitle: newBookTitle
     property alias newBookIsbn: newBookIsbn
     property alias btnDialogFetchIsbn: btnDialogFetchIsbn
+    property alias chkDialogAutoFetchIsbn: chkDialogAutoFetchIsbn
     property alias newBookAuthor: newBookAuthor
     property alias newBookBarcodes: newBookBarcodes
     property alias addBookStatusText: addBookStatusText
@@ -153,10 +154,10 @@ Item {
                 addBookStatusText.text = "✗ cannot fetch data"
                 return
             }
-            if (!newBookTitle.text.trim() && res.data.title) {
+            if (res.data.title) {
                 newBookTitle.text = res.data.title
             }
-            if (!newBookAuthor.text.trim() && res.data.author) {
+            if (res.data.author !== undefined) {
                 newBookAuthor.text = res.data.author
             }
             addBookStatusText.text = "✓ ดึงข้อมูลสำเร็จ"
@@ -164,6 +165,17 @@ Item {
             addBookStatusText.text = "✗ cannot fetch data"
         } finally {
             btnDialogFetchIsbn.enabled = true
+        }
+    }
+
+    Timer {
+        id: dialogIsbnAutoFetchTimer
+        interval: 300
+        repeat: false
+        onTriggered: {
+            if (chkDialogAutoFetchIsbn.checked) {
+                root.fetchDialogIsbnAndAutofill()
+            }
         }
     }
 
@@ -183,13 +195,35 @@ Item {
             TextField { id: newBookTitle; objectName: "newBookTitle"; placeholderText: "ชื่อหนังสือ" }
             RowLayout {
                 spacing: 8
-                TextField { id: newBookIsbn; objectName: "newBookIsbn"; placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)" }
+                TextField {
+                    id: newBookIsbn
+                    objectName: "newBookIsbn"
+                    placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)"
+                    onAccepted: {
+                        if (chkDialogAutoFetchIsbn.checked) {
+                            root.fetchDialogIsbnAndAutofill()
+                        }
+                    }
+                    onTextChanged: {
+                        var clean = text.replace(/[-\s]/g, "")
+                        if (chkDialogAutoFetchIsbn.checked && clean.length === 13) {
+                            dialogIsbnAutoFetchTimer.restart()
+                        }
+                    }
+                }
                 Button {
                     id: btnDialogFetchIsbn
                     objectName: "btnDialogFetchIsbn"
                     text: "🔍 ดึงข้อมูล"
                     onClicked: root.fetchDialogIsbnAndAutofill()
                 }
+            }
+            CheckBox {
+                id: chkDialogAutoFetchIsbn
+                objectName: "chkDialogAutoFetchIsbn"
+                text: "ค้นหาอัตโนมัติเมื่อสแกน (Auto-fetch on scan)"
+                checked: true
+                font.pixelSize: 12
             }
             TextField { id: newBookAuthor; objectName: "newBookAuthor"; placeholderText: "ผู้แต่ง" }
             TextField { id: newBookBarcodes; objectName: "newBookBarcodes"; placeholderText: "จำนวนเล่ม (เช่น 2) หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"; text: "1" }

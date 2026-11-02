@@ -861,7 +861,7 @@ def test_edit_book_reduce_mistakenly_entered_copies(lib_ui):
     assert inv_model.get(0).property("total_copies").toInt() == 2
 
 
-def test_isbn_autofill_does_not_overwrite_existing_fields(lib_ui, monkeypatch):
+def test_isbn_autofill_overwrite_and_options(lib_ui, monkeypatch):
     win = lib_ui["window"]
     adapter = lib_ui["adapter"]
     from PySide6.QtCore import QObject
@@ -876,6 +876,11 @@ def test_isbn_autofill_does_not_overwrite_existing_fields(lib_ui, monkeypatch):
     author_input = win.findChild(QObject, "genBookAuthor")
     isbn_input = win.findChild(QObject, "genBookIsbn")
     status_msg = win.findChild(QObject, "genStatusMessage")
+    chk_auto = win.findChild(QObject, "chkAutoFetchIsbn")
+
+    # 4. Verify chkAutoFetchIsbn exists and is checked by default
+    assert chk_auto is not None
+    assert chk_auto.property("checked") is True
 
     # 1. Both blank -> fills both
     title_input.setProperty("text", "")
@@ -885,22 +890,23 @@ def test_isbn_autofill_does_not_overwrite_existing_fields(lib_ui, monkeypatch):
     assert title_input.property("text") == "รวมสูตรคณิต"
     assert author_input.property("text") == "สกายบุ๊กส์"
 
-    # 2. Title already typed -> preserves Title, fills blank Author
-    title_input.setProperty("text", "ชื่อที่พิมพ์เอง")
-    author_input.setProperty("text", "")
+    # 2. Existing text -> deletes and replaces with matching database metadata
+    title_input.setProperty("text", "ชื่อที่พิมพ์เองเก่า")
+    author_input.setProperty("text", "ผู้แต่งเดิม")
     barcode_view.fetchIsbnAndAutofill()
-    assert title_input.property("text") == "ชื่อที่พิมพ์เอง"
+    assert title_input.property("text") == "รวมสูตรคณิต"
     assert author_input.property("text") == "สกายบุ๊กส์"
 
-    # 3. Unknown ISBN -> does not overwrite, shows cannot fetch data
+    # 3. Unknown ISBN -> preserves existing text, shows cannot fetch data
     monkeypatch.setattr("core.library.services.isbn_service.fetch_remote_providers", lambda *a, **k: None)
     isbn_input.setProperty("text", "9786167082493")
     barcode_view.fetchIsbnAndAutofill()
-    assert title_input.property("text") == "ชื่อที่พิมพ์เอง"
+    assert title_input.property("text") == "รวมสูตรคณิต"
+    assert author_input.property("text") == "สกายบุ๊กส์"
     assert "cannot fetch data" in status_msg.property("text")
 
 
-def test_dialog_isbn_autofill_does_not_overwrite_existing_fields(lib_ui, monkeypatch):
+def test_dialog_isbn_autofill_overwrite_and_options(lib_ui, monkeypatch):
     win = lib_ui["window"]
     adapter = lib_ui["adapter"]
     from PySide6.QtCore import QObject
@@ -914,6 +920,11 @@ def test_dialog_isbn_autofill_does_not_overwrite_existing_fields(lib_ui, monkeyp
     author_input = win.findChild(QObject, "newBookAuthor")
     isbn_input = win.findChild(QObject, "newBookIsbn")
     status_text = win.findChild(QObject, "addBookStatusText")
+    chk_auto = win.findChild(QObject, "chkDialogAutoFetchIsbn")
+
+    # 4. Verify chkDialogAutoFetchIsbn exists and is checked by default
+    assert chk_auto is not None
+    assert chk_auto.property("checked") is True
 
     # 1. Blank fields -> filled
     title_input.setProperty("text", "")
@@ -924,18 +935,21 @@ def test_dialog_isbn_autofill_does_not_overwrite_existing_fields(lib_ui, monkeyp
     assert author_input.property("text") == "สกายบุ๊กส์"
     assert "ดึงข้อมูลสำเร็จ" in status_text.property("text")
 
-    # 2. Existing title preserved
+    # 2. Existing text -> deletes and replaces with matching database metadata
     title_input.setProperty("text", "พิมพ์เองในไดอะล็อก")
-    author_input.setProperty("text", "")
+    author_input.setProperty("text", "ผู้แต่งในไดอะล็อก")
     dialog_root.fetchDialogIsbnAndAutofill()
-    assert title_input.property("text") == "พิมพ์เองในไดอะล็อก"
+    assert title_input.property("text") == "รวมสูตรคณิต"
     assert author_input.property("text") == "สกายบุ๊กส์"
 
     # 3. Unknown ISBN -> preserves and reports error
+    title_input.setProperty("text", "พิมพ์ใหม่ก่อนลอง")
+    author_input.setProperty("text", "ผู้แต่งใหม่ก่อนลอง")
     monkeypatch.setattr("core.library.services.isbn_service.fetch_remote_providers", lambda *a, **k: None)
     isbn_input.setProperty("text", "9786167082493")
     dialog_root.fetchDialogIsbnAndAutofill()
-    assert title_input.property("text") == "พิมพ์เองในไดอะล็อก"
+    assert title_input.property("text") == "พิมพ์ใหม่ก่อนลอง"
+    assert author_input.property("text") == "ผู้แต่งใหม่ก่อนลอง"
     assert "cannot fetch data" in status_text.property("text")
 
 
