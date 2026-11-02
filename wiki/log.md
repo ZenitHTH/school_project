@@ -165,6 +165,13 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Updated UI test assertions in `tests/test_ui_librarian.py` covering match overwrite, failure text preservation, and auto-fetch controls.
 - Maintained 100% test coverage across all services and adapters.
 
+## [2026-11-02] ci | Release v1.2.0 & ISBN Lookup Integration
+- Bumped project version to `1.2.0` via `scripts/bump_version.py minor`.
+- Synchronized `VERSION` and Inno Setup Windows installer (`installer.iss`).
+- Shipped 3-provider ISBN lookup pipeline (NLT Primo VE -> SE-ED Web-BFF -> Open Library), auto-fetch on scan, and match overwrite into release build.
+- Maintained 100% test coverage across 238 unit and UI tests.
+
+
 
 
 
