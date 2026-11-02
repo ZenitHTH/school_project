@@ -128,6 +128,7 @@ def test_seed_helpers_and_parser():
     assert _find_next_text(["a"], "a") == ""
     assert _find_next_text(["x"], "a") == ""
     assert _find_next_text(["ผู้เขียน", "สำนักพิมพ์"], "ผู้เขียน") == ""
+    assert _find_next_text(["ผู้เขียน", ":", "หมอ ก.", ",", "หมอ ข."], "ผู้เขียน") == "หมอ ก., หมอ ข."
     assert _find_next_text(["ผู้เขียน : สมชาย"], "ผู้เขียน") == "สมชาย"
     assert _find_next_text(["สำนักพิมพ์:\xa0หจก.ซีเอ็ด"], "สำนักพิมพ์") == "หจก.ซีเอ็ด"
 
@@ -184,6 +185,34 @@ def test_seed_helpers_and_parser():
     assert res["title"] == "ลุยโจทย์คณิตศาสตร์"
     assert res["author"] == "ณัฐวุฒิ ขานภูเขียว"
     assert res["publisher"] == "ธรรมบัณฑิต, สนพ."
+
+    tag_search = {
+        "products": [{
+            "id": "prod456",
+            "physicalProduct": {
+                "physicalProduct": {
+                    "name": "[สกลนคร] ชีววิทยาสำหรับนักเรียนมัธยมปลาย : Biology",
+                    "variants": [{"sku": "9786166088694"}]
+                }
+            }
+        }]
+    }
+    dummy_pub_detail = json.dumps({
+        "root": {
+            "children": [
+                {"text": "ผู้เขียน"},
+                {"text": ":"},
+                {"text": "หมอ ก."},
+                {"text": "สำนักพิมพ์"},
+                {"text": "-ไม่ปรากฏสำนักพิมพ์"}
+            ]
+        }
+    })
+    res_tag = parse_seed_product(tag_search, {"physicalProduct": {"detail": dummy_pub_detail}}, "9786166088694")
+    assert res_tag is not None
+    assert res_tag["title"] == "ชีววิทยาสำหรับนักเรียนมัธยมปลาย : Biology"
+    assert res_tag["author"] == "หมอ ก."
+    assert res_tag["publisher"] == ""
 
 
 def test_openlibrary_parser():
