@@ -91,23 +91,16 @@ def test_ci_and_release_workflows_follow_standard_release_pipeline():
     assert not os.path.exists(os.path.join(workflows_dir, "build.yml")), "Legacy build.yml must be removed"
     ci_path = os.path.join(workflows_dir, "ci.yml")
     rel_path = os.path.join(workflows_dir, "release.yml")
-    assert os.path.exists(ci_path), "ci.yml missing"
+    assert not os.path.exists(ci_path), "ci.yml must be removed (build only origin main, not dev)"
     assert os.path.exists(rel_path), "release.yml missing"
-
-    with open(ci_path, "r", encoding="utf-8") as f:
-        ci_yml = f.read()
-    assert "branches: [dev]" in ci_yml
-    assert "branches: [main, dev]" in ci_yml
-    assert "pull_request:" in ci_yml
-    assert "pytest" in ci_yml
-    assert "cache: 'pip'" in ci_yml
-    assert "pyinstaller" not in ci_yml
 
     with open(rel_path, "r", encoding="utf-8") as f:
         rel_yml = f.read()
     assert "- main" in rel_yml
     assert "- 'v*.*.*'" in rel_yml
     assert "workflow_dispatch:" in rel_yml
+    assert 'python-version: "3.12"' in rel_yml
+    assert "branches:\n      - dev" not in rel_yml
     assert "needs: [test]" in rel_yml
     assert "needs.test.outputs.version" in rel_yml
     assert "needs.test.outputs.tag" in rel_yml

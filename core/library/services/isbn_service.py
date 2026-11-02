@@ -75,7 +75,7 @@ class IsbnLookupService:
             try:
                 return future.result(timeout=0.02)
             except concurrent.futures.TimeoutError:
-                if HAVE_QT:
+                if HAVE_QT and QCoreApplication.instance() is not None:
                     QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
         return None
 

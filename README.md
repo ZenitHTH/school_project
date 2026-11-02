@@ -234,12 +234,12 @@ chmod +x LibrarianManagement
 
 ### 🚀 GitHub Actions Multi-Platform CI/CD
  
-- **Automated Testing (`ci.yml`)**:
-  ทุกครั้งที่มีการ push หรือเปิด Pull Request สู่ branch `main` ระบบจะรันชุดทดสอบ `pytest` แบบ headless offscreen อัตโนมัติ พร้อม pip caching
- 
-- **Tag-Driven Release Pipeline (`release.yml`)**:
-  เมื่อทำการ push semantic version tag (เช่น `git tag v1.0.0 && git push origin v1.0.0`) หรือกด Run workflow (manual dispatch):
-  1. รันชุดทดสอบ `test` ให้ผ่านเป็น gate ก่อนเริ่ม build
+- **Main Branch Build & Release Pipeline (`release.yml`)**:
+  ระบบ CI/CD ทำงานเฉพาะเมื่อ push ขึ้น branch `main`, push semantic version tag (เช่น `v1.2.0`), หรือกด Run workflow (manual dispatch) เท่านั้น โดย branch `dev` จะไม่ถูกรัน action:
+  1. รันชุดทดสอบ `test` (Pytest บน Python 3.12) ให้ผ่านเป็น gate ก่อนเริ่ม build
+  2. ดึงเวอร์ชันจากไฟล์ `VERSION` อัตโนมัติ (เช่น `1.2.0`)
+  3. Compile และแพ็กเกจ OS Installer ครบทั้ง 4 แพลตฟอร์ม (Windows `.exe`, macOS `.dmg`, Debian/Ubuntu `.deb`, Fedora/RHEL `.rpm`)
+  4. คำนวณ `SHA256SUMS.txt` และสร้าง GitHub Release ให้พร้อมดาวน์โหลดทันที
   2. Matrix Build สร้าง Binary และ Native Installer สำหรับ 4 แพลตฟอร์ม:
      - **Windows x64**: `.exe` (Portable) & `Setup.exe` (Inno Setup พร้อม AppId แยกแต่ละแอป)
      - **macOS**: `.dmg` (Apple Disk Image) & `.zip` (ใช้ `ditto` รักษา symlinks ของ Qt framework)

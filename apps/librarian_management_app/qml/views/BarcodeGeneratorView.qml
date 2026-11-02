@@ -217,6 +217,9 @@ Rectangle {
     }
 
     function fetchIsbnAndAutofill() {
+        if (isbnAutoFetchTimer.running) {
+            isbnAutoFetchTimer.stop()
+        }
         var rawIsbn = genBookIsbn.text.trim()
         if (!rawIsbn) {
             genStatusMessage.text = "✗ cannot fetch data"
@@ -255,6 +258,12 @@ Rectangle {
             if (chkAutoFetchIsbn.checked) {
                 barcodeGenScreen.fetchIsbnAndAutofill()
             }
+        }
+    }
+
+    Component.onDestruction: {
+        if (isbnAutoFetchTimer.running) {
+            isbnAutoFetchTimer.stop()
         }
     }
 

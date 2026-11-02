@@ -141,6 +141,9 @@ Item {
     }
 
     function fetchDialogIsbnAndAutofill() {
+        if (dialogIsbnAutoFetchTimer.running) {
+            dialogIsbnAutoFetchTimer.stop()
+        }
         var rawIsbn = newBookIsbn.text.trim()
         if (!rawIsbn) {
             addBookStatusText.text = "✗ cannot fetch data"
@@ -176,6 +179,12 @@ Item {
             if (chkDialogAutoFetchIsbn.checked) {
                 root.fetchDialogIsbnAndAutofill()
             }
+        }
+    }
+
+    Component.onDestruction: {
+        if (dialogIsbnAutoFetchTimer.running) {
+            dialogIsbnAutoFetchTimer.stop()
         }
     }
 

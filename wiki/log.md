@@ -171,6 +171,16 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Shipped 3-provider ISBN lookup pipeline (NLT Primo VE -> SE-ED Web-BFF -> Open Library), auto-fetch on scan, and match overwrite into release build.
 - Maintained 100% test coverage across 238 unit and UI tests.
 
+## [2026-11-02] ci | Restrict Builds to Main & Fix Linux Runner Exit Code 134
+- Removed `.github/workflows/ci.yml` so GitHub Actions never trigger on `dev` branch pushes, reserving packaging and CI strictly for `main`.
+- Upgraded `release.yml` runner Python version from 3.11 to 3.12 across all jobs (`test`, `build-windows`, `build-macos`, `build-ubuntu`). This prevents upstream Shiboken6 / PySide6 refcount leaks on `None` (`none_dealloc: deallocating None`, exit code 134) via Python 3.12 PEP 683 immortal objects.
+- Guarded `QCoreApplication.instance() is not None` in `isbn_service.py` before pumping events.
+- Added timer stop guards in `BarcodeGeneratorView.qml` and `BookActionDialogs.qml` (`Component.onDestruction` and `fetch*` invocations) to prevent stray timer executions during test teardown.
+- Flushed `qapp.processEvents()` in UI test fixtures before and after `engine.deleteLater()`.
+- Updated `tests/test_spec_exclusions.py` verifying `ci.yml` absence and `release.yml` triggers and Python 3.12 configuration.
+- 100% test pass (238/238 passed).
+
+
 
 
 

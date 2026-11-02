@@ -49,15 +49,14 @@ To prevent Qt QML font crashes, missing Wayland/X11 platform plugins, or GLX/Ope
 ---
 
 ## 5. GitHub Actions Pipeline & Git Branch Strategy (`.github/workflows/`)
-The repository separates active development (`dev`) from release packaging (`main`):
-1. **Development CI (`.github/workflows/ci.yml`)**:
-   - Triggers on `push` to `dev` and `pull_request` targeting `main` or `dev`.
-   - Runs fast headless `pytest` (`QT_QPA_PLATFORM=offscreen`) with pip caching on `ubuntu-24.04` — **no desktop packaging** on `dev` pushes.
-   - Uses concurrency cancellation (`${{ github.workflow }}-${{ github.ref }}`) to drop redundant builds on fast pushes.
-2. **Main & Tag Release Pipeline (`.github/workflows/release.yml`)**:
-   - Triggers on `push` to `main`, semantic version tags (`v*.*.*`), or manual `workflow_dispatch`.
+The repository builds and releases strictly from `main`:
+1. **Local Development (`dev` branch)**:
+   - Reserved for active local coding and fast iteration.
+   - Zero GitHub Actions run on `dev` to save runner minutes and eliminate noise.
+2. **Main & Tag Build Pipeline (`.github/workflows/release.yml`)**:
+   - Triggers exclusively on `push` to `main`, semantic version tags (`v*.*.*`), or manual `workflow_dispatch`.
    - Single version source of truth: `VERSION` file and `core/shared/version.py` (`APP_VERSION`), synchronized across `installer.iss`, `build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`, PyInstaller `.spec` bundles, and `QGuiApplication.setApplicationVersion`.
-   - `test` job runs headless `pytest` and resolves `outputs.version` and `outputs.tag` (`v<VERSION>`) once for all downstream build jobs.
+   - `test` job runs headless `pytest` on Python 3.12 (preventing Shiboken refcount decref issues on `None`) and resolves `outputs.version` and `outputs.tag` (`v<VERSION>`) once for all downstream build jobs.
    - Builds native OS installers only (no duplicate raw binaries): Windows (`*-Setup-<ver>.exe`), macOS (`*-<ver>.dmg`), Debian/Ubuntu (`*_<ver>_amd64.deb`), and Fedora/RHEL (`*-<ver>-1.*.rpm`).
    - Cleans stale tags/releases before publishing versioned release `v<VERSION>` with structured download table (`RELEASE_NOTES.md`) and `SHA256SUMS.txt`.
 

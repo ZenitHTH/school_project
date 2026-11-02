@@ -96,8 +96,10 @@ def ui(qapp, tmp_path):
         "adapter": adapter,
     }
 
+    qapp.processEvents()
     conn.close()
     engine.deleteLater()
+    qapp.processEvents()
 
 
 def find(window, name):
@@ -636,8 +638,10 @@ def test_first_launch_dialog_opens_on_blank_db(qapp, tmp_path):
     cur.execute("SELECT value FROM sync_state WHERE key = 'first_launch_done';")
     assert cur.fetchone()[0] == "1"
 
+    qapp.processEvents()
     conn.close()
     engine.deleteLater()
+    qapp.processEvents()
 
 
 def test_manual_open_wizard_button(ui):

@@ -82,8 +82,10 @@ def lib_ui(qapp, tmp_path):
         "tmp_path": tmp_path,
     }
 
+    qapp.processEvents()
     conn.close()
     engine.deleteLater()
+    qapp.processEvents()
 
 
 def find(window, name):
@@ -418,8 +420,10 @@ def test_librarian_first_launch_dialog_opens_on_blank_db(qapp, tmp_path):
     cur.execute("SELECT value FROM sync_state WHERE key = 'library_first_launch_done';")
     assert cur.fetchone()[0] == "1"
 
+    qapp.processEvents()
     conn.close()
     engine.deleteLater()
+    qapp.processEvents()
 
 
 def test_librarian_manual_open_wizard_button(lib_ui):

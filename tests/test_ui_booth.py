@@ -74,8 +74,10 @@ def booth_ui(qapp, tmp_path):
         "adapter": adapter,
     }
 
+    qapp.processEvents()
     conn.close()
     engine.deleteLater()
+    qapp.processEvents()
 
 
 def find(window, name):
@@ -306,6 +308,8 @@ def test_booth_warning_banner_visible_on_empty_db(qapp, tmp_path):
     assert banner is not None
     assert banner.property("visible") is True
 
+    qapp.processEvents()
     conn.close()
     engine.deleteLater()
+    qapp.processEvents()
 
