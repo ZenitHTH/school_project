@@ -129,8 +129,10 @@ def test_seed_helpers_and_parser():
     assert _find_next_text(["x"], "a") == ""
     assert _find_next_text(["ผู้เขียน", "สำนักพิมพ์"], "ผู้เขียน") == ""
     assert _find_next_text(["ผู้เขียน", ":", "หมอ ก.", ",", "หมอ ข."], "ผู้เขียน") == "หมอ ก., หมอ ข."
+    assert _find_next_text(["ผู้เขียน", ":", "หมอ ก.", "หมอ ข."], "ผู้เขียน") == "หมอ ก."
     assert _find_next_text(["ผู้เขียน : สมชาย"], "ผู้เขียน") == "สมชาย"
     assert _find_next_text(["สำนักพิมพ์:\xa0หจก.ซีเอ็ด"], "สำนักพิมพ์") == "หจก.ซีเอ็ด"
+    assert _find_next_text(["สำนักพิมพ์ :", "รัชพล", "เดือนปีที่พิมพ์ :", "1/2025"], "สำนักพิมพ์", allow_multi=False) == "รัชพล"
 
     assert _extract_seed_detail(None) == ("", "")
     assert _extract_seed_detail({}) == ("", "")

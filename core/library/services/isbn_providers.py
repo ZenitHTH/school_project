@@ -3,7 +3,6 @@
 import json
 import re
 import ssl
-import urllib.error
 import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -12,7 +11,7 @@ SEED_SEARCH_URL = "https://mp-api.se-ed.com/web-bff/search-product"
 SEED_DETAIL_URL = "https://mp-api.se-ed.com/web-bff/physical-product"
 OPENLIBRARY_URL = "https://openlibrary.org/api/books"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-DISALLOWED_PREFIXES = ("ผู้เขียน", "สำนักพิมพ์", "ISBN", "ขนาด", "ราคา", "ข้อมูลหนังสือ", "คำค้นหา", "เนื้อหา", "สารบัญ", "รหัสสินค้า")
+DISALLOWED_PREFIXES = ("ผู้เขียน", "สำนักพิมพ์", "ISBN", "ขนาด", "ราคา", "ข้อมูลหนังสือ", "คำค้นหา", "เนื้อหา", "สารบัญ", "รหัสสินค้า", "เดือนปี", "ชนิดกระดาษ", "เนื้อในพิมพ์", "น้ำหนัก")
 UNKNOWN_PUBS = ("-ไม่ปรากฏสำนักพิมพ์", "ไม่ปรากฏสำนักพิมพ์", "ม.ป.พ.", "ม.ป.ท.")
 
 
@@ -23,18 +22,15 @@ def normalize_isbn(raw: str) -> str:
 
 def is_valid_isbn(isbn: str) -> bool:
     """Validate whether normalized ISBN is a valid 10 or 13-character string."""
-    if not isbn:
-        return False
-    valid_13 = len(isbn) == 13 and isbn.isdigit()
-    valid_10 = len(isbn) == 10 and isbn[:-1].isdigit() and (isbn[-1].isdigit() or isbn[-1] == "X")
-    return valid_13 or valid_10
+    if len(isbn) == 13:
+        return isbn.isdigit()
+    return len(isbn) == 10 and isbn[:-1].isdigit() and (isbn[-1].isdigit() or isbn[-1] == "X")
 
 
 def _fetch_json(url: str, timeout: float = 5.0) -> dict:
     """Fetch JSON from URL with User-Agent header and default SSL context."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    ctx = ssl.create_default_context()
-    with urllib.request.urlopen(req, timeout=timeout, context=ctx) as resp:
+    with urllib.request.urlopen(req, timeout=timeout, context=ssl.create_default_context()) as resp:
         charset = resp.headers.get_content_charset() or "utf-8"
         return json.loads(resp.read().decode(charset, errors="replace"))
 
@@ -62,15 +58,16 @@ def parse_nlt_primo_json(data: dict, isbn: str) -> Optional[Dict[str, str]]:
     title = _extract_primo_text(addata, "btitle") or _extract_primo_text(display, "title")
     if not title:
         return None
-    raw_author = (_extract_primo_text(addata, "au", "creatorfull") or _extract_primo_text(display, "creator")).rstrip(".").strip()
+    author = (_extract_primo_text(addata, "au", "creatorfull") or _extract_primo_text(display, "creator")).rstrip(".").strip()
     publisher = _extract_primo_text(addata, "pub") or _extract_primo_text(display, "publisher")
-    return {"isbn": isbn, "title": title, "author": raw_author or publisher, "publisher": publisher}
+    return {"isbn": isbn, "title": title, "author": author or publisher, "publisher": publisher}
 
 
 def _collect_lexical_texts(val: Any, texts: List[str]) -> None:
     if isinstance(val, dict):
-        if isinstance(val.get("text"), str) and val["text"].strip():
-            texts.append(val["text"].strip())
+        text = val.get("text")
+        if isinstance(text, str) and text.strip():
+            texts.append(text.strip())
         for child in val.values():
             _collect_lexical_texts(child, texts)
     elif isinstance(val, list):
@@ -78,25 +75,37 @@ def _collect_lexical_texts(val: Any, texts: List[str]) -> None:
             _collect_lexical_texts(item, texts)
 
 
-def _collect_label_tokens(following: List[str]) -> str:
+def _is_label(tok: str) -> bool:
+    clean = tok.replace("\xa0", "").strip()
+    return clean.endswith(":") or clean.startswith(DISALLOWED_PREFIXES)
+
+
+def _collect_label_tokens(following: List[str], allow_multi: bool = True) -> str:
     parts: List[str] = []
-    for token in (t.strip() for t in following):
+    expect_value = True
+    for raw in following:
+        token = raw.strip()
         if not parts and token in (":", "-", ""):
             continue
-        if not token or token.startswith(DISALLOWED_PREFIXES):
+        if not token or _is_label(token):
             break
-        if token != ",":
-            parts.append(token)
+        if token == ",":
+            expect_value = allow_multi
+            continue
+        if not expect_value:
+            break
+        parts.append(token)
+        if not allow_multi:
+            break
+        expect_value = False
     return ", ".join(parts)
 
 
-def _find_next_text(texts: List[str], prefix: str) -> str:
+def _find_next_text(texts: List[str], prefix: str, allow_multi: bool = True) -> str:
     for idx, item in enumerate(texts):
         if item.startswith(prefix):
             inline = item[len(prefix):].lstrip(" :\xa0-").strip()
-            if inline:
-                return inline
-            val = _collect_label_tokens(texts[idx + 1:])
+            val = inline or _collect_label_tokens(texts[idx + 1:], allow_multi)
             if val:
                 return val
     return ""
@@ -109,20 +118,16 @@ def _extract_seed_detail(detail_data: Optional[dict]) -> Tuple[str, str]:
     try:
         texts: List[str] = []
         _collect_lexical_texts(json.loads(detail_str), texts)
-        return _find_next_text(texts, "ผู้เขียน"), _find_next_text(texts, "สำนักพิมพ์")
+        return _find_next_text(texts, "ผู้เขียน"), _find_next_text(texts, "สำนักพิมพ์", False)
     except Exception:
         return "", ""
 
 
 def _match_seed_sku(variants: list, isbn: str) -> bool:
-    return not variants or any(
-        normalize_isbn(str(v.get("sku", ""))) == isbn for v in variants if isinstance(v, dict)
-    )
+    return not variants or any(normalize_isbn(str(v.get("sku", ""))) == isbn for v in variants if isinstance(v, dict))
 
 
-def parse_seed_product(
-    search_data: dict, detail_data: Optional[dict], isbn: str
-) -> Optional[Dict[str, str]]:
+def parse_seed_product(search_data: dict, detail_data: Optional[dict], isbn: str) -> Optional[Dict[str, str]]:
     """Parse SE-ED search and detail responses to extract book metadata."""
     products = search_data.get("products") or []
     if not products or not isinstance(products[0], dict):
@@ -167,11 +172,11 @@ def _fetch_seed_detail(prod_id: str, timeout: float) -> Optional[dict]:
 def _fetch_seed(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
     try:
         s_data = _fetch_json(f"{SEED_SEARCH_URL}?filter.keyword={isbn}&option.limit=1&option.skip=0", timeout)
-        products = s_data.get("products") or []
-        if not products or not isinstance(products[0], dict):
+        prods = s_data.get("products") or []
+        if not prods or not isinstance(prods[0], dict):
             return None
-        pp = ((products[0].get("physicalProduct") or {}).get("physicalProduct") or {})
-        d_data = _fetch_seed_detail(products[0].get("id") or pp.get("id"), timeout)
+        pp = ((prods[0].get("physicalProduct") or {}).get("physicalProduct") or {})
+        d_data = _fetch_seed_detail(prods[0].get("id") or pp.get("id"), timeout)
         return parse_seed_product(s_data, d_data, isbn)
     except Exception:
         return None
@@ -187,9 +192,5 @@ def _fetch_openlibrary(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
 
 def fetch_remote_providers(isbn: str, timeout: float = 5.0) -> Optional[Dict[str, str]]:
     """Chain remote JSON providers: NLT Primo VE -> SE-ED BFF -> Open Library."""
-    step_timeout = min(timeout, 2.5)
-    return (
-        _fetch_primo(isbn, step_timeout)
-        or _fetch_seed(isbn, step_timeout)
-        or _fetch_openlibrary(isbn, timeout)
-    )
+    step = min(timeout, 2.5)
+    return _fetch_primo(isbn, step) or _fetch_seed(isbn, step) or _fetch_openlibrary(isbn, timeout)
