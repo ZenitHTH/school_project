@@ -11,6 +11,7 @@ SEED_SEARCH_URL = "https://mp-api.se-ed.com/web-bff/search-product"
 SEED_DETAIL_URL = "https://mp-api.se-ed.com/web-bff/physical-product"
 OPENLIBRARY_URL = "https://openlibrary.org/api/books"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+DISALLOWED_PREFIXES = ("ผู้เขียน", "สำนักพิมพ์", "ISBN", "ขนาด", "ราคา", "ข้อมูลหนังสือ", "คำค้นหา")
 
 
 def normalize_isbn(raw: str) -> str:
@@ -86,7 +87,7 @@ def _find_next_text(texts: List[str], prefix: str) -> str:
             inline = item[len(prefix):].lstrip(" :\xa0").strip()
             if inline:
                 return inline
-            if idx + 1 < len(texts):
+            if idx + 1 < len(texts) and not texts[idx + 1].startswith(DISALLOWED_PREFIXES):
                 return texts[idx + 1]
     return ""
 
@@ -149,6 +150,13 @@ def _fetch_primo(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
         return None
 
 
+def _fetch_seed_detail(prod_id: str, timeout: float) -> Optional[dict]:
+    try:
+        return _fetch_json(f"{SEED_DETAIL_URL}/{prod_id}", timeout) if prod_id else None
+    except Exception:
+        return None
+
+
 def _fetch_seed(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
     try:
         s_url = f"{SEED_SEARCH_URL}?filter.keyword={isbn}&option.limit=1&option.skip=0"
@@ -158,7 +166,7 @@ def _fetch_seed(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
             return None
         pp = ((products[0].get("physicalProduct") or {}).get("physicalProduct") or {})
         prod_id = products[0].get("id") or pp.get("id")
-        d_data = _fetch_json(f"{SEED_DETAIL_URL}/{prod_id}", timeout) if prod_id else None
+        d_data = _fetch_seed_detail(prod_id, timeout)
         return parse_seed_product(s_data, d_data, isbn)
     except Exception:
         return None
@@ -174,8 +182,9 @@ def _fetch_openlibrary(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
 
 def fetch_remote_providers(isbn: str, timeout: float = 5.0) -> Optional[Dict[str, str]]:
     """Chain remote JSON providers: NLT Primo VE -> SE-ED BFF -> Open Library."""
+    step_timeout = min(timeout, 2.5)
     return (
-        _fetch_primo(isbn, timeout)
-        or _fetch_seed(isbn, timeout)
+        _fetch_primo(isbn, step_timeout)
+        or _fetch_seed(isbn, step_timeout)
         or _fetch_openlibrary(isbn, timeout)
     )

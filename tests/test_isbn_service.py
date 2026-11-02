@@ -127,6 +127,7 @@ def test_seed_helpers_and_parser():
     assert _find_next_text(["a", "b"], "a") == "b"
     assert _find_next_text(["a"], "a") == ""
     assert _find_next_text(["x"], "a") == ""
+    assert _find_next_text(["ผู้เขียน", "สำนักพิมพ์"], "ผู้เขียน") == ""
     assert _find_next_text(["ผู้เขียน : สมชาย"], "ผู้เขียน") == "สมชาย"
     assert _find_next_text(["สำนักพิมพ์:\xa0หจก.ซีเอ็ด"], "สำนักพิมพ์") == "หจก.ซีเอ็ด"
 
@@ -286,6 +287,27 @@ def test_fetch_seed_with_valid_json(monkeypatch):
 
     monkeypatch.setattr("core.library.services.isbn_providers._fetch_json", lambda url, timeout: {"products": []})
     assert _fetch_seed("9786167706603", 1.0) is None
+
+    def fake_detail_error(url, timeout=5.0):
+        if "search-product" in url:
+            return {
+                "products": [{
+                    "id": "prod123",
+                    "physicalProduct": {
+                        "physicalProduct": {
+                            "name": "Hi-Speed Math",
+                            "variants": [{"sku": "9786167706603"}]
+                        }
+                    }
+                }]
+            }
+        raise urllib.error.URLError("detail error")
+
+    monkeypatch.setattr("core.library.services.isbn_providers._fetch_json", fake_detail_error)
+    book_partial = _fetch_seed("9786167706603", 1.0)
+    assert book_partial is not None
+    assert book_partial["title"] == "Hi-Speed Math"
+    assert book_partial["author"] == ""
 
 
 def test_service_cache_and_save_cache():
