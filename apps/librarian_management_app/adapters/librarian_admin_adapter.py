@@ -11,6 +11,7 @@ from core.shared.mock_qt import (
 
 from core.library.services.catalog_service import CatalogService
 from core.library.services.fine_service import FineService
+from core.library.services.isbn_service import IsbnLookupService
 from core.library.services.loan_service import LoanService
 from core.library.services.reservation_service import ReservationService
 from core.student.services.student_service import StudentService
@@ -22,6 +23,9 @@ from data.sync.apply import apply_sync
 class LibrarianAdminAdapter(QObject):
     """Bridge between PySide6/QML and core services for Librarian Management App."""
 
+    isbnLookupStarted = Signal()
+    isbnLookupCompleted = Signal(str)
+
     def __init__(self, conn: sqlite3.Connection):
         super().__init__()
         self.conn = conn
@@ -30,6 +34,7 @@ class LibrarianAdminAdapter(QObject):
         self.res_svc = ReservationService(conn)
         self.student_svc = StudentService(conn)
         self.loan_svc = LoanService(conn, fine_service=self.fine_svc, reservation_service=self.res_svc, student_service=self.student_svc)
+        self.isbn_svc = IsbnLookupService(conn)
 
     @Slot(result=bool)
     def isFirstLaunch(self) -> bool:
@@ -398,5 +403,16 @@ class LibrarianAdminAdapter(QObject):
         res = self.catalog_svc.adjust_total_copies(book_id, target_total, actor="Librarian")
         data = _sanitize_for_qml(res.data) if res.ok else None
         return json.dumps({"ok": res.ok, "error": res.error, "data": data})
+
+    @Slot(str, result=str)
+    def fetchIsbnMetadata(self, isbn: str) -> str:
+        """Fetch book metadata by ISBN for autofill in registration views."""
+        self.isbnLookupStarted.emit()
+        res = self.isbn_svc.lookup(isbn)
+        data = _sanitize_for_qml(res.data) if res.ok else None
+        payload = json.dumps({"ok": res.ok, "error": res.error, "data": data})
+        self.isbnLookupCompleted.emit(payload)
+        return payload
+
 
 

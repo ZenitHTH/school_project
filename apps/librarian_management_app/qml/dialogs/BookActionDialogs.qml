@@ -4,6 +4,7 @@ import QtQuick.Layouts 1.15
 
 Item {
     id: root
+    objectName: "bookDialogs"
     anchors.fill: parent
 
     property var rootWindow: null
@@ -11,8 +12,10 @@ Item {
     property alias addBookDialog: addBookDialog
     property alias newBookTitle: newBookTitle
     property alias newBookIsbn: newBookIsbn
+    property alias btnDialogFetchIsbn: btnDialogFetchIsbn
     property alias newBookAuthor: newBookAuthor
     property alias newBookBarcodes: newBookBarcodes
+    property alias addBookStatusText: addBookStatusText
 
     property alias addCopiesDialog: addCopiesDialog
     property alias addCopiesCountInput: addCopiesCountInput
@@ -136,6 +139,34 @@ Item {
         }
     }
 
+    function fetchDialogIsbnAndAutofill() {
+        var rawIsbn = newBookIsbn.text.trim()
+        if (!rawIsbn) {
+            addBookStatusText.text = "✗ cannot fetch data"
+            return
+        }
+        btnDialogFetchIsbn.enabled = false
+        addBookStatusText.text = "กำลังค้นหา..."
+        try {
+            var res = JSON.parse(librarianAdmin.fetchIsbnMetadata(rawIsbn))
+            if (!res.ok || !res.data) {
+                addBookStatusText.text = "✗ cannot fetch data"
+                return
+            }
+            if (!newBookTitle.text.trim() && res.data.title) {
+                newBookTitle.text = res.data.title
+            }
+            if (!newBookAuthor.text.trim() && res.data.author) {
+                newBookAuthor.text = res.data.author
+            }
+            addBookStatusText.text = "✓ ดึงข้อมูลสำเร็จ"
+        } catch (e) {
+            addBookStatusText.text = "✗ cannot fetch data"
+        } finally {
+            btnDialogFetchIsbn.enabled = true
+        }
+    }
+
     // 1. Add Book Dialog
     Dialog {
         id: addBookDialog
@@ -146,12 +177,29 @@ Item {
         standardButtons: Dialog.Ok | Dialog.Cancel
         anchors.centerIn: parent
         width: Math.min(480, rootWindow ? rootWindow.width - 40 : 450)
+        onAboutToShow: addBookStatusText.text = ""
 
         ColumnLayout {
             TextField { id: newBookTitle; objectName: "newBookTitle"; placeholderText: "ชื่อหนังสือ" }
-            TextField { id: newBookIsbn; objectName: "newBookIsbn"; placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)" }
+            RowLayout {
+                spacing: 8
+                TextField { id: newBookIsbn; objectName: "newBookIsbn"; placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)" }
+                Button {
+                    id: btnDialogFetchIsbn
+                    objectName: "btnDialogFetchIsbn"
+                    text: "🔍 ดึงข้อมูล"
+                    onClicked: root.fetchDialogIsbnAndAutofill()
+                }
+            }
             TextField { id: newBookAuthor; objectName: "newBookAuthor"; placeholderText: "ผู้แต่ง" }
             TextField { id: newBookBarcodes; objectName: "newBookBarcodes"; placeholderText: "จำนวนเล่ม (เช่น 2) หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"; text: "1" }
+            Text {
+                id: addBookStatusText
+                objectName: "addBookStatusText"
+                visible: text !== ""
+                color: text.startsWith("✓") ? "#16a34a" : "#dc2626"
+                font.pixelSize: 12
+            }
         }
 
         onAccepted: {

@@ -15,6 +15,7 @@ Rectangle {
     property alias genBookTitle: genBookTitle
     property alias genBookAuthor: genBookAuthor
     property alias genBookIsbn: genBookIsbn
+    property alias btnFetchIsbn: btnFetchIsbn
     property alias genCategoryCombo: genCategoryCombo
     property alias genCategoryModel: genCategoryModel
     property alias genShelfLocation: genShelfLocation
@@ -214,6 +215,37 @@ Rectangle {
         }
     }
 
+    function fetchIsbnAndAutofill() {
+        var rawIsbn = genBookIsbn.text.trim()
+        if (!rawIsbn) {
+            genStatusMessage.text = "✗ cannot fetch data"
+            return
+        }
+        btnFetchIsbn.enabled = false
+        btnExecuteGenerate.enabled = false
+        genStatusMessage.text = "กำลังค้นหา..."
+        try {
+            var res = JSON.parse(librarianAdmin.fetchIsbnMetadata(rawIsbn))
+            if (!res.ok || !res.data) {
+                genStatusMessage.text = "✗ cannot fetch data"
+                return
+            }
+            if (!genBookTitle.text.trim() && res.data.title) {
+                genBookTitle.text = res.data.title
+            }
+            if (!genBookAuthor.text.trim() && res.data.author) {
+                genBookAuthor.text = res.data.author
+            }
+            genStatusMessage.text = "✓ ดึงข้อมูลสำเร็จ"
+            updateGenPreview()
+        } catch (e) {
+            genStatusMessage.text = "✗ cannot fetch data"
+        } finally {
+            btnFetchIsbn.enabled = true
+            btnExecuteGenerate.enabled = true
+        }
+    }
+
     function executeGenerateAndSave() {
         var count = parseInt(genCopyCountInput.text) || 1
         if (count <= 0) count = 1
@@ -404,15 +436,38 @@ Rectangle {
                             }
 
                             Text { text: "ISBN จากสำนักพิมพ์"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-                            TextField {
-                                id: genBookIsbn
-                                objectName: "genBookIsbn"
+                            RowLayout {
                                 Layout.fillWidth: true
-                                placeholderText: "เช่น 978-616-00-1234-5"
-                                selectByMouse: true
-                                padding: 8
-                                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
-                                onTextChanged: barcodeGenScreen.updateGenPreview()
+                                spacing: 8
+                                TextField {
+                                    id: genBookIsbn
+                                    objectName: "genBookIsbn"
+                                    Layout.fillWidth: true
+                                    placeholderText: "เช่น 978-616-00-1234-5"
+                                    selectByMouse: true
+                                    padding: 8
+                                    background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                    onTextChanged: barcodeGenScreen.updateGenPreview()
+                                }
+                                Button {
+                                    id: btnFetchIsbn
+                                    objectName: "btnFetchIsbn"
+                                    text: "🔍 ดึงข้อมูล"
+                                    implicitHeight: 36
+                                    background: Rectangle {
+                                        color: btnFetchIsbn.down ? "#1d4ed8" : (btnFetchIsbn.hovered ? "#2563eb" : "#3b82f6")
+                                        radius: 4
+                                    }
+                                    contentItem: Text {
+                                        text: btnFetchIsbn.text
+                                        color: "#ffffff"
+                                        font.bold: true
+                                        font.pixelSize: 13
+                                        horizontalAlignment: Text.AlignHCenter
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                    onClicked: barcodeGenScreen.fetchIsbnAndAutofill()
+                                }
                             }
 
                             RowLayout {

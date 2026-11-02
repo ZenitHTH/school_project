@@ -68,3 +68,16 @@ Generates printable A4 PDF sheets with barcode labels and dashed cut lines.
 - **Pure-Stdlib Vector Engine**: Zero external dependencies (no `python-barcode`, `Pillow`, or `reportlab`). Emits direct vector PDF 1.4 rectangles (`re f`) and dashed cut guides (`[3 3] 0 d`).
 - **Grid Layout**: Configurable 3 columns × 8 rows (24 labels per A4 page).
 - **Format**: ISO/IEC 15417 Code128-B barcodes with human-readable text labels and PDF delimiter escaping.
+
+---
+
+## 7. ISBN Lookup Service (`core.library.services.isbn_service`)
+Provides ISBN validation and metadata retrieval for book registration.
+- **Pure-Stdlib HTTP Scraper**: Scrapes National Library of Thailand (NLT) search endpoint (`https://e-service.nlt.go.th/ISBNReq/ListSearchPub`) using `urllib.request` and `html.parser` without external dependencies.
+- **Two-Tier Authoritative Local Lookup**:
+  1. Authoritative local `books` table checked first (`ORDER BY active DESC, book_id DESC`), ensuring active copies take precedence and edits in the catalog are never shadowed by stale cache entries.
+  2. Persistent SQLite `isbn_cache` table queried on local catalog miss.
+  3. Queries NLT endpoint on local miss and populates `isbn_cache` upon successful retrieval.
+- **Safe Overwrite Policy & Re-entrancy Protection**: QML autofill never overwrites existing non-blank `Title` or `Author` text entered by the librarian. Input and generation actions are disabled during event-loop pump (`ExcludeUserInputEvents`) to prevent re-entrant submissions.
+- **Error Handling**: Network timeouts, non-book tables, redirects, or malformed inputs return `Err("cannot fetch data")` safely trapped in a Rust-style `Result[Dict[str, str], str]`.
+

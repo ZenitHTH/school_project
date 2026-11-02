@@ -152,5 +152,19 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Decoupled packaging shell scripts (`build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`) and PyInstaller `.spec` files from hardcoded version literals.
 - Maintained 100% test coverage with 224 unit and UI tests.
 
+## [2026-11-02] feat | ISBN Metadata Lookup & Non-Overwriting Auto-fill
+- Implemented `IsbnLookupService` (`core/library/services/isbn_service.py`) supporting ISBN-10/13 normalization, validation, SQLite cache (`isbn_cache` and `books` table fallback), and National Library of Thailand (NLT) web scraping using pure standard library (`urllib.request` + `html.parser`).
+- Exposed `LibrarianAdminAdapter.fetchIsbnMetadata` slot returning sanitized JSON results.
+- Added `[🔍 ดึงข้อมูล]` action buttons in `BarcodeGeneratorView.qml` (Tab 6) and `BookActionDialogs.qml` (`addBookDialog`) with non-overwriting autofill (preserves existing user-typed Title/Author).
+- Added comprehensive unit tests in `tests/test_isbn_service.py` and UI tests in `tests/test_ui_librarian.py`.
+
+## [2026-11-02] fix | ISBN Scrutinize Hardening & Authoritative Precedence
+- Prioritized authoritative `books` table query over `isbn_cache` in `core/library/services/isbn_service.py` with `ORDER BY active DESC, book_id DESC LIMIT 1`. Local catalog hits are directly returned without copying into `isbn_cache`, preventing stale cache from shadowing catalog edits.
+- Added `QEventLoop.ExcludeUserInputEvents` to `QCoreApplication.processEvents()` during future polling and disabled `btnExecuteGenerate` during `fetchIsbnAndAutofill` in `BarcodeGeneratorView.qml` to prevent re-entrancy.
+- Uppercased ISBN-10 check digit `'X'` and normalized hyphens/spaces within `normalize_isbn` and `save_cache`.
+- Maintained Clean Code standards (<200 lines file cap, <=20 lines per function) and 100% test coverage with expanded tests in `tests/test_isbn_service.py`.
+
+
+
 
 

@@ -41,6 +41,13 @@ All SQLite database connections use `get_connection(...)` from `data/db.py`, whi
 - **`fines`**: Overdue fines ledger.
   - `fine_id` (INTEGER PRIMARY KEY AUTOINCREMENT).
   - `loan_id`, `student_id`, `amount`, `status` (`'unpaid'`, `'paid'`).
+- **`isbn_cache`**: Cached book metadata scraped from National Library of Thailand (NLT) or local catalog.
+  - `isbn` (TEXT PRIMARY KEY): Normalized 10 or 13-digit ISBN string.
+  - `title` (TEXT NOT NULL): Scraped or entered title.
+  - `author` (TEXT): Author name or editorial committee.
+  - `publisher` (TEXT): Publishing house or organization.
+  - `published_year` (TEXT): Year of publication if available.
+  - `created_at` (TIMESTAMP DEFAULT CURRENT_TIMESTAMP).
 - **`categories`**: Book classifications.
 - **`activity_logs`**: System audit trail.
 - **`sync_state`**: Key-value store for sync versioning, hashes, and first-launch status.
