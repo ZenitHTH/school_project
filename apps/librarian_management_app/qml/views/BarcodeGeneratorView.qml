@@ -216,13 +216,29 @@ Rectangle {
         }
     }
 
+    function isArabicIsbn(input) {
+        if (!input || !input.trim()) return false
+        var clean = input.replace(/[-\s]/g, "")
+        if (!clean) return false
+        return /^[0-9]+$/.test(clean) || (/^[0-9]{9}[xX]$/.test(clean))
+    }
+
+    function applyAutofillMetadata(data) {
+        if (data.title) genBookTitle.text = data.title
+        if (data.author !== undefined) genBookAuthor.text = data.author
+        genStatusMessage.text = "✓ ดึงข้อมูลสำเร็จ"
+        updateGenPreview()
+    }
+
     function fetchIsbnAndAutofill() {
-        if (isbnAutoFetchTimer.running) {
-            isbnAutoFetchTimer.stop()
-        }
+        if (isbnAutoFetchTimer.running) isbnAutoFetchTimer.stop()
         var rawIsbn = genBookIsbn.text.trim()
         if (!rawIsbn) {
             genStatusMessage.text = "✗ cannot fetch data"
+            return
+        }
+        if (!isArabicIsbn(rawIsbn)) {
+            genStatusMessage.text = "✗ ลืมเปลี่ยนภาษา"
             return
         }
         btnFetchIsbn.enabled = false
@@ -231,17 +247,10 @@ Rectangle {
         try {
             var res = JSON.parse(librarianAdmin.fetchIsbnMetadata(rawIsbn))
             if (!res.ok || !res.data) {
-                genStatusMessage.text = "✗ cannot fetch data"
+                genStatusMessage.text = res.error === "ลืมเปลี่ยนภาษา" ? "✗ ลืมเปลี่ยนภาษา" : "✗ cannot fetch data"
                 return
             }
-            if (res.data.title) {
-                genBookTitle.text = res.data.title
-            }
-            if (res.data.author !== undefined) {
-                genBookAuthor.text = res.data.author
-            }
-            genStatusMessage.text = "✓ ดึงข้อมูลสำเร็จ"
-            updateGenPreview()
+            applyAutofillMetadata(res.data)
         } catch (e) {
             genStatusMessage.text = "✗ cannot fetch data"
         } finally {
@@ -475,6 +484,13 @@ Rectangle {
                                     }
                                     onTextChanged: {
                                         barcodeGenScreen.updateGenPreview()
+                                        if (text.trim() !== "" && !barcodeGenScreen.isArabicIsbn(text)) {
+                                            genStatusMessage.text = "✗ ลืมเปลี่ยนภาษา"
+                                            return
+                                        }
+                                        if (genStatusMessage.text === "✗ ลืมเปลี่ยนภาษา") {
+                                            genStatusMessage.text = ""
+                                        }
                                         var clean = text.replace(/[-\s]/g, "")
                                         if (chkAutoFetchIsbn.checked && clean.length === 13) {
                                             isbnAutoFetchTimer.restart()

@@ -8,6 +8,7 @@ from typing import Dict, Optional
 from core.library.services.isbn_providers import (
     _fetch_json,
     fetch_remote_providers,
+    is_arabic_isbn,
     is_valid_isbn,
     normalize_isbn,
     parse_nlt_primo_json,
@@ -23,6 +24,7 @@ if HAVE_QT:
 __all__ = [
     "normalize_isbn",
     "is_valid_isbn",
+    "is_arabic_isbn",
     "_fetch_json",
     "parse_nlt_primo_json",
     "parse_seed_product",
@@ -109,9 +111,12 @@ class IsbnLookupService:
             return local
         return self._query_cache(isbn)
 
-    def lookup(self, raw_isbn: str) -> Result[Dict[str, str], str]:
+    def lookup(self, raw_isbn: Optional[str]) -> Result[Dict[str, str], str]:
         """Lookup book metadata by ISBN from books, cache, or remote providers."""
-        isbn = normalize_isbn(raw_isbn)
+        clean_raw = (raw_isbn or "").strip()
+        if clean_raw and not is_arabic_isbn(clean_raw):
+            return Err("ลืมเปลี่ยนภาษา")
+        isbn = normalize_isbn(clean_raw)
         if not is_valid_isbn(isbn):
             return Err("cannot fetch data")
         local_data = self._lookup_local(isbn)

@@ -6,16 +6,22 @@ import pytest
 
 from core.library.services.isbn_providers import (
     _clean_primo_field,
+    _collect_label_tokens,
     _collect_lexical_texts,
+    _collect_multi_label_tokens,
+    _collect_single_label_token,
     _extract_primo_text,
     _extract_seed_detail,
     _fetch_json,
     _fetch_openlibrary,
     _fetch_primo,
     _fetch_seed,
+    _find_multi_text,
     _find_next_text,
+    _find_single_text,
     _match_seed_sku,
     fetch_remote_providers,
+    is_arabic_isbn,
     is_valid_isbn,
     normalize_isbn,
     parse_nlt_primo_json,
@@ -36,6 +42,24 @@ def test_normalize_and_validate_isbn():
     assert is_valid_isbn("020161622A") is False
     assert is_valid_isbn("9786167706955") is True
     assert is_valid_isbn("SMTE-00001-01") is False
+    assert is_valid_isbn("๑๒๓๔๕๖๗๘๙๐๑๒๓") is False
+
+
+def test_is_arabic_isbn():
+    assert is_arabic_isbn("9786167706955") is True
+    assert is_arabic_isbn("978-616-7706-95-5") is True
+    assert is_arabic_isbn("020161622X") is True
+    assert is_arabic_isbn("0-201-61622-x") is True
+    assert is_arabic_isbn("ตึค-ภุภ-จจ-๑๒๓๔-๕") is False
+    assert is_arabic_isbn("ตึคภุภ") is False
+    assert is_arabic_isbn("๑๒๓๔๕๖๗๘๙๐") is False
+    assert is_arabic_isbn("abc") is False
+    assert is_arabic_isbn("978-616-abc") is False
+    assert is_arabic_isbn("020161622Y") is False
+    assert is_arabic_isbn("") is False
+    assert is_arabic_isbn("   ") is False
+    assert is_arabic_isbn("-") is False
+    assert is_arabic_isbn(" - ") is False
 
 
 def test_fetch_json(monkeypatch):
@@ -133,6 +157,10 @@ def test_seed_helpers_and_parser():
     assert _find_next_text(["ผู้เขียน : สมชาย"], "ผู้เขียน") == "สมชาย"
     assert _find_next_text(["สำนักพิมพ์:\xa0หจก.ซีเอ็ด"], "สำนักพิมพ์") == "หจก.ซีเอ็ด"
     assert _find_next_text(["สำนักพิมพ์ :", "รัชพล", "เดือนปีที่พิมพ์ :", "1/2025"], "สำนักพิมพ์", allow_multi=False) == "รัชพล"
+    assert _find_single_text(["สำนักพิมพ์ :", "รัชพล", "เดือนปีที่พิมพ์ :", "1/2025"], "สำนักพิมพ์") == "รัชพล"
+    assert _find_multi_text(["ผู้เขียน", ":", "หมอ ก.", ",", "หมอ ข."], "ผู้เขียน") == "หมอ ก., หมอ ข."
+    assert _collect_single_label_token(["-", "เดี่ยว", "คู่"]) == "เดี่ยว"
+    assert _collect_multi_label_tokens(["-", "หนึ่ง", ",", "สอง"]) == "หนึ่ง, สอง"
 
     assert _extract_seed_detail(None) == ("", "")
     assert _extract_seed_detail({}) == ("", "")
@@ -439,6 +467,27 @@ def test_service_operational_error_and_timeout(monkeypatch):
     conn.close()
 
 
+def test_lookup_thai_keyboard_warning():
+    conn = sqlite3.connect(":memory:")
+    svc = IsbnLookupService(conn)
+    res_thai = svc.lookup("ตึค-ภุภ")
+    assert res_thai.ok is False
+    assert res_thai.error == "ลืมเปลี่ยนภาษา"
+
+    res_thai_num = svc.lookup("๑๒๓๔๕")
+    assert res_thai_num.ok is False
+    assert res_thai_num.error == "ลืมเปลี่ยนภาษา"
+
+    res_empty = svc.lookup("")
+    assert res_empty.ok is False
+    assert res_empty.error == "cannot fetch data"
+
+    res_none = svc.lookup(None)
+    assert res_none.ok is False
+    assert res_none.error == "cannot fetch data"
+    conn.close()
+
+
 def test_adapter_fetch_isbn_metadata_and_signals(tmp_path, monkeypatch):
     from data.db import get_connection
     from data.migrate import apply_migrations
@@ -471,6 +520,11 @@ def test_adapter_fetch_isbn_metadata_and_signals(tmp_path, monkeypatch):
     assert payload["ok"] is True
     assert started is True
     assert completed is True
+
+    thai_json = adapter.fetchIsbnMetadata("ตึค-ภุภ")
+    thai_payload = json.loads(thai_json)
+    assert thai_payload["ok"] is False
+    assert thai_payload["error"] == "ลืมเปลี่ยนภาษา"
 
     bad_json = adapter.fetchIsbnMetadata("invalid")
     assert json.loads(bad_json)["ok"] is False

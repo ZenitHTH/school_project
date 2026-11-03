@@ -140,13 +140,28 @@ Item {
         }
     }
 
+    function isArabicIsbn(input) {
+        if (!input || !input.trim()) return false
+        var clean = input.replace(/[-\s]/g, "")
+        if (!clean) return false
+        return /^[0-9]+$/.test(clean) || (/^[0-9]{9}[xX]$/.test(clean))
+    }
+
+    function applyDialogAutofill(data) {
+        if (data.title) newBookTitle.text = data.title
+        if (data.author !== undefined) newBookAuthor.text = data.author
+        addBookStatusText.text = "✓ ดึงข้อมูลสำเร็จ"
+    }
+
     function fetchDialogIsbnAndAutofill() {
-        if (dialogIsbnAutoFetchTimer.running) {
-            dialogIsbnAutoFetchTimer.stop()
-        }
+        if (dialogIsbnAutoFetchTimer.running) dialogIsbnAutoFetchTimer.stop()
         var rawIsbn = newBookIsbn.text.trim()
         if (!rawIsbn) {
             addBookStatusText.text = "✗ cannot fetch data"
+            return
+        }
+        if (!isArabicIsbn(rawIsbn)) {
+            addBookStatusText.text = "✗ ลืมเปลี่ยนภาษา"
             return
         }
         btnDialogFetchIsbn.enabled = false
@@ -154,16 +169,10 @@ Item {
         try {
             var res = JSON.parse(librarianAdmin.fetchIsbnMetadata(rawIsbn))
             if (!res.ok || !res.data) {
-                addBookStatusText.text = "✗ cannot fetch data"
+                addBookStatusText.text = res.error === "ลืมเปลี่ยนภาษา" ? "✗ ลืมเปลี่ยนภาษา" : "✗ cannot fetch data"
                 return
             }
-            if (res.data.title) {
-                newBookTitle.text = res.data.title
-            }
-            if (res.data.author !== undefined) {
-                newBookAuthor.text = res.data.author
-            }
-            addBookStatusText.text = "✓ ดึงข้อมูลสำเร็จ"
+            applyDialogAutofill(res.data)
         } catch (e) {
             addBookStatusText.text = "✗ cannot fetch data"
         } finally {
@@ -214,6 +223,13 @@ Item {
                         }
                     }
                     onTextChanged: {
+                        if (text.trim() !== "" && !root.isArabicIsbn(text)) {
+                            addBookStatusText.text = "✗ ลืมเปลี่ยนภาษา"
+                            return
+                        }
+                        if (addBookStatusText.text === "✗ ลืมเปลี่ยนภาษา") {
+                            addBookStatusText.text = ""
+                        }
                         var clean = text.replace(/[-\s]/g, "")
                         if (chkDialogAutoFetchIsbn.checked && clean.length === 13) {
                             dialogIsbnAutoFetchTimer.restart()

@@ -86,5 +86,9 @@ Provides ISBN validation and metadata retrieval for book registration.
   - **Error Preservation**: When lookup fails (`cannot fetch data`), user-entered text is preserved intact without deletion or corruption.
   - **Auto-Fetch on Scan Option**: Supported via toggle checkbox (`chkAutoFetchIsbn` in `BarcodeGeneratorView`, `chkDialogAutoFetchIsbn` in `BookActionDialogs`, checked by default). Triggers autofill automatically on scanner enter (`onAccepted`) or when 13 digits are scanned (300ms debounce), while keeping manual `[🔍 ดึงข้อมูล]` buttons accessible.
   - Input and generation actions are disabled during event-loop pump (`ExcludeUserInputEvents`) to prevent re-entrant submissions.
-- **Error Handling**: Network timeouts, non-book tables, redirects, or malformed inputs return `Err("cannot fetch data")` safely trapped in a Rust-style `Result[Dict[str, str], str]`.
+- **Arabic Digit Validation & "ลืมเปลี่ยนภาษา" Layout Protection**:
+  - Barcode scanners or manual entry when typing under Thai keyboard layout (Kedmanee: `'1'` -> `'ๅ'`, `'7'` -> `'ึ'`, `'8'` -> `'ค'`, `'9'` -> `'ต'`, etc.) or Thai numerals (`๑-๙`) are detected by `is_arabic_isbn` in `isbn_providers.py`.
+  - Non-Arabic characters immediately fail validation with `Err("ลืมเปลี่ยนภาษา")` before any local database or remote network requests are dispatched.
+  - In QML views (`BarcodeGeneratorView.qml` and `BookActionDialogs.qml`), `onTextChanged` and fetch handlers display `"✗ ลืมเปลี่ยนภาษา"` to immediately guide librarians to toggle their keyboard layout without triggering remote fetch timeouts.
+- **Error Handling**: Network timeouts, non-book tables, redirects, or malformed inputs return `Err("cannot fetch data")` (or `Err("ลืมเปลี่ยนภาษา")` for non-Arabic characters) safely trapped in a Rust-style `Result[Dict[str, str], str]`.
 

@@ -4,15 +4,55 @@ import json
 import re
 import ssl
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, Optional
+
+from core.library.services.seed_detail_parser import (
+    DISALLOWED_PREFIXES,
+    _collect_label_tokens,
+    _collect_lexical_texts,
+    _collect_multi_label_tokens,
+    _collect_single_label_token,
+    _extract_seed_detail,
+    _find_multi_text,
+    _find_next_text,
+    _find_single_text,
+    _is_label,
+)
 
 NLT_PRIMO_URL = "https://nlt.primo.exlibrisgroup.com/primaws/rest/pub/pnxs"
 SEED_SEARCH_URL = "https://mp-api.se-ed.com/web-bff/search-product"
 SEED_DETAIL_URL = "https://mp-api.se-ed.com/web-bff/physical-product"
 OPENLIBRARY_URL = "https://openlibrary.org/api/books"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-DISALLOWED_PREFIXES = ("ผู้เขียน", "สำนักพิมพ์", "ISBN", "ขนาด", "ราคา", "ข้อมูลหนังสือ", "คำค้นหา", "เนื้อหา", "สารบัญ", "รหัสสินค้า", "เดือนปี", "ชนิดกระดาษ", "เนื้อในพิมพ์", "น้ำหนัก")
 UNKNOWN_PUBS = ("-ไม่ปรากฏสำนักพิมพ์", "ไม่ปรากฏสำนักพิมพ์", "ม.ป.พ.", "ม.ป.ท.")
+
+__all__ = [
+    "normalize_isbn",
+    "is_valid_isbn",
+    "is_arabic_isbn",
+    "parse_nlt_primo_json",
+    "parse_seed_product",
+    "parse_openlibrary_json",
+    "fetch_remote_providers",
+    "_fetch_json",
+    "_fetch_primo",
+    "_fetch_seed",
+    "_fetch_openlibrary",
+    "_match_seed_sku",
+    "_clean_primo_field",
+    "_extract_primo_text",
+    "_collect_lexical_texts",
+    "_is_label",
+    "_collect_single_label_token",
+    "_collect_multi_label_tokens",
+    "_collect_label_tokens",
+    "_find_single_text",
+    "_find_multi_text",
+    "_find_next_text",
+    "_extract_seed_detail",
+    "DISALLOWED_PREFIXES",
+    "UNKNOWN_PUBS",
+]
 
 
 def normalize_isbn(raw: str) -> str:
@@ -21,10 +61,24 @@ def normalize_isbn(raw: str) -> str:
 
 
 def is_valid_isbn(isbn: str) -> bool:
-    """Validate whether normalized ISBN is a valid 10 or 13-character string."""
+    """Validate whether normalized ISBN is a valid 10 or 13-character ASCII string."""
+    if not isbn or not isbn.isascii():
+        return False
     if len(isbn) == 13:
         return isbn.isdigit()
     return len(isbn) == 10 and isbn[:-1].isdigit() and (isbn[-1].isdigit() or isbn[-1] == "X")
+
+
+def is_arabic_isbn(raw: str) -> bool:
+    """Validate that raw ISBN contains only Arabic digits and optional ISBN-10 check digit."""
+    if not raw or not raw.strip():
+        return False
+    clean = "".join(raw.split()).replace("-", "")
+    if not clean:
+        return False
+    if all(c in "0123456789" for c in clean):
+        return True
+    return len(clean) == 10 and all(c in "0123456789" for c in clean[:9]) and clean[9] in "Xx"
 
 
 def _fetch_json(url: str, timeout: float = 5.0) -> dict:
@@ -61,66 +115,6 @@ def parse_nlt_primo_json(data: dict, isbn: str) -> Optional[Dict[str, str]]:
     author = (_extract_primo_text(addata, "au", "creatorfull") or _extract_primo_text(display, "creator")).rstrip(".").strip()
     publisher = _extract_primo_text(addata, "pub") or _extract_primo_text(display, "publisher")
     return {"isbn": isbn, "title": title, "author": author or publisher, "publisher": publisher}
-
-
-def _collect_lexical_texts(val: Any, texts: List[str]) -> None:
-    if isinstance(val, dict):
-        text = val.get("text")
-        if isinstance(text, str) and text.strip():
-            texts.append(text.strip())
-        for child in val.values():
-            _collect_lexical_texts(child, texts)
-    elif isinstance(val, list):
-        for item in val:
-            _collect_lexical_texts(item, texts)
-
-
-def _is_label(tok: str) -> bool:
-    clean = tok.replace("\xa0", "").strip()
-    return clean.endswith(":") or clean.startswith(DISALLOWED_PREFIXES)
-
-
-def _collect_label_tokens(following: List[str], allow_multi: bool = True) -> str:
-    parts: List[str] = []
-    expect_value = True
-    for raw in following:
-        token = raw.strip()
-        if not parts and token in (":", "-", ""):
-            continue
-        if not token or _is_label(token):
-            break
-        if token == ",":
-            expect_value = allow_multi
-            continue
-        if not expect_value:
-            break
-        parts.append(token)
-        if not allow_multi:
-            break
-        expect_value = False
-    return ", ".join(parts)
-
-
-def _find_next_text(texts: List[str], prefix: str, allow_multi: bool = True) -> str:
-    for idx, item in enumerate(texts):
-        if item.startswith(prefix):
-            inline = item[len(prefix):].lstrip(" :\xa0-").strip()
-            val = inline or _collect_label_tokens(texts[idx + 1:], allow_multi)
-            if val:
-                return val
-    return ""
-
-
-def _extract_seed_detail(detail_data: Optional[dict]) -> Tuple[str, str]:
-    detail_str = ((detail_data or {}).get("physicalProduct") or {}).get("detail", "")
-    if not isinstance(detail_str, str) or not detail_str:
-        return "", ""
-    try:
-        texts: List[str] = []
-        _collect_lexical_texts(json.loads(detail_str), texts)
-        return _find_next_text(texts, "ผู้เขียน"), _find_next_text(texts, "สำนักพิมพ์", False)
-    except Exception:
-        return "", ""
 
 
 def _match_seed_sku(variants: list, isbn: str) -> bool:

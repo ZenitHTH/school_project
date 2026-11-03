@@ -957,12 +957,51 @@ def test_dialog_isbn_autofill_overwrite_and_options(lib_ui, monkeypatch):
     assert "cannot fetch data" in status_text.property("text")
 
 
+def test_isbn_thai_keyboard_warning(lib_ui, monkeypatch):
+    win = lib_ui["window"]
+    from PySide6.QtCore import QObject
+
+    barcode_view = win.findChild(QObject, "barcodeGenScreen")
+    assert barcode_view is not None
+
+    isbn_input = win.findChild(QObject, "genBookIsbn")
+    status_msg = win.findChild(QObject, "genStatusMessage")
+
+    isbn_input.setProperty("text", "ตึคภุภ")
+    assert status_msg.property("text") == "✗ ลืมเปลี่ยนภาษา"
+
+    called_remote = False
+    monkeypatch.setattr(
+        "core.library.services.isbn_service.fetch_remote_providers",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not be called")),
+    )
+    barcode_view.fetchIsbnAndAutofill()
+    assert status_msg.property("text") == "✗ ลืมเปลี่ยนภาษา"
+
+    isbn_input.setProperty("text", "")
+    assert status_msg.property("text") == ""
 
 
+def test_dialog_isbn_thai_keyboard_warning(lib_ui, monkeypatch):
+    win = lib_ui["window"]
+    from PySide6.QtCore import QObject
 
+    dialog_root = win.findChild(QObject, "bookDialogs")
+    assert dialog_root is not None
 
+    isbn_input = win.findChild(QObject, "newBookIsbn")
+    status_text = win.findChild(QObject, "addBookStatusText")
 
+    isbn_input.setProperty("text", "ตึคภุภ")
+    assert status_text.property("text") == "✗ ลืมเปลี่ยนภาษา"
 
+    monkeypatch.setattr(
+        "core.library.services.isbn_service.fetch_remote_providers",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not be called")),
+    )
+    dialog_root.fetchDialogIsbnAndAutofill()
+    assert status_text.property("text") == "✗ ลืมเปลี่ยนภาษา"
 
-
+    isbn_input.setProperty("text", "")
+    assert status_text.property("text") == ""
 

@@ -180,9 +180,14 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Updated `tests/test_spec_exclusions.py` verifying `ci.yml` absence and `release.yml` triggers and Python 3.12 configuration.
 - 100% test pass (238/238 passed).
 
-
-
-
-
-
+## [2026-11-03] feat | Arabic Digit Filtering & "ลืมเปลี่ยนภาษา" Warning for ISBN Lookup
+- Added `is_arabic_isbn` validator in `core/library/services/isbn_providers.py` to ensure only Arabic digits (0-9, hyphens/spaces, and ISBN-10 check digit X) trigger ISBN searches.
+- Extracted `core/library/services/seed_detail_parser.py` helper module adhering to Clean Code file length standard (< 200 lines).
+- Added early guard clause in `IsbnLookupService.lookup` returning `Err("ลืมเปลี่ยนภาษา")` when non-Arabic/Thai characters or Thai numerals (`๑-๙`) are supplied.
+- Updated `BarcodeGeneratorView.qml` and `BookActionDialogs.qml` with `isArabicIsbn` validation:
+  - On `onTextChanged`, immediately shows `"✗ ลืมเปลี่ยนภาษา"` when Thai keyboard layout input is detected without firing debounce fetch timers.
+  - On `fetchIsbnAndAutofill` / `fetchDialogIsbnAndAutofill`, skips remote fetch and retains `"✗ ลืมเปลี่ยนภาษา"`.
+  - Clears warning automatically when text is cleared or corrected.
+- Added comprehensive unit and UI tests in `tests/test_isbn_service.py` and `tests/test_ui_librarian.py`.
+- 100% test pass across full test suite (242/242 passed).
 
