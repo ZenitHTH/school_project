@@ -83,12 +83,30 @@ Rectangle {
                     anchors.fill: parent
                     anchors.margins: 14
                     ColumnLayout {
-                        Layout.preferredWidth: 350
-                        Text { text: model.title; font.bold: true; font.pixelSize: 15; color: "#0f172a" }
-                        Text { text: "ผู้แต่ง: " + (model.author || "-") + " | ISBN: " + (model.isbn || "-"); color: "#64748b"; font.pixelSize: 12 }
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 280
+                        Layout.preferredWidth: 380
+                        spacing: 2
+                        Text {
+                            text: model.title
+                            font.bold: true
+                            font.pixelSize: 15
+                            color: "#0f172a"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
+                        Text {
+                            text: "ผู้แต่ง: " + (model.author || "-") + " | ISBN: " + (model.isbn || "-")
+                            color: "#64748b"
+                            font.pixelSize: 12
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
                     }
                     Text { text: "หมวดหมู่: " + (model.category_name || "-"); color: "#475569"; Layout.preferredWidth: 130 }
-                    Text { text: "มีทั้งหมด: " + model.total_copies + " เล่ม (พร้อมยืม: " + model.available_copies + ")"; color: "#059669"; font.bold: true; Layout.fillWidth: true }
+                    Text { text: "มีทั้งหมด: " + model.total_copies + " เล่ม (พร้อมยืม: " + model.available_copies + ")"; color: "#059669"; font.bold: true; Layout.fillWidth: false; Layout.preferredWidth: 220 }
                     Button {
                         text: "+ เพิ่มเล่ม"
                         onClicked: root.addCopiesRequested(model.book_id, model.title)

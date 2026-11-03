@@ -236,6 +236,25 @@ def add_copies(
     return inserted_ids
 
 
+def _extract_copy_item(row: Any) -> Dict[str, Any]:
+    """Map a query row (sqlite3.Row, dict, or tuple) to a copy breakdown dict."""
+    if hasattr(row, "keys"):
+        copy_id = row["copy_id"]
+        barcode = row["barcode"]
+        status = row["status"]
+        loan_count = row["loan_count"]
+    else:
+        copy_id, barcode, status, loan_count = row[0], row[1], row[2], row[3]
+
+    return {
+        "copy_id": copy_id,
+        "barcode": barcode,
+        "status": status,
+        "loan_count": loan_count,
+        "can_remove": (status == "available" and loan_count == 0),
+    }
+
+
 def get_book_copy_breakdown(conn: sqlite3.Connection, book_id: int) -> Dict[str, Any]:
     """Return count breakdown and copy details for a book."""
     sql = """
@@ -246,24 +265,15 @@ def get_book_copy_breakdown(conn: sqlite3.Connection, book_id: int) -> Dict[str,
         ORDER BY c.copy_id ASC
     """
     rows = conn.execute(sql, (book_id,)).fetchall()
-    copies = []
-    available = sum(1 for r in rows if r["status"] == "available")
-    on_loan = sum(1 for r in rows if r["status"] == "on_loan")
-    for r in rows:
-        st = r["status"]
-        copies.append({
-            "copy_id": r["copy_id"],
-            "barcode": r["barcode"],
-            "status": st,
-            "loan_count": r["loan_count"],
-            "can_remove": (st == "available" and r["loan_count"] == 0),
-        })
+    copies = [_extract_copy_item(r) for r in rows]
+    available = sum(1 for c in copies if c["status"] == "available")
+    on_loan = sum(1 for c in copies if c["status"] == "on_loan")
     return {
         "book_id": book_id,
-        "total_copies": len(rows),
+        "total_copies": len(copies),
         "available_copies": available,
         "on_loan_copies": on_loan,
-        "other_copies": len(rows) - available - on_loan,
+        "other_copies": len(copies) - available - on_loan,
         "copies": copies,
     }
 

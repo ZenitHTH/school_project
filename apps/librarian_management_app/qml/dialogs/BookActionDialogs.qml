@@ -20,6 +20,7 @@ Item {
 
     property alias addCopiesDialog: addCopiesDialog
     property alias addCopiesCountInput: addCopiesCountInput
+    property alias btnSubmitAddCopies: btnSubmitAddCopies
 
     property alias barcodeConfirmDialog: barcodeConfirmDialog
     property alias barcodeConfirmList: barcodeConfirmList
@@ -46,6 +47,7 @@ Item {
             rootWindow.selectedBookTitle = title
         }
         addCopiesCountInput.text = "1"
+        addCopiesDialog.isSubmitting = false
         addCopiesDialog.open()
     }
 
@@ -295,25 +297,43 @@ Item {
         anchors.centerIn: parent
         width: Math.min(460, rootWindow ? rootWindow.width - 40 : 430)
 
+        property bool isSubmitting: false
+
+        onAboutToShow: {
+            isSubmitting = false
+        }
+
         function executeAddCopies() {
-            var raw = addCopiesCountInput.text.trim() || "1"
-            var bookId = rootWindow ? rootWindow.selectedBookId : 0
-            var res = JSON.parse(librarianAdmin.addCopies(bookId, raw))
-            if (res.ok && res.data && res.data.barcodes && res.data.barcodes.length > 0) {
-                addCopiesDialog.close()
-                barcodeConfirmModel.clear()
-                if (rootWindow) rootWindow.lastGeneratedBarcodes = res.data.barcodes
-                for (var i = 0; i < res.data.barcodes.length; i++) {
-                    barcodeConfirmModel.append({ "barcode": res.data.barcodes[i] })
-                }
-                pdfExportStatusText.text = ""
-                barcodeConfirmDialog.open()
+            if (isSubmitting || !visible) {
+                return
             }
-            if (rootWindow) {
-                rootWindow.searchBooks()
-                rootWindow.loadBooksForExistingSelector()
-                if (typeof rootWindow.loadPrintableBooks === "function") {
-                    rootWindow.loadPrintableBooks("")
+            isSubmitting = true
+            var succeeded = false
+            try {
+                var raw = addCopiesCountInput.text.trim() || "1"
+                var bookId = rootWindow ? rootWindow.selectedBookId : 0
+                var res = JSON.parse(librarianAdmin.addCopies(bookId, raw))
+                if (res.ok && res.data && res.data.barcodes && res.data.barcodes.length > 0) {
+                    succeeded = true
+                    addCopiesDialog.close()
+                    barcodeConfirmModel.clear()
+                    if (rootWindow) rootWindow.lastGeneratedBarcodes = res.data.barcodes
+                    for (var i = 0; i < res.data.barcodes.length; i++) {
+                        barcodeConfirmModel.append({ "barcode": res.data.barcodes[i] })
+                    }
+                    pdfExportStatusText.text = ""
+                    barcodeConfirmDialog.open()
+                }
+                if (rootWindow) {
+                    rootWindow.searchBooks()
+                    rootWindow.loadBooksForExistingSelector()
+                    if (typeof rootWindow.loadPrintableBooks === "function") {
+                        rootWindow.loadPrintableBooks("")
+                    }
+                }
+            } finally {
+                if (!succeeded) {
+                    isSubmitting = false
                 }
             }
         }
@@ -334,13 +354,20 @@ Item {
                     Layout.fillWidth: true
                     selectByMouse: true
                     padding: 8
+                    enabled: !addCopiesDialog.isSubmitting
                     background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
                     onAccepted: addCopiesDialog.executeAddCopies()
                 }
-                Button { text: "+1"; Layout.preferredWidth: 44; onClicked: { var c = Math.min(99, (parseInt(addCopiesCountInput.text) || 1) + 1); addCopiesCountInput.text = c.toString(); } }
+                Button {
+                    text: "+1"
+                    Layout.preferredWidth: 44
+                    enabled: !addCopiesDialog.isSubmitting
+                    onClicked: { var c = Math.min(99, (parseInt(addCopiesCountInput.text) || 1) + 1); addCopiesCountInput.text = c.toString(); }
+                }
                 Button {
                     text: "+4"
                     Layout.preferredWidth: 44
+                    enabled: !addCopiesDialog.isSubmitting
                     onClicked: {
                         var cur = parseInt(addCopiesCountInput.text) || 1
                         var c = Math.min(99, cur + 4)
@@ -352,10 +379,17 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button { text: "ยกเลิก"; onClicked: addCopiesDialog.close() }
                 Button {
+                    text: "ยกเลิก"
+                    enabled: !addCopiesDialog.isSubmitting
+                    onClicked: addCopiesDialog.close()
+                }
+                Button {
+                    id: btnSubmitAddCopies
+                    objectName: "btnSubmitAddCopies"
                     text: "💾 เพิ่มเล่มและสร้างบาร์โค้ด"
                     highlighted: true
+                    enabled: !addCopiesDialog.isSubmitting
                     onClicked: addCopiesDialog.executeAddCopies()
                 }
             }

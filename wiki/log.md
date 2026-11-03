@@ -41,6 +41,12 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 
 ## [2026-10-02] fix | Windows Inno Setup Installer Path Resolution
 - Fixed Inno Setup build failure in `.github/workflows/build.yml` where relative `dist/StudentManagement.exe` was evaluated relative to `packaging/installers/windows/`.
+## [2026-11-03] fix | Catalog Layout Truncation, Row Factory Resiliency & Add Copies Debounce
+- Fixed delegate text horizontal layout explosion in `BookCatalogView.qml` with responsive width (`fillWidth: true`, min: 280, pref: 380), `elide: Text.ElideRight`, and `maximumLineCount: 1`.
+- Made `book_repo.get_book_copy_breakdown` resilient to arbitrary row factories (supporting both `sqlite3.Row`/dict and standard `tuple` rows) via `_extract_copy_item`.
+- Added `isSubmitting` debounce flag and disabled state to `addCopiesDialog` in `BookActionDialogs.qml` to prevent duplicate submissions on rapid Enter key dispatch.
+- Added regression test suite in `tests/test_repro_catalog_edge_cases.py` (248/248 passing).
+
 ## [2026-10-15] fix | Pure-Stdlib Code128 PDF Generator & Barcode Lookup
 - Replaced external `python-barcode`/`reportlab` dependencies in `label_service.py` with pure-stdlib ISO/IEC 15417 Code128-B + PDF 1.4 vector generator.
 - Escaped PDF text delimiters `(`, `)`, `\` and mapped out-of-range non-ASCII chars without crash.
