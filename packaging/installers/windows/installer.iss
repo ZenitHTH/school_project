@@ -2,7 +2,7 @@
 ; Variables expected from command line:
 ;   /DAppName=StudentManagement
 ;   /DAppExe=StudentManagement.exe
-;   /DAppVersion=1.2.1
+;   /DAppVersion=1.2.2
 ;   /DSourceExe=..\..\..\dist\StudentManagement.exe
 ;   /DOutputDir=..\..\..\dist\installers
 
@@ -15,7 +15,7 @@
 #endif
 
 #ifndef AppVersion
-  #define AppVersion "1.2.1"
+  #define AppVersion "1.2.2"
 #endif
 
 #ifndef SourceExe
