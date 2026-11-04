@@ -355,3 +355,9 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - 100% test pass across all 320 tests.
 
 
+## [2026-11-04] ci(release) | Release v1.2.4: Settings Persistence, Dialog Sizing & ISBN Title Series Extraction
+- Bumped version to 1.2.4 across `VERSION` and `packaging/installers/windows/installer.iss`.
+- Shipped persistent visual settings (`SettingsService`, `SettingsAdapterMixin`, and modular `SettingsView`).
+- Shipped WCAG AA contrast `#64748b` in `StyledSearchField` and responsive dialog layout bounds.
+- Shipped NLT Primo series title prepending and parallel title cleaning (`primo_title_cleaner.py`).
+- 100% test pass across full test suite (323/323 passed).
