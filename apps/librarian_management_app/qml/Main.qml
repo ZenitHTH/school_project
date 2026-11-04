@@ -33,6 +33,11 @@ ApplicationWindow {
     property int selectedBookId: 0
     property string selectedBookTitle: ""
 
+    // Reactive typography properties for views and delegates
+    property real fontScale: (typeof settingsView !== "undefined" && settingsView && settingsView.currentUiScale) ? (settingsView.currentFontSize / 14.0) * settingsView.currentUiScale : 1.0
+    property string appFontFamily: (typeof settingsView !== "undefined" && settingsView) ? settingsView.activeFontFamily : ""
+    property int appFontSize: (typeof settingsView !== "undefined" && settingsView) ? settingsView.currentFontSize : 14
+
     // View property aliases for script and test discovery
     property alias catalogSearchInput: catalogView.catalogSearchInput
     property alias btnSearchBooks: catalogView.btnSearchBooks

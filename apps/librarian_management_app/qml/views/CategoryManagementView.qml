@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
     id: barcodePrintScreen
@@ -384,23 +385,26 @@ Rectangle {
         // Bordered Grid Table Header
         Rectangle {
             Layout.fillWidth: true
-            height: 30
+            implicitHeight: Math.max(32, Math.round(catHeaderRow.implicitHeight + 8))
+            height: implicitHeight
+            Layout.preferredHeight: implicitHeight
             color: "#f1f5f9"
             border.color: "#cbd5e1"
             radius: 4
 
             RowLayout {
+                id: catHeaderRow
                 anchors.fill: parent
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
                 spacing: 8
-                Text { text: "เลือก"; font.bold: true; font.pixelSize: 11; color: "#475569"; Layout.preferredWidth: 40 }
-                Text { text: "ID"; font.bold: true; font.pixelSize: 11; color: "#475569"; Layout.preferredWidth: 40 }
-                Text { text: "ชื่อหนังสือ / ผู้แต่ง"; font.bold: true; font.pixelSize: 11; color: "#475569"; Layout.fillWidth: true }
-                Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: 11; color: "#475569"; Layout.preferredWidth: 100 }
-                Text { text: "จำนวน"; font.bold: true; font.pixelSize: 11; color: "#475569"; Layout.preferredWidth: 60 }
-                Text { text: "รหัสบาร์โค้ดประจำเล่ม"; font.bold: true; font.pixelSize: 11; color: "#475569"; Layout.preferredWidth: 260 }
-                Text { text: "จัดการ"; font.bold: true; font.pixelSize: 11; color: "#475569"; Layout.preferredWidth: 65; horizontalAlignment: Text.AlignRight }
+                Text { text: "เลือก"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0)) }
+                Text { text: "ID"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0)) }
+                Text { text: "ชื่อหนังสือ / ผู้แต่ง"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.fillWidth: true }
+                Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(100 * (window.fontScale || 1.0)) }
+                Text { text: "จำนวน"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(60 * (window.fontScale || 1.0)) }
+                Text { text: "รหัสบาร์โค้ดประจำเล่ม"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(260 * (window.fontScale || 1.0)) }
+                Text { text: "จัดการ"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(65 * (window.fontScale || 1.0)); horizontalAlignment: Text.AlignRight }
             }
         }
 
@@ -412,17 +416,23 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
             spacing: 4
+            onCountChanged: Qt.callLater(function() { if (typeof settingsView !== "undefined" && settingsView) settingsView.applySettingsToWindow() })
             model: ListModel { id: genBarcodesModel; objectName: "genBarcodesModel" }
 
             delegate: Rectangle {
+                id: catRowDelegate
                 width: genBarcodesList.width
-                height: 48
+                implicitHeight: Math.max(50, Math.round(barcodesRow.implicitHeight + 14))
+                height: implicitHeight
                 color: model.selected ? "#f0fdf4" : (index % 2 === 0 ? "#ffffff" : "#f8fafc")
                 border.color: model.selected ? "#86efac" : "#e2e8f0"
                 border.width: model.selected ? 1.5 : 1
                 radius: 4
 
+                Component.onCompleted: Typography.applyToItem(this)
+
                 RowLayout {
+                    id: barcodesRow
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
@@ -430,7 +440,7 @@ Rectangle {
 
                     CheckBox {
                         checked: model.selected
-                        Layout.preferredWidth: 40
+                        Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0))
                         onClicked: {
                             genBarcodesModel.setProperty(index, "selected", checked)
                             barcodePrintScreen.recalculateSelectionStats()
@@ -440,25 +450,27 @@ Rectangle {
                     Text {
                         text: "#" + model.book_id
                         font.bold: true
-                        font.pixelSize: 11
+                        font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                         color: "#0284c7"
-                        Layout.preferredWidth: 40
+                        Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0))
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 1
                         Text {
+                            id: catBookTitleText
+                            objectName: "catBookTitleText"
                             text: model.title
                             font.bold: true
-                            font.pixelSize: 12
+                            font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
                             color: "#0f172a"
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
                         Text {
                             text: model.author ? ("ผู้แต่ง: " + model.author) : ""
-                            font.pixelSize: 10
+                            font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                             color: "#64748b"
                             elide: Text.ElideRight
                             Layout.fillWidth: true
@@ -469,7 +481,7 @@ Rectangle {
                     Rectangle {
                         id: categoryPillRect
                         objectName: "categoryPillRect"
-                        Layout.preferredWidth: 100
+                        Layout.preferredWidth: Math.round(100 * (window.fontScale || 1.0))
                         implicitHeight: Math.max(24, Math.round(categoryPillText.implicitHeight + 6))
                         height: implicitHeight
                         Layout.preferredHeight: implicitHeight
@@ -483,7 +495,7 @@ Rectangle {
                             width: parent.width - 8
                             horizontalAlignment: Text.AlignHCenter
                             text: model.category_name
-                            font.pixelSize: 10
+                            font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                             color: "#475569"
                             elide: Text.ElideRight
                         }
@@ -492,7 +504,7 @@ Rectangle {
                     Rectangle {
                         id: copyCountPillRect
                         objectName: "copyCountPillRect"
-                        Layout.preferredWidth: 60
+                        Layout.preferredWidth: Math.round(60 * (window.fontScale || 1.0))
                         implicitHeight: Math.max(24, Math.round(copyCountPillText.implicitHeight + 6))
                         height: implicitHeight
                         Layout.preferredHeight: implicitHeight
@@ -506,7 +518,7 @@ Rectangle {
                             horizontalAlignment: Text.AlignHCenter
                             text: model.copy_count + " เล่ม"
                             font.bold: true
-                            font.pixelSize: 10
+                            font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                             color: "#166534"
                             elide: Text.ElideRight
                         }
@@ -515,9 +527,9 @@ Rectangle {
                     Text {
                         text: model.barcode_preview
                         font.family: "monospace"
-                        font.pixelSize: 11
+                        font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                         color: "#0f766e"
-                        Layout.preferredWidth: 260
+                        Layout.preferredWidth: Math.round(260 * (window.fontScale || 1.0))
                         elide: Text.ElideRight
                     }
 
@@ -525,8 +537,8 @@ Rectangle {
                         id: btnAddCopiesRow
                         objectName: "btnAddCopiesRow"
                         text: "+ เล่ม"
-                        font.pixelSize: 10
-                        Layout.preferredWidth: 55
+                        font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
+                        Layout.preferredWidth: Math.max(55, Math.round(55 * (window.fontScale || 1.0)))
                         implicitHeight: Math.max(28, Math.round(font.pixelSize + 14))
                         Layout.preferredHeight: implicitHeight
                         flat: true

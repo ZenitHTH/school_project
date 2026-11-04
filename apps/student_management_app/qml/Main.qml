@@ -22,6 +22,11 @@ ApplicationWindow {
     // Responsive font scaling based on window width
     property real baseFontSize: Math.max(11, Math.min(14, (window.width - 240) / 130))
 
+    // Reactive typography properties for views and delegates
+    property real fontScale: (typeof settingsView !== "undefined" && settingsView && settingsView.currentUiScale) ? (settingsView.currentFontSize / 14.0) * settingsView.currentUiScale : 1.0
+    property string appFontFamily: (typeof settingsView !== "undefined" && settingsView) ? settingsView.activeFontFamily : ""
+    property int appFontSize: (typeof settingsView !== "undefined" && settingsView) ? settingsView.currentFontSize : 14
+
     // Pagination properties
     property bool __initialSearch__: true
     property int currentOffset: 0

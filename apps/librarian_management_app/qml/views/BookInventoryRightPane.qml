@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
     id: rightPaneRoot
@@ -257,22 +258,25 @@ Rectangle {
                 // Bordered Grid Table Header
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 26
+                    implicitHeight: Math.max(28, Math.round(invHeaderRow.implicitHeight + 8))
+                    height: implicitHeight
+                    Layout.preferredHeight: implicitHeight
                     color: "#f1f5f9"
                     border.color: "#cbd5e1"
                     radius: 4
 
                     RowLayout {
+                        id: invHeaderRow
                         anchors.fill: parent
                         anchors.leftMargin: 8
                         anchors.rightMargin: 8
                         spacing: 6
-                        Text { text: "ID"; font.bold: true; font.pixelSize: 10; color: "#475569"; Layout.preferredWidth: 32 }
-                        Text { text: "ชื่อหนังสือ / ผู้แต่ง"; font.bold: true; font.pixelSize: 10; color: "#475569"; Layout.fillWidth: true }
-                        Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: 10; color: "#475569"; Layout.preferredWidth: 70 }
-                        Text { text: "ชั้นวาง"; font.bold: true; font.pixelSize: 10; color: "#475569"; Layout.preferredWidth: 50 }
-                        Text { text: "จำนวน"; font.bold: true; font.pixelSize: 10; color: "#475569"; Layout.preferredWidth: 55 }
-                        Text { text: "จัดการ"; font.bold: true; font.pixelSize: 10; color: "#475569"; Layout.preferredWidth: 70; horizontalAlignment: Text.AlignRight }
+                        Text { text: "ID"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(32 * (window.fontScale || 1.0)) }
+                        Text { text: "ชื่อหนังสือ / ผู้แต่ง"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.fillWidth: true }
+                        Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(70 * (window.fontScale || 1.0)) }
+                        Text { text: "ชั้นวาง"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(50 * (window.fontScale || 1.0)) }
+                        Text { text: "จำนวน"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(55 * (window.fontScale || 1.0)) }
+                        Text { text: "จัดการ"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(76 * (window.fontScale || 1.0)); horizontalAlignment: Text.AlignRight }
                     }
                 }
 
@@ -284,16 +288,23 @@ Rectangle {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 4
+                    onCountChanged: Qt.callLater(function() { if (typeof settingsView !== "undefined" && settingsView) settingsView.applySettingsToWindow() })
                     model: ListModel { id: inventoryBooksModel; objectName: "inventoryBooksModel" }
 
                     delegate: Rectangle {
+                        id: invDelegateRoot
+                        objectName: "invDelegateRoot"
                         width: inventoryBooksList.width
-                        height: 44
+                        implicitHeight: Math.max(48, Math.round(invRowContent.implicitHeight + 14))
+                        height: implicitHeight
                         color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
                         border.color: "#e2e8f0"
                         radius: 4
 
+                        Component.onCompleted: Typography.applyToItem(this)
+
                         RowLayout {
+                            id: invRowContent
                             anchors.fill: parent
                             anchors.leftMargin: 8
                             anchors.rightMargin: 8
@@ -302,25 +313,27 @@ Rectangle {
                             Text {
                                 text: "#" + model.book_id
                                 font.bold: true
-                                font.pixelSize: 10
+                                font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                                 color: "#0284c7"
-                                Layout.preferredWidth: 32
+                                Layout.preferredWidth: Math.round(32 * (window.fontScale || 1.0))
                             }
 
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 1
                                 Text {
+                                    id: invBookTitleText
+                                    objectName: "invBookTitleText"
                                     text: model.title
                                     font.bold: true
-                                    font.pixelSize: 11
+                                    font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
                                     color: "#0f172a"
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
                                 }
                                 Text {
                                     text: (model.author || "-") + " | " + (model.isbn || "-")
-                                    font.pixelSize: 9
+                                    font.pixelSize: Math.max(9, Math.round(11 * (window.fontScale || 1.0)))
                                     color: "#64748b"
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
@@ -329,50 +342,55 @@ Rectangle {
 
                             Text {
                                 text: model.category_name || "-"
-                                font.pixelSize: 10
+                                font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                                 color: "#475569"
-                                Layout.preferredWidth: 70
+                                Layout.preferredWidth: Math.round(70 * (window.fontScale || 1.0))
                                 elide: Text.ElideRight
                             }
 
                             Text {
                                 text: model.shelf_location || "-"
-                                font.pixelSize: 10
+                                font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                                 color: "#475569"
-                                Layout.preferredWidth: 50
+                                Layout.preferredWidth: Math.round(50 * (window.fontScale || 1.0))
                                 elide: Text.ElideRight
                             }
 
                             Rectangle {
-                                Layout.preferredWidth: 55
-                                height: 20
+                                Layout.preferredWidth: Math.round(55 * (window.fontScale || 1.0))
+                                implicitHeight: Math.max(22, Math.round(invTotalCopiesText.implicitHeight + 4))
+                                height: implicitHeight
+                                Layout.preferredHeight: implicitHeight
                                 radius: 4
                                 color: "#dcfce7"
                                 Text {
+                                    id: invTotalCopiesText
                                     anchors.centerIn: parent
                                     text: model.total_copies + " เล่ม"
                                     font.bold: true
-                                    font.pixelSize: 10
+                                    font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                                     color: "#166534"
                                 }
                             }
 
                             RowLayout {
-                                Layout.preferredWidth: 70
+                                Layout.preferredWidth: Math.round(76 * (window.fontScale || 1.0))
                                 spacing: 2
                                 Button {
                                     text: "+"
-                                    font.pixelSize: 10
-                                    Layout.preferredWidth: 22
-                                    height: 22
+                                    font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
+                                    Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    Layout.preferredHeight: implicitHeight
                                     flat: true
                                     onClicked: rightPaneRoot.addCopiesRequested(model.book_id, model.title)
                                 }
                                 Button {
                                     text: "✏️"
-                                    font.pixelSize: 10
-                                    Layout.preferredWidth: 22
-                                    height: 22
+                                    font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
+                                    Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    Layout.preferredHeight: implicitHeight
                                     flat: true
                                     onClicked: rightPaneRoot.editBookRequested(
                                         model.book_id,
@@ -386,9 +404,10 @@ Rectangle {
                                 }
                                 Button {
                                     text: "🗑️"
-                                    font.pixelSize: 10
-                                    Layout.preferredWidth: 22
-                                    height: 22
+                                    font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
+                                    Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    Layout.preferredHeight: implicitHeight
                                     flat: true
                                     onClicked: rightPaneRoot.deleteBookRequested(model.book_id, model.title)
                                 }

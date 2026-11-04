@@ -144,6 +144,30 @@ def test_category_management_pills_and_button_height(qapp, tmp_path):
     conn.close()
 
 
+def test_inventory_books_list_delegate_scales_with_font_size(qapp, tmp_path):
+    _engine, conn, win = _launch_librarian_with_large_font(qapp, tmp_path)
+    inv_list = win.findChild(object, "inventoryBooksList")
+    del_comp = inv_list.property("delegate")
+    del_item = del_comp.create(_engine.rootContext())
+    title_text = del_item.findChild(object, "invBookTitleText")
+
+    assert del_item.property("implicitHeight") >= 48
+    assert title_text.property("font").pixelSize() >= 14
+    conn.close()
+
+
+def test_category_management_delegate_scales_with_font_size(qapp, tmp_path):
+    _engine, conn, win = _launch_librarian_with_large_font(qapp, tmp_path)
+    gen_list = win.findChild(object, "genBarcodesList")
+    del_comp = gen_list.property("delegate")
+    del_item = del_comp.create(_engine.rootContext())
+    title_text = del_item.findChild(object, "catBookTitleText")
+
+    assert del_item.property("implicitHeight") >= 50
+    assert title_text.property("font").pixelSize() >= 14
+    conn.close()
+
+
 def test_student_sidebar_responsive_bounds(qapp, tmp_path):
     conn = get_connection(str(tmp_path / "stu_layout.sqlite"), pin="123456")
     apply_migrations(conn)

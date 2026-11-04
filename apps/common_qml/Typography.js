@@ -4,6 +4,7 @@ var baseSizes = new Map();
 var baseHeights = new Map();
 var origFamilies = new Map();
 var defaultFamily = "";
+var currentConfig = { family: "", factor: 1.0 };
 
 function recordDefaults(obj) {
     if (!obj || !obj.font) return;
@@ -75,6 +76,17 @@ function traverseNode(obj, ctx) {
 
 function applyToTree(root, config, skipNode) {
     if (!root) return;
-    var ctx = { config: config, skipNode: skipNode, visited: new Set() };
+    if (config) currentConfig = config;
+    var ctx = { config: currentConfig, skipNode: skipNode, visited: new Set() };
     traverseNode(root, ctx);
+}
+
+function applyToItem(item) {
+    if (!item || !currentConfig) return;
+    traverseNode(item, { config: currentConfig, skipNode: null, visited: new Set() });
+}
+
+function scale(basePx) {
+    var f = (currentConfig && currentConfig.factor) ? currentConfig.factor : 1.0;
+    return Math.max(8, Math.round(basePx * f));
 }

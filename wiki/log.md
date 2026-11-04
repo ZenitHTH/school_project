@@ -41,6 +41,28 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 
 ## [2026-10-02] fix | Windows Inno Setup Installer Path Resolution
 - Fixed Inno Setup build failure in `.github/workflows/build.yml` where relative `dist/StudentManagement.exe` was evaluated relative to `packaging/installers/windows/`.
+## [2026-11-04] fix | Reactive Table & Delegate Typography Scaling (Lazy Delegate Lifecycle Fix)
+- Resolved issue where inventory and printable books tables remained at default tiny sizes (10-12px font, 44-48px rows) when fonts were scaled to 18-24px:
+  - Root Cause: Qt Quick `ListView` instantiates delegate instances lazily/asynchronously upon model population (`model.append(...)`), which bypassed initial tree traversal.
+  - `apps/librarian_management_app/qml/Main.qml` & `apps/student_management_app/qml/Main.qml`:
+    - Exposed reactive typography properties on root window: `fontScale`, `appFontFamily`, `appFontSize`.
+  - `apps/common_qml/Typography.js`:
+    - Added module-level `currentConfig` caching and exported `applyToItem(item)` and `scale(basePx)` functions for live delegate lifecycle attachment.
+  - `BookInventoryRightPane.qml`:
+    - Re-anchored table header to dynamic line-height: `implicitHeight: Math.max(28, Math.round(invHeaderRow.implicitHeight + 8))` and bound header text sizes to `window.fontScale`.
+    - Added `Component.onCompleted: Typography.applyToItem(this)` and dynamic `implicitHeight: Math.max(48, Math.round(invRowContent.implicitHeight + 14))` to row delegate.
+    - Added `onCountChanged` synchronization hook to `inventoryBooksList`.
+  - `CategoryManagementView.qml`:
+    - Re-anchored table header to dynamic line-height: `implicitHeight: Math.max(32, Math.round(catHeaderRow.implicitHeight + 8))` and bound header texts to `window.fontScale`.
+    - Added `Component.onCompleted: Typography.applyToItem(this)` and dynamic `implicitHeight: Math.max(50, Math.round(barcodesRow.implicitHeight + 14))` to row delegate.
+    - Added `onCountChanged` synchronization hook to `genBarcodesList`.
+  - `BookCatalogView.qml`:
+    - Converted row delegate to dynamic `implicitHeight: Math.max(64, Math.round(catalogRowLayout.implicitHeight + 20))` with `Component.onCompleted: Typography.applyToItem(this)` and `window.fontScale` bindings.
+    - Added `onCountChanged` synchronization hook to `catalogList`.
+  - `tests/test_ui_overlap_and_layout.py`:
+    - Added automated unit tests `test_inventory_books_list_delegate_scales_with_font_size` and `test_category_management_delegate_scales_with_font_size`.
+- All 287 tests passing across the workspace.
+
 ## [2026-11-04] fix | Typography Scaling Layout Bounds & Text Elision Across Navigation and Tables
 - Resolved text and button/pill overflow and collisions under dynamic typography scaling (18-24px, 125%-150% UI scale):
   - `apps/librarian_management_app/qml/Main.qml`:
