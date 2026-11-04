@@ -3,9 +3,13 @@ import QtQuick.Controls 2.15
 
 TextField {
     id: control
-    implicitHeight: Math.max(38, Math.round((font.pixelSize || 14) * 2.2))
+    implicitWidth: Math.max(180, Math.round(contentWidth + leftPadding + rightPadding + 20))
+    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
+    leftPadding: 12
+    rightPadding: 12
+    verticalAlignment: TextInput.AlignVCenter
     color: "#0f172a"
-    placeholderTextColor: "#94a3b8"
+    placeholderTextColor: "#64748b"
     selectByMouse: true
     selectionColor: "#bfdbfe"
     selectedTextColor: "#0f172a"

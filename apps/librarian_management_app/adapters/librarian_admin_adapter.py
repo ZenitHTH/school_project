@@ -9,6 +9,8 @@ from core.shared.mock_qt import (
     NUMERIC_KEYS, _sanitize_for_qml, normalize_file_path,
     apply_qt_app_font,
 )
+from core.shared.settings_service import SettingsService
+from core.shared.settings_adapter_mixin import SettingsAdapterMixin
 
 from core.library.services.catalog_service import CatalogService
 from core.library.services.fine_service import FineService
@@ -21,13 +23,13 @@ from data.sync.diff import compute_diff
 from data.sync.apply import apply_sync
 
 
-class LibrarianAdminAdapter(QObject):
+class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
     """Bridge between PySide6/QML and core services for Librarian Management App."""
 
     isbnLookupStarted = Signal()
     isbnLookupCompleted = Signal(str)
 
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn: sqlite3.Connection, settings_service: Optional[SettingsService] = None):
         super().__init__()
         self.conn = conn
         self.catalog_svc = CatalogService(conn)
@@ -36,6 +38,7 @@ class LibrarianAdminAdapter(QObject):
         self.student_svc = StudentService(conn)
         self.loan_svc = LoanService(conn, fine_service=self.fine_svc, reservation_service=self.res_svc, student_service=self.student_svc)
         self.isbn_svc = IsbnLookupService(conn)
+        self.settings_svc = settings_service or SettingsService()
 
     @Slot(result=bool)
     def isFirstLaunch(self) -> bool:
@@ -436,6 +439,8 @@ class LibrarianAdminAdapter(QObject):
     def setAppFont(self, family: str, pixel_size: int) -> None:
         """Update application-level font family and pixel size."""
         apply_qt_app_font(family, pixel_size)
+
+
 
 
 

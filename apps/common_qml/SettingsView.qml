@@ -18,21 +18,98 @@ Rectangle {
     signal settingsChanged()
     signal resetRequested()
 
-    property alias fontFamilyCombo: fontFamilyCombo
-    property alias fontSizeSlider: fontSizeSlider
-    property alias btnFontSizeMinus: btnFontSizeMinus
-    property alias btnFontSizePlus: btnFontSizePlus
-    property alias scaleSlider: scaleSlider
-    property alias btnResetSettings: btnResetSettings
+    property alias fontFamilyCombo: controlsCard.fontFamilyCombo
+    property alias fontSizeSlider: controlsCard.fontSizeSlider
+    property alias btnFontSizeMinus: controlsCard.btnFontSizeMinus
+    property alias btnFontSizePlus: controlsCard.btnFontSizePlus
+    property alias scaleSlider: controlsCard.scaleSlider
+    property alias btnResetSettings: footerBar.btnResetSettings
+    property alias btnSaveSettings: footerBar.btnSaveSettings
     property alias previewCard: previewCard
 
     BundledFonts { id: bundledFonts }
+    Timer {
+        id: statusTimer
+        interval: 4000
+        repeat: false
+        onTriggered: footerBar.saveStatusText.text = ""
+    }
+
+    function getActiveAdapter() {
+        if (typeof librarianAdmin !== "undefined" && librarianAdmin) return librarianAdmin
+        if (typeof studentAdmin !== "undefined" && studentAdmin) return studentAdmin
+        return null
+    }
+
+    function _applySettingsPayload(data) {
+        if (!data) return
+        if (data.font_size) {
+            currentFontSize = data.font_size
+            fontSizeSlider.value = data.font_size
+        }
+        if (data.ui_scale) {
+            currentUiScale = data.ui_scale
+            scaleSlider.value = Math.round(data.ui_scale * 100)
+        }
+        if (data.font_family) {
+            currentFontFamily = data.font_family
+            activeFontFamily = (data.font_family === "System Default") ? "" : data.font_family
+            var idx = fontFamilyCombo.model.indexOf(data.font_family)
+            if (idx >= 0) {
+                fontFamilyCombo.currentIndex = idx
+            }
+        }
+    }
+
+    function loadPersistedSettings() {
+        var adapter = getActiveAdapter()
+        if (!adapter || !adapter.loadSettings) return
+        try {
+            var raw = adapter.loadSettings()
+            var res = JSON.parse(raw)
+            _applySettingsPayload(res.data || res)
+            applySettingsToWindow()
+        } catch (e) {
+            console.warn("Failed to load persisted settings:", e)
+        }
+    }
+
+    function saveSettings() {
+        var adapter = getActiveAdapter()
+        if (!adapter || !adapter.saveSettings) {
+            footerBar.saveStatusText.text = "✓ บันทึกการตั้งค่าเรียบร้อยแล้ว"
+            statusTimer.restart()
+            return
+        }
+        try {
+            var res = JSON.parse(adapter.saveSettings(currentFontFamily, currentFontSize, currentUiScale))
+            footerBar.saveStatusText.text = res.ok ? "✓ บันทึกการตั้งค่าเรียบร้อยแล้ว" : ("✗ " + (res.error || "บันทึกไม่สำเร็จ"))
+        } catch (e) {
+            console.warn("Failed to save settings:", e)
+            footerBar.saveStatusText.text = "✗ บันทึกไม่สำเร็จ"
+        }
+        statusTimer.restart()
+    }
 
     function resetToDefaults() {
-        fontFamilyCombo.currentIndex = 0; fontSizeSlider.value = 14; scaleSlider.value = 100
-        currentFontFamily = "System Default"; activeFontFamily = ""
-        currentFontSize = 14; currentUiScale = 1.0
-        resetRequested(); settingsChanged()
+        var adapter = getActiveAdapter()
+        if (adapter && adapter.resetSettings) {
+            try {
+                adapter.resetSettings()
+            } catch (e) {
+                console.warn("Failed to reset settings via adapter:", e)
+            }
+        }
+        fontFamilyCombo.currentIndex = 0
+        fontSizeSlider.value = 14
+        scaleSlider.value = 100
+        currentFontFamily = "System Default"
+        activeFontFamily = ""
+        currentFontSize = 14
+        currentUiScale = 1.0
+        footerBar.saveStatusText.text = ""
+        resetRequested()
+        settingsChanged()
     }
 
     function applySettingsToWindow() {
@@ -40,158 +117,61 @@ Rectangle {
         var factor = (currentFontSize / 14.0) * currentUiScale
         Typography.applyToTree(win, { family: activeFontFamily, factor: factor }, previewCard)
         var px = Math.round(currentFontSize * currentUiScale)
-        if (typeof librarianAdmin !== "undefined" && librarianAdmin && librarianAdmin.setAppFont) librarianAdmin.setAppFont(activeFontFamily, px)
-        if (typeof studentAdmin !== "undefined" && studentAdmin && studentAdmin.setAppFont) studentAdmin.setAppFont(activeFontFamily, px)
+        var adapter = getActiveAdapter()
+        if (adapter && adapter.setAppFont) adapter.setAppFont(activeFontFamily, px)
     }
 
-    onSettingsChanged: applySettingsToWindow()
+    Component.onCompleted: loadPersistedSettings()
+    onSettingsChanged: {
+        applySettingsToWindow()
+        if (footerBar.saveStatusText.text !== "") {
+            footerBar.saveStatusText.text = ""
+        }
+    }
     onTargetWindowChanged: applySettingsToWindow()
 
     ScrollView {
         id: scrollPane
-        anchors.fill: parent; anchors.margins: 24; clip: true
+        anchors.fill: parent
+        anchors.margins: 24
+        clip: true
 
         ColumnLayout {
             width: Math.max(500, scrollPane.availableWidth)
             spacing: 16
 
-            ColumnLayout {
-                spacing: 4
-                Text { text: "⚙️ การตั้งค่าระบบและการแสดงผล (Visual Settings)"; font.bold: true; font.pixelSize: 22; color: "#0f172a" }
-                Text { text: "ปรับแต่งรูปแบบตัวอักษร, ขนาดฟอนต์ และมาตราส่วนหน้าจอ (UI Scaling 50% - 150%)"; font.pixelSize: 13; color: "#64748b" }
-            }
+            SettingsHeader {}
 
-            Rectangle {
-                Layout.fillWidth: true; color: "#ffffff"; radius: 10; border.color: "#e2e8f0"
-                implicitHeight: ctrlLayout.implicitHeight + 32
-
-                ColumnLayout {
-                    id: ctrlLayout; anchors.fill: parent; anchors.margins: 16; spacing: 14
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: "รูปแบบฟอนต์ (Font Family):"; font.bold: true; color: "#1e293b"; Layout.minimumWidth: 160; Layout.preferredWidth: Math.max(180, implicitWidth); wrapMode: Text.Wrap }
-                        ComboBox {
-                            id: fontFamilyCombo; objectName: "fontFamilyCombo"; Layout.fillWidth: true
-                            model: ["System Default", "Noto Sans", "Sarabun", "TH Sarabun New", "Segoe UI", "Sukhumvit Set", "Tahoma"]
-                            onCurrentTextChanged: {
-                                settingsRoot.currentFontFamily = currentText
-                                settingsRoot.activeFontFamily = (currentText === "System Default") ? "" : currentText
-                                settingsRoot.settingsChanged()
-                            }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: "ขนาดตัวอักษร (Font Size):"; font.bold: true; color: "#1e293b"; Layout.minimumWidth: 160; Layout.preferredWidth: Math.max(180, implicitWidth); wrapMode: Text.Wrap }
-                        Button { id: btnFontSizeMinus; objectName: "btnFontSizeMinus"; text: "−"; Layout.preferredWidth: 36; onClicked: fontSizeSlider.value = Math.max(10, fontSizeSlider.value - 1) }
-                        Slider {
-                            id: fontSizeSlider; objectName: "fontSizeSlider"; from: 10; to: 24; stepSize: 1; value: 14; Layout.fillWidth: true
-                            onValueChanged: { settingsRoot.currentFontSize = Math.round(value); settingsRoot.settingsChanged() }
-                        }
-                        Button { id: btnFontSizePlus; objectName: "btnFontSizePlus"; text: "+"; Layout.preferredWidth: 36; onClicked: fontSizeSlider.value = Math.min(24, fontSizeSlider.value + 1) }
-                        Rectangle {
-                            Layout.preferredWidth: 60; height: 32; radius: 6; color: "#f1f5f9"
-                            Text { anchors.centerIn: parent; text: settingsRoot.currentFontSize + " px"; font.bold: true; color: "#0f172a"; font.pixelSize: 12 }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: "มาตราส่วน (UI Scaling):"; font.bold: true; color: "#1e293b"; Layout.minimumWidth: 160; Layout.preferredWidth: Math.max(180, implicitWidth); wrapMode: Text.Wrap }
-                        Slider {
-                            id: scaleSlider; objectName: "scaleSlider"; from: 50; to: 150; stepSize: 5; value: 100; Layout.fillWidth: true
-                            onValueChanged: { settingsRoot.currentUiScale = Math.round(value) / 100.0; settingsRoot.settingsChanged() }
-                        }
-                        Rectangle {
-                            Layout.preferredWidth: 60; height: 32; radius: 6; color: "#eff6ff"
-                            Text { anchors.centerIn: parent; text: Math.round(scaleSlider.value) + "%"; font.bold: true; color: "#1d4ed8"; font.pixelSize: 12 }
-                        }
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: 8
-                        Item { Layout.preferredWidth: 180 }
-                        Repeater {
-                            model: [50, 75, 100, 125, 150]
-                            Button {
-                                text: modelData === 100 ? "100% (ปกติ)" : (modelData + "%")
-                                highlighted: Math.round(scaleSlider.value) === modelData
-                                onClicked: scaleSlider.value = modelData
-                            }
-                        }
-                    }
+            SettingsControlsCard {
+                id: controlsCard
+                onFontChanged: {
+                    settingsRoot.currentFontFamily = family
+                    settingsRoot.activeFontFamily = (family === "System Default") ? "" : family
+                    settingsRoot.settingsChanged()
+                }
+                onFontSizeChanged: {
+                    settingsRoot.currentFontSize = size
+                    settingsRoot.settingsChanged()
+                }
+                onUiScaleChanged: {
+                    settingsRoot.currentUiScale = scale
+                    settingsRoot.settingsChanged()
                 }
             }
 
-            Rectangle {
-                id: previewCard; objectName: "previewCard"
-                Layout.fillWidth: true; color: "#ffffff"; radius: 10; border.color: "#e2e8f0"
-                implicitHeight: prevCol.implicitHeight + 32
-
-                ColumnLayout {
-                    id: prevCol; anchors.fill: parent; anchors.margins: 16; spacing: 12
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: "👁️ ตัวอย่างการแสดงผล (Live Visual Preview)"; font.bold: true; font.pixelSize: 15; color: "#0f172a" }
-                        Item { Layout.fillWidth: true }
-                        Text {
-                            text: "ฟอนต์: " + settingsRoot.currentFontFamily + " | ขนาด: " + settingsRoot.currentFontSize + "px | สเกล: " + Math.round(settingsRoot.currentUiScale * 100) + "%"
-                            color: "#64748b"; font.pixelSize: 12
-                        }
-                    }
-
-                    Rectangle { Layout.fillWidth: true; height: 1; color: "#f1f5f9" }
-
-                    Text {
-                        text: "โรงเรียนวิทยาศาสตร์จุฬาภรณราชวิทยาลัย (Princess Chulabhorn Science High School)"
-                        font.family: settingsRoot.activeFontFamily
-                        font.pixelSize: Math.round(settingsRoot.currentFontSize * 1.3 * settingsRoot.currentUiScale)
-                        font.bold: true; color: "#1e293b"
-                    }
-
-                    Text {
-                        text: "ระบบงานสารสนเทศและทะเบียนนักเรียน (Student Registry & Library Circulation System)\nทดสอบการแสดงผลภาษาไทย: กขคง ๑๒๓๔๕ ทดสอบสระบนล่าง ที่นี่ มีปัญหาสระลอยหรือไม่ 0123456789"
-                        font.family: settingsRoot.activeFontFamily
-                        font.pixelSize: Math.round(settingsRoot.currentFontSize * settingsRoot.currentUiScale)
-                        color: "#334155"; wrapMode: Text.Wrap; Layout.fillWidth: true
-                    }
-
-                    RowLayout {
-                        spacing: 12
-                        Rectangle {
-                            radius: 6
-                            color: "#dcfce7"
-                            implicitWidth: badgeTxt.implicitWidth + 16
-                            implicitHeight: Math.max(28, Math.round(badgeTxt.implicitHeight + 8))
-                            height: implicitHeight
-                            Text {
-                                id: badgeTxt
-                                anchors.centerIn: parent
-                                text: "✓ ตัวอย่างสถานะ (Active)"
-                                color: "#166534"
-                                font.pixelSize: Math.round(settingsRoot.currentFontSize * settingsRoot.currentUiScale)
-                                font.family: settingsRoot.activeFontFamily
-                            }
-                        }
-                        Button {
-                            text: "ปุ่มตัวอย่าง (Sample Button)"
-                            font.family: settingsRoot.activeFontFamily
-                            font.pixelSize: Math.round(settingsRoot.currentFontSize * settingsRoot.currentUiScale)
-                        }
-                    }
-                }
+            SettingsPreviewCard {
+                id: previewCard
+                objectName: "previewCard"
+                currentFontFamily: settingsRoot.currentFontFamily
+                activeFontFamily: settingsRoot.activeFontFamily
+                currentFontSize: settingsRoot.currentFontSize
+                currentUiScale: settingsRoot.currentUiScale
             }
 
-            RowLayout {
-                Layout.fillWidth: true
-                Item { Layout.fillWidth: true }
-                Button {
-                    id: btnResetSettings; objectName: "btnResetSettings"
-                    text: "🔄 คืนค่าเริ่มต้น (Reset to Defaults)"
-                    onClicked: settingsRoot.resetToDefaults()
-                }
+            SettingsFooter {
+                id: footerBar
+                onResetClicked: settingsRoot.resetToDefaults()
+                onSaveClicked: settingsRoot.saveSettings()
             }
         }
     }

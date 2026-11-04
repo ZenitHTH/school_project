@@ -92,6 +92,10 @@ def test_common_qml_components_load(qapp):
         "FirstLaunchDialog.qml",
         "SettingsView.qml",
         "BundledFonts.qml",
+        "SettingsPreviewCard.qml",
+        "SettingsControlsCard.qml",
+        "SettingsHeader.qml",
+        "SettingsFooter.qml",
     ]
 
     for comp_name in components:
@@ -122,6 +126,10 @@ def test_common_qml_module_import(qapp):
         FirstLaunchDialog { id: dialog }
         SettingsView { id: settings }
         BundledFonts { id: fonts }
+        SettingsPreviewCard { id: preview }
+        SettingsControlsCard { id: controls }
+        SettingsHeader { id: header }
+        SettingsFooter { id: footer }
     }
     """
     comp = QQmlComponent(engine)

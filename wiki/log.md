@@ -332,3 +332,26 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Fixed WCAG AA contrast ratio (> 6:1) in `EditBookDialog.qml` and expanded touch targets in `BookInventoryRightPane.qml`.
 - Added automated and adversarial test suites: `tests/test_ui_responsive_delegates.py` and `tests/test_ui_adversarial_scaling.py`.
 - 100% test pass across full test suite (301/301 passed).
+
+## [2026-11-04] feat | Settings Persistence & Dialog Placeholder Sizing Invariants
+- **Settings Persistence**:
+  - Implemented `core/shared/settings_service.py` (`SettingsService`) persisting `font_family`, `font_size`, `ui_scale` to `~/.school_project/settings.json` with fallback defaults using `Result[T, E]`.
+  - Exposed `@Slot` methods `saveSettings`, `loadSettings`, and `resetSettings` in `StudentAdminAdapter` and `LibrarianAdminAdapter`.
+  - Updated `SettingsView.qml` to auto-load persisted settings on `Component.onCompleted` and added "💾 บันทึกการตั้งค่า (Save Settings)" (`btnSaveSettings`).
+  - Extracted `apps/common_qml/SettingsPreviewCard.qml` to keep `SettingsView.qml` modular and strictly under 200 lines.
+- **Placeholder & Input Sizing Invariants**:
+  - Updated `apps/common_qml/StyledSearchField.qml` with minimum dimensions (`implicitWidth >= 180`, `implicitHeight >= 38`), padding (12px), and vertical alignment to prevent placeholder text truncation under extreme downscaling.
+  - Enforced `Layout.fillWidth: true` and `implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))` across all input fields in `StudentActionDialogs.qml` and `BookActionDialogs.qml`.
+- Extracted `apps/student_management_app/adapters/roster_import_helper.py` to keep `StudentAdminAdapter` under 200 lines and all functions under 20 lines.
+- 100% test pass across full test suite (309/309 passed).
+
+## [2026-11-04] fix | NLT Primo Parallel Title Cleaning & Series Title Prepending
+- Extracted `core/library/services/primo_title_cleaner.py` (`compose_primo_title`, `clean_parallel_title`, `clean_series_title`) to keep all files under 200 lines and functions under 20 lines.
+- Updated `parse_nlt_primo_json` in `core/library/services/isbn_providers.py`:
+  - Strips parallel / English titles matching `\s*=\s*.*$`.
+  - Extracts series title from `addata.seriestitle` and `display.series`.
+  - Cleans MARC subfield identifiers (`$$Q...`) and prepends series title when not already present at start of title.
+- Verified ISBN 9786160443536 resolves to `"เก่งวิทย์ด้วยตัวเองจนคุณครูตกใจ แรงโน้มถ่วง"`.
+- 100% test pass across all 320 tests.
+
+

@@ -248,13 +248,24 @@ Item {
         }
 
         ColumnLayout {
-            TextField { id: newBookTitle; objectName: "newBookTitle"; placeholderText: "ชื่อหนังสือ" }
+            anchors.fill: parent
+            spacing: 8
+            TextField {
+                id: newBookTitle
+                objectName: "newBookTitle"
+                placeholderText: "ชื่อหนังสือ"
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
+            }
             RowLayout {
+                Layout.fillWidth: true
                 spacing: 8
                 TextField {
                     id: newBookIsbn
                     objectName: "newBookIsbn"
                     placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)"
+                    Layout.fillWidth: true
+                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     onAccepted: {
                         root.checkDialogIsbnDuplicate(text)
                         if (chkDialogAutoFetchIsbn.checked && root.dialogDuplicateBook === null) {
@@ -284,6 +295,7 @@ Item {
                     id: btnDialogFetchIsbn
                     objectName: "btnDialogFetchIsbn"
                     text: "🔍 ดึงข้อมูล"
+                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     onClicked: root.fetchDialogIsbnAndAutofill()
                 }
             }
@@ -294,14 +306,29 @@ Item {
                 checked: true
                 font.pixelSize: 12
             }
-            TextField { id: newBookAuthor; objectName: "newBookAuthor"; placeholderText: "ผู้แต่ง" }
-            TextField { id: newBookBarcodes; objectName: "newBookBarcodes"; placeholderText: "จำนวนเล่ม (เช่น 2) หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"; text: "1" }
+            TextField {
+                id: newBookAuthor
+                objectName: "newBookAuthor"
+                placeholderText: "ผู้แต่ง"
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
+            }
+            TextField {
+                id: newBookBarcodes
+                objectName: "newBookBarcodes"
+                placeholderText: "จำนวนเล่ม (เช่น 2) หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"
+                text: "1"
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
+            }
             Text {
                 id: addBookStatusText
                 objectName: "addBookStatusText"
                 visible: text !== ""
                 color: text.startsWith("✓") ? "#16a34a" : (text.startsWith("⚠️") ? "#d97706" : "#dc2626")
                 font.pixelSize: 12
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
             }
         }
 
@@ -404,6 +431,7 @@ Item {
                     placeholderText: "เช่น 4 หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"
                     text: "1"
                     Layout.fillWidth: true
+                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     selectByMouse: true
                     padding: 8
                     enabled: !addCopiesDialog.isSubmitting
@@ -413,12 +441,14 @@ Item {
                 Button {
                     text: "+1"
                     Layout.preferredWidth: 44
+                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     enabled: !addCopiesDialog.isSubmitting
                     onClicked: { var c = Math.min(99, (parseInt(addCopiesCountInput.text) || 1) + 1); addCopiesCountInput.text = c.toString(); }
                 }
                 Button {
                     text: "+4"
                     Layout.preferredWidth: 44
+                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     enabled: !addCopiesDialog.isSubmitting
                     onClicked: {
                         var cur = parseInt(addCopiesCountInput.text) || 1
@@ -460,6 +490,7 @@ Item {
         anchors.centerIn: parent
 
         ColumnLayout {
+            anchors.fill: parent
             spacing: 12
             Text {
                 text: "ระบบสร้างบาร์โค้ดประจำเล่มเรียบร้อยแล้ว (" + barcodeConfirmModel.count + " เล่ม):"

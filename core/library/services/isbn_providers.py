@@ -18,6 +18,7 @@ from core.library.services.seed_detail_parser import (
     _find_single_text,
     _is_label,
 )
+from core.library.services.primo_title_cleaner import compose_primo_title
 
 NLT_PRIMO_URL = "https://nlt.primo.exlibrisgroup.com/primaws/rest/pub/pnxs"
 SEED_SEARCH_URL = "https://mp-api.se-ed.com/web-bff/search-product"
@@ -109,7 +110,9 @@ def parse_nlt_primo_json(data: dict, isbn: str) -> Optional[Dict[str, str]]:
         return None
     pnx = docs[0].get("pnx") or {}
     addata, display = pnx.get("addata") or {}, pnx.get("display") or {}
-    title = _extract_primo_text(addata, "btitle") or _extract_primo_text(display, "title")
+    raw_title = _extract_primo_text(addata, "btitle") or _extract_primo_text(display, "title")
+    raw_series = _extract_primo_text(addata, "seriestitle") or _extract_primo_text(display, "series")
+    title = compose_primo_title(raw_title, raw_series)
     if not title:
         return None
     author = (_extract_primo_text(addata, "au", "creatorfull") or _extract_primo_text(display, "creator")).rstrip(".").strip()

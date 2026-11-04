@@ -8,22 +8,28 @@ from core.shared.mock_qt import (
     NUMERIC_KEYS, _sanitize_for_qml, normalize_file_path,
     apply_qt_app_font,
 )
-from core.importers.xlsx_validator import validate_xlsx_structure, check_live_data_exists
-from core.importers.build_db import import_roster
+from core.shared.settings_service import SettingsService
+from core.shared.settings_adapter_mixin import SettingsAdapterMixin
+from core.importers.xlsx_validator import validate_xlsx_structure
 from core.student.services.student_service import StudentService
 from core.student.services.enrollment_service import EnrollmentService
 from data.repositories import log_repo
 from data.sync.export import export_snapshot
+from apps.student_management_app.adapters.roster_import_helper import (
+    execute_safe_roster_import,
+    execute_forced_roster_import,
+)
 
 
-class StudentAdminAdapter(QObject):
+class StudentAdminAdapter(QObject, SettingsAdapterMixin):
     """Bridge between PySide6/QML and core services for Student Management App."""
 
-    def __init__(self, conn: sqlite3.Connection):
+    def __init__(self, conn: sqlite3.Connection, settings_service: Optional[SettingsService] = None):
         super().__init__()
         self.conn = conn
         self.student_svc = StudentService(conn)
         self.enrollment_svc = EnrollmentService(conn)
+        self.settings_svc = settings_service or SettingsService()
 
     @Slot(result=bool)
     def isFirstLaunch(self) -> bool:
@@ -31,8 +37,7 @@ class StudentAdminAdapter(QObject):
         try:
             cur = self.conn.cursor()
             cur.execute("SELECT COUNT(*) FROM students;")
-            st_count = cur.fetchone()[0]
-            if st_count > 0:
+            if cur.fetchone()[0] > 0:
                 return False
             cur.execute("SELECT value FROM sync_state WHERE key = 'first_launch_done';")
             row = cur.fetchone()
@@ -127,59 +132,32 @@ class StudentAdminAdapter(QObject):
     @Slot(str, bool, str, result=str)
     def importXlsx(self, xlsx_path: str, force: bool = False, actor: str = "Admin") -> str:
         """Validate and import student roster xlsx with re-import safeguard."""
-        xlsx_path = normalize_file_path(xlsx_path)
-
-        # 1. Validate structure
-        val_res = validate_xlsx_structure(xlsx_path)
-        if not val_res.ok:
-            return json.dumps({"ok": False, "error": val_res.error})
-
-        # 2. Check live data safeguard
-        if not force:
-            has_live, reason = check_live_data_exists(self.conn)
-            if has_live:
-                return json.dumps({
-                    "ok": False,
-                    "need_confirm": True,
-                    "warning": f"ตรวจพบข้อมูลการใช้งานจริงในระบบ ({reason}) การนำเข้าไฟล์ใหม่จะล้างประวัตินักเรียนเดิม ต้องการดำเนินการต่อหรือไม่?",
-                })
-
-        # 3. Import roster into active connection
-        res = import_roster(xlsx_path, conn=self.conn)
-        if res.ok:
-            try:
-                now = datetime.datetime.now().isoformat()
-                self.conn.execute("INSERT OR REPLACE INTO sync_state (key, value, updated_at) VALUES ('first_launch_done', '1', ?);", (now,))
-                self.conn.commit()
-            except Exception:
-                pass
-            from core.shared.log_service import record_activity
-            record_activity(self.conn, action="student.import_xlsx", entity_type="system", entity_id=0, detail=f"Imported xlsx: {xlsx_path}", actor=actor)
-        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        clean_path = normalize_file_path(xlsx_path)
+        if force:
+            res = execute_forced_roster_import(self.conn, clean_path, actor=actor)
+        else:
+            res = execute_safe_roster_import(self.conn, clean_path, actor=actor)
+        return json.dumps(res)
 
     @Slot(str, result=str)
     def previewXlsxDiff(self, xlsx_path: str) -> str:
         """Preview categorized diff for recurring xlsx re-import / promotion."""
-        xlsx_path = normalize_file_path(xlsx_path)
-
-        val_res = validate_xlsx_structure(xlsx_path)
+        clean_path = normalize_file_path(xlsx_path)
+        val_res = validate_xlsx_structure(clean_path)
         if not val_res.ok:
             return json.dumps({"ok": False, "error": val_res.error})
-
         from core.importers.xlsx_diff_importer import calculate_xlsx_diff
-        res = calculate_xlsx_diff(self.conn, xlsx_path)
+        res = calculate_xlsx_diff(self.conn, clean_path)
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data, "warnings": res.warnings})
 
     @Slot(str, int, int, str, result=str)
     def applyXlsxDiff(self, xlsx_path: str, academic_year: int, semester: int, actor: str = "Admin") -> str:
         """Apply xlsx diff atomically inside one transaction."""
-        xlsx_path = normalize_file_path(xlsx_path)
-
+        clean_path = normalize_file_path(xlsx_path)
         from core.importers.xlsx_diff_importer import calculate_xlsx_diff, apply_xlsx_diff
-        diff_res = calculate_xlsx_diff(self.conn, xlsx_path)
+        diff_res = calculate_xlsx_diff(self.conn, clean_path)
         if not diff_res.ok:
             return json.dumps({"ok": False, "error": diff_res.error, "warnings": diff_res.warnings})
-
         res = apply_xlsx_diff(self.conn, diff_res.data, academic_year, semester, actor=actor)
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data, "warnings": res.warnings})
 
@@ -193,4 +171,3 @@ class StudentAdminAdapter(QObject):
     def setAppFont(self, family: str, pixel_size: int) -> None:
         """Update application-level font family and pixel size."""
         apply_qt_app_font(family, pixel_size)
-

@@ -9,6 +9,7 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
 ### 1.1 `StyledSearchField.qml`
 - Standardized text input with crisp white background, `#cbd5e1` border, blue focus ring, dark text `#0f172a`, and placeholder text.
 - Replaces unstyled native `TextField` controls that render invisibly on certain Linux desktop themes or dark modes.
+- Sizing invariants: `implicitWidth: Math.max(180, Math.round(contentWidth + leftPadding + rightPadding + 20))`, `implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))`, with 12px padding and vertical centering (`TextInput.AlignVCenter`). Guaranteed not to collapse under extreme UI downscaling (maintains `implicitWidth >= 120`, `implicitHeight >= 36`).
 - **Signals**: `onAccepted`.
 
 ### 1.2 `PaginationBar.qml`
@@ -40,12 +41,14 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
   - Font family selector with system font presets (System Default, Noto Sans, Sarabun, TH Sarabun New, Segoe UI, Sukhumvit Set, Tahoma) and dynamic font lookup.
   - Font size adjustment slider and steppers constrained between 10px and 24px (default 14px).
   - UI scaling slider constrained between 50% (0.5x) and 150% (1.5x) with preset quick buttons (75%, 100%, 125%, 150%).
-  - Live interactive preview card displaying typography hierarchy (headings, body, metadata, badges) in real time.
+  - Live interactive preview card displaying typography hierarchy (headings, body, metadata, badges) in real time (modularized into `SettingsPreviewCard.qml`).
   - Global application typography propagation across all views via `Typography.js` and Qt application font sync (`setAppFont`).
-  - Reset to factory defaults button.
+  - Auto-loads persisted settings on `Component.onCompleted` from active adapter (`loadSettings`).
+  - Manual persistence via "💾 บันทึกการตั้งค่า (Save Settings)" button (`btnSaveSettings`) invoking `saveSettings`.
+  - Reset to factory defaults button (`btnResetSettings`) persisting defaults via `resetSettings`.
 - **Properties**: `currentFontFamily`, `activeFontFamily`, `currentFontSize`, `currentUiScale`, `targetWindow`.
-- **Functions**: `resetToDefaults()`, `applySettingsToWindow()`.
-- **ObjectNames**: `settingsView`, `fontFamilyCombo`, `fontSizeSlider`, `btnFontSizeMinus`, `btnFontSizePlus`, `scaleSlider`, `btnResetSettings`.
+- **Functions**: `loadPersistedSettings()`, `saveSettings()`, `resetToDefaults()`, `applySettingsToWindow()`.
+- **ObjectNames**: `settingsView`, `fontFamilyCombo`, `fontSizeSlider`, `btnFontSizeMinus`, `btnFontSizePlus`, `scaleSlider`, `btnResetSettings`, `btnSaveSettings`, `saveStatusText`, `previewCard`.
 
 ### 1.7 `Typography.js`
 - Shared `.pragma library` script that maintains baseline font sizes and original font families across QML UI component trees.

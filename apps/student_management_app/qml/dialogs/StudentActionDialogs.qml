@@ -90,10 +90,12 @@ Item {
         title: "เปลี่ยนห้องเรียน"
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
+        width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
         anchors.centerIn: parent
         closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
+            anchors.fill: parent
             spacing: 10
             Label { text: "เลขห้องใหม่:" }
             TextField {
@@ -101,12 +103,16 @@ Item {
                 objectName: "newRoomInput"
                 placeholderText: "เช่น 2 หรือ 3"
                 inputMethodHints: Qt.ImhDigitsOnly
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "เหตุผล:" }
             TextField {
                 id: roomReasonInput
                 objectName: "roomReasonInput"
                 placeholderText: "ปรับสมดุลชั้นเรียน..."
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
         }
 
@@ -135,15 +141,18 @@ Item {
         title: "เปลี่ยนสถานะนักเรียน"
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
+        width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
         anchors.centerIn: parent
         closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
+            anchors.fill: parent
             spacing: 10
             Label { text: "สถานะใหม่:" }
             ComboBox {
                 id: statusCombo
                 objectName: "statusCombo"
+                Layout.fillWidth: true
                 model: ["active", "on_leave", "transferred_out"]
             }
             Label { text: "เหตุผล:" }
@@ -151,6 +160,8 @@ Item {
                 id: statusReasonInput
                 objectName: "statusReasonInput"
                 placeholderText: "เหตุผล"
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
         }
 
@@ -179,34 +190,44 @@ Item {
         title: "แก้ไขชื่อ-นามสกุล"
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
+        width: Math.min(460, rootWindow ? rootWindow.width - 40 : 420)
         anchors.centerIn: parent
         closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
+            anchors.fill: parent
             spacing: 10
             Label { text: "คำนำหน้า:" }
             TextField {
                 id: editPrefixInput
                 objectName: "editPrefixInput"
                 placeholderText: "เช่น เด็กชาย, นาย, นางสาว"
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "ชื่อ:*" }
             TextField {
                 id: editFirstNameInput
                 objectName: "editFirstNameInput"
                 placeholderText: "ชื่อ"
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "นามสกุล:*" }
             TextField {
                 id: editLastNameInput
                 objectName: "editLastNameInput"
                 placeholderText: "นามสกุล"
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "เหตุผล:" }
             TextField {
                 id: nameReasonInput
                 objectName: "nameReasonInput"
                 placeholderText: "แก้ไขการสะกด..."
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
         }
 
@@ -240,10 +261,12 @@ Item {
         title: "เปลี่ยนรหัสนักเรียน (Renumber ID)"
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
+        width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
         anchors.centerIn: parent
         closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
+            anchors.fill: parent
             spacing: 10
             Label { text: "รหัสนักเรียนใหม่:*" }
             TextField {
@@ -251,12 +274,16 @@ Item {
                 objectName: "newIdInput"
                 placeholderText: "รหัสใหม่"
                 inputMethodHints: Qt.ImhDigitsOnly
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "เหตุผล:" }
             TextField {
                 id: idReasonInput
                 objectName: "idReasonInput"
                 placeholderText: "แก้ไขข้อผิดพลาด..."
+                Layout.fillWidth: true
+                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
         }
 
@@ -291,6 +318,7 @@ Item {
         closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
+            anchors.fill: parent
             spacing: 12
             Text {
                 id: confirmImportMsg
@@ -301,11 +329,13 @@ Item {
             }
             Rectangle {
                 Layout.fillWidth: true
-                height: 120
+                implicitHeight: Math.max(120, Math.round(diffCol.implicitHeight + 24))
+                height: implicitHeight
                 color: "#f8fafc"
                 border.color: "#cbd5e1"
                 radius: 6
                 ColumnLayout {
+                    id: diffCol
                     anchors.fill: parent
                     anchors.margins: 12
                     spacing: 6
