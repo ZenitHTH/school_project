@@ -24,6 +24,7 @@ This file instructs AI coding assistants on how to navigate, maintain, and contr
 3. **Common QML**: Always reuse components from `apps/common_qml/` (`StyledSearchField`, `PaginationBar`, `AuditLogView`, `ActionFeedbackBanner`, `FirstLaunchDialog`) rather than reinventing ad-hoc inputs or buttons.
 4. **Air-Gapped Sync**: Student records are authoritative in Student Management and sync via `snapshot.sqlite` diffs to Library Management.
 5. **Testing**: Maintain 100% test coverage. Always run `.venv/bin/pytest tests/` after modifying services or adapters.
+6. **Responsive QML Layouts & Typography**: Never use hardcoded pixel heights (`height: 26`, `44`, `48`) on buttons, badges, table headers, or `ListView` delegates. Always use dynamic `implicitHeight: Math.max(minH, Math.round(content.implicitHeight + pad))` and `height: implicitHeight`. For `ListView` delegates, bind text sizes reactively to `(window.fontScale || 1.0)` and add `Component.onCompleted: Typography.applyToItem(this)` so asynchronously loaded rows scale seamlessly.
 
 ---
 

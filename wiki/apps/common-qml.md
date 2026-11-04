@@ -50,8 +50,9 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
 ### 1.7 `Typography.js`
 - Shared `.pragma library` script that maintains baseline font sizes and original font families across QML UI component trees.
 - Recursively traverses QML node hierarchies to apply user-selected font families and scaling factors dynamically without requiring restart.
+- Caches `currentConfig` across the library module to support immediate delegate lifecycle hooks.
 - Preserves explicit monospace formatting for code/raw identifiers.
-- **Functions**: `recordDefaults(obj)`, `applyToNode(obj, config)`, `applyToTree(root, config, skipNode)`.
+- **Functions**: `recordDefaults(obj)`, `applyToNode(obj, config)`, `applyToTree(root, config, skipNode)`, `applyToItem(item)`, `scale(basePx)`.
 
 ### 1.8 `BundledFonts.qml` & Built-in Font Assets (`apps/common_qml/fonts/`)
 - Declares QML `FontLoader` instances for bundled fonts shipped with the application binaries:
@@ -62,6 +63,12 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
   - `SukhumvitSet.ttc`
 - Registered at application startup via `core.shared.mock_qt.register_bundled_fonts()` using `QFontDatabase.addApplicationFont` with automatic `QFont.insertSubstitution` aliases for `"Noto Sans"` and `"Sarabun"`.
 - Shipped out-of-the-box across all platforms without requiring host operating system font installations.
+
+### 1.9 Responsive Table Delegate Typography Pattern
+Because Qt Quick instantiates `ListView` delegates lazily when models are populated asynchronously (`model.append(...)`), table rows will bypass initial tree walkers unless dual-layer scaling is applied:
+1. **Reactive Property Binding**: Root `ApplicationWindow` exposes `fontScale` and `appFontFamily`. Delegates bind font sizes directly to `Math.max(min, Math.round(base * (window.fontScale || 1.0)))`.
+2. **Lifecycle Hook**: Delegates invoke `Component.onCompleted: Typography.applyToItem(this)` to ensure custom families and height scales are applied instantly on creation.
+3. **Dynamic Row & Header Heights**: Tables must calculate `implicitHeight: Math.max(minH, Math.round(rowContent.implicitHeight + pad))` and `height: implicitHeight` rather than hardcoded pixel dimensions.
 
 ---
 
