@@ -383,3 +383,10 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - 100% test pass across full suite (331/331 passed).
 
 
+## [2026-11-04] ci(release) | Release v1.2.5: Standardized 38px Input Controls & StyledTextInput
+- Bumped version to 1.2.5 across `VERSION` and `packaging/installers/windows/installer.iss`.
+- Extracted canonical `StyledTextInput.qml` in `apps/common_qml/` (38px height, 12px padding, WCAG AA `#64748b` contrast).
+- Fixed squashed paper-thin input fields in `BarcodeGeneratorView.qml`, `BookInventoryRightPane.qml`, `EditBookDialog.qml`, `CirculationDeskView.qml`, and `BookCatalogView.qml`.
+- Harmonized buttons, combo boxes, and steppers to uniform 38px heights.
+- Enforced 38px global fallback in `Typography.js`.
+- 100% test pass across full test suite (331/331 passed).
