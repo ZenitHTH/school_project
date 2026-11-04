@@ -34,6 +34,7 @@ def _launch_librarian_with_large_font(qapp, tmp_path):
     apply_migrations(conn)
     adapter = LibrarianAdminAdapter(conn)
     engine = QQmlApplicationEngine()
+    engine._adapter = adapter
     engine.rootContext().setContextProperty("librarianAdmin", adapter)
     engine.addImportPath(os.path.abspath("apps"))
     engine.load("apps/librarian_management_app/qml/Main.qml")
@@ -102,13 +103,62 @@ def test_settings_view_labels_positive_spacing(qapp, tmp_path):
 def test_librarian_sidebar_nav_btn_height_and_bounds(qapp, tmp_path):
     _engine, conn, win = _launch_librarian_with_large_font(qapp, tmp_path)
     nav_btn = win.findChild(object, "navBtnSettings")
-    nav_gen = win.findChild(object, "navBtnGenerator")
+    sidebar = win.findChild(object, "sidebarNavRect")
 
-    assert nav_btn is not None
     assert nav_btn.property("height") >= 38
     assert nav_btn.property("implicitHeight") >= 38
-    assert nav_gen is not None
-    assert nav_gen.property("height") >= 38
-    assert nav_gen.property("implicitHeight") >= 38
+    assert sidebar.property("width") >= 260
+    assert nav_btn.property("textElideMode") == 1
+    assert nav_btn.property("textClip") is True
     conn.close()
+
+
+def test_right_pane_print_button_within_card_bounds(qapp, tmp_path):
+    _engine, conn, win = _launch_librarian_with_large_font(qapp, tmp_path)
+    stack = win.findChild(object, "librarianStack")
+    stack.setProperty("currentIndex", 6)
+    _process_events(qapp, 10)
+
+    btn = win.findChild(object, "btnGoToPrintPage")
+    parent_w = btn.parent().property("width")
+    btn_right = btn.property("x") + btn.property("width")
+
+    assert btn is not None
+    assert btn_right <= parent_w + 2
+    conn.close()
+
+
+def test_category_management_pills_and_button_height(qapp, tmp_path):
+    _engine, conn, win = _launch_librarian_with_large_font(qapp, tmp_path)
+    gen_list = win.findChild(object, "genBarcodesList")
+    del_comp = gen_list.property("delegate")
+    del_item = del_comp.create(_engine.rootContext())
+
+    cat_pill = del_item.findChild(object, "categoryPillRect")
+    copy_pill = del_item.findChild(object, "copyCountPillRect")
+    btn_add = del_item.findChild(object, "btnAddCopiesRow")
+
+    assert cat_pill.property("height") >= 24
+    assert copy_pill.property("height") >= 24
+    assert btn_add.property("height") >= 28
+    conn.close()
+
+
+def test_student_sidebar_responsive_bounds(qapp, tmp_path):
+    conn = get_connection(str(tmp_path / "stu_layout.sqlite"), pin="123456")
+    apply_migrations(conn)
+    from apps.student_management_app.adapters.student_admin_adapter import StudentAdminAdapter
+    adapter = StudentAdminAdapter(conn)
+    engine = QQmlApplicationEngine()
+    engine._adapter = adapter
+    engine.rootContext().setContextProperty("studentAdmin", adapter)
+    engine.addImportPath(os.path.abspath("apps"))
+    engine.load("apps/student_management_app/qml/Main.qml")
+    win = engine.rootObjects()[0]
+
+    sidebar = win.findChild(object, "studentSidebarNavRect")
+    assert sidebar is not None
+    assert sidebar.property("width") >= 260
+    conn.close()
+
 

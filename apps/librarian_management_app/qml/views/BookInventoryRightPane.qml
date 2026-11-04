@@ -65,14 +65,16 @@ Rectangle {
                         font.bold: true
                         font.pixelSize: 13
                         color: "#0369a1"
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
                     }
-                    Item { Layout.fillWidth: true }
                     Button {
                         id: btnGoToPrintPage
                         objectName: "btnGoToPrintPage"
                         text: "🏷️ ไปหน้าพิมพ์บาร์โค้ด →"
                         font.pixelSize: 11
                         flat: true
+                        Layout.alignment: Qt.AlignRight
                         onClicked: rightPaneRoot.goToPrintPageRequested()
                     }
                 }
@@ -136,8 +138,12 @@ Rectangle {
                             }
                             Rectangle {
                                 id: incomingCopyCountBadge
-                                height: 20
-                                width: incomingCopyCountText.contentWidth + 12
+                                implicitHeight: Math.max(22, Math.round(incomingCopyCountText.implicitHeight + 4))
+                                height: implicitHeight
+                                Layout.preferredHeight: implicitHeight
+                                implicitWidth: Math.round(incomingCopyCountText.implicitWidth + 12)
+                                width: implicitWidth
+                                Layout.preferredWidth: implicitWidth
                                 radius: 4
                                 color: "#dbeafe"
                                 border.color: "#93c5fd"
@@ -450,8 +456,10 @@ Rectangle {
                     model: ListModel { id: categoryListModel; objectName: "categoryListModel" }
 
                     delegate: Rectangle {
-                        height: 28
-                        width: catRow.width + 12
+                        implicitHeight: Math.max(28, Math.round(catRow.implicitHeight + 6))
+                        height: implicitHeight
+                        implicitWidth: Math.round(catRow.implicitWidth + 12)
+                        width: implicitWidth
                         radius: 4
                         color: "#f1f5f9"
                         border.color: "#cbd5e1"

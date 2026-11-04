@@ -155,8 +155,10 @@ ApplicationWindow {
 
         // Sidebar Navigation
         Rectangle {
+            id: sidebarNavRect
+            objectName: "sidebarNavRect"
             Layout.fillHeight: true
-            Layout.preferredWidth: 240
+            Layout.preferredWidth: Math.max(260, Math.min(340, Math.round(260 * Math.max(1.0, (settingsView ? (settingsView.currentFontSize / 14.0) * settingsView.currentUiScale : 1.0)))))
             color: "#0f172a"
 
             ColumnLayout {
@@ -183,17 +185,23 @@ ApplicationWindow {
                 component NavBtn: Button {
                     id: navBtnRoot
                     property bool active: false
+                    property int textElideMode: navText.elide
+                    property bool textClip: navText.clip
                     Layout.fillWidth: true
                     implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 18))
                     Layout.preferredHeight: implicitHeight
                     contentItem: Text {
                         id: navText
+                        objectName: "navBtnText"
                         text: navBtnRoot.text
                         color: navBtnRoot.active ? "#38bdf8" : (navBtnRoot.hovered ? "#ffffff" : "#cbd5e1")
                         font.pixelSize: 13
                         font.bold: navBtnRoot.active
                         verticalAlignment: Text.AlignVCenter
                         leftPadding: 12
+                        rightPadding: 12
+                        elide: Text.ElideRight
+                        clip: true
                     }
                     background: Rectangle {
                         implicitHeight: navBtnRoot.implicitHeight

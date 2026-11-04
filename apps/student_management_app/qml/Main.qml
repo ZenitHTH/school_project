@@ -68,8 +68,10 @@ ApplicationWindow {
 
         // Sidebar Navigation
         Rectangle {
+            id: studentSidebarNavRect
+            objectName: "studentSidebarNavRect"
             Layout.fillHeight: true
-            Layout.preferredWidth: 240
+            Layout.preferredWidth: Math.max(260, Math.min(340, Math.round(260 * Math.max(1.0, (baseFontSize / 14.0) * (settingsView ? settingsView.currentUiScale : 1.0)))))
             color: "#1e293b"
 
             ColumnLayout {
@@ -119,6 +121,8 @@ ApplicationWindow {
                                 font.pixelSize: Math.max(13, baseFontSize)
                                 font.bold: stackLayout.currentIndex === modelData.index
                                 Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                clip: true
                             }
                         }
 

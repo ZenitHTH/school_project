@@ -41,6 +41,25 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 
 ## [2026-10-02] fix | Windows Inno Setup Installer Path Resolution
 - Fixed Inno Setup build failure in `.github/workflows/build.yml` where relative `dist/StudentManagement.exe` was evaluated relative to `packaging/installers/windows/`.
+## [2026-11-04] fix | Typography Scaling Layout Bounds & Text Elision Across Navigation and Tables
+- Resolved text and button/pill overflow and collisions under dynamic typography scaling (18-24px, 125%-150% UI scale):
+  - `apps/librarian_management_app/qml/Main.qml`:
+    - Responsive sidebar width: `Layout.preferredWidth: Math.max(260, Math.min(340, Math.round(260 * Math.max(1.0, (settingsView ? (settingsView.currentFontSize / 14.0) * settingsView.currentUiScale : 1.0)))))`.
+    - `NavBtn`: Added `rightPadding: 12`, `elide: Text.ElideRight`, and `clip: true` to prevent labels spilling out of button pill borders.
+  - `apps/student_management_app/qml/Main.qml`:
+    - Responsive sidebar width: `Layout.preferredWidth: Math.max(260, Math.min(340, Math.round(260 * Math.max(1.0, (baseFontSize / 14.0) * (settingsView ? settingsView.currentUiScale : 1.0)))))`.
+    - Navigation Repeater delegate: Added `elide: Text.ElideRight`, `clip: true`, and `Layout.fillWidth: true`.
+  - `apps/librarian_management_app/qml/views/BookInventoryRightPane.qml`:
+    - Re-anchored header row with `Layout.fillWidth: true`, `elide: Text.ElideRight` on title, and `Layout.alignment: Qt.AlignRight` on `btnGoToPrintPage` to keep the button inside card boundaries.
+    - Staged book copy count badge: dynamic `implicitHeight: Math.max(22, Math.round(incomingCopyCountText.implicitHeight + 4))` and `implicitWidth: Math.round(incomingCopyCountText.implicitWidth + 12)` with `Layout.preferred*` bindings.
+    - Category tag delegate: dynamic `implicitHeight: Math.max(28, Math.round(catRow.implicitHeight + 6))` and `implicitWidth: Math.round(catRow.implicitWidth + 12)`.
+  - `apps/librarian_management_app/qml/views/CategoryManagementView.qml`:
+    - Category & copy count pills: dynamic `implicitHeight: Math.max(24, Math.round(pillText.implicitHeight + 6))` with explicit parent width bounds (`width: parent.width - 8`), `horizontalAlignment: Text.AlignHCenter`, and `elide: Text.ElideRight`.
+    - `+ เล่ม` button: dynamic `implicitHeight: Math.max(28, Math.round(font.pixelSize + 14))` replacing hardcoded 26px height.
+  - `tests/test_ui_overlap_and_layout.py`:
+    - Expanded test suite to 8 tests covering sidebar width expansion, text elision, right-pane print button card bounding, category/copy count pill heights, and student sidebar bounds.
+- All 285 tests passing across the workspace.
+
 ## [2026-11-04] fix | Sidebar NavBtn Height Bounding & Active Border Pill Clipping
 - Fixed layout collapse in `apps/librarian_management_app/qml/Main.qml` where sidebar `NavBtn` components were rendered with an 8px tall active border pill clipping through button text:
   - Re-anchored `component NavBtn` with `implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 18))` and `Layout.preferredHeight: implicitHeight`, ensuring Qt Quick `ColumnLayout` properly allocates vertical bounds (>= 38px) rather than collapsing to default 8px padding.

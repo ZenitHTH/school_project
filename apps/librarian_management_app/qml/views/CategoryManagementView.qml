@@ -467,13 +467,21 @@ Rectangle {
                     }
 
                     Rectangle {
+                        id: categoryPillRect
+                        objectName: "categoryPillRect"
                         Layout.preferredWidth: 100
-                        height: 22
+                        implicitHeight: Math.max(24, Math.round(categoryPillText.implicitHeight + 6))
+                        height: implicitHeight
+                        Layout.preferredHeight: implicitHeight
                         radius: 4
                         color: "#f1f5f9"
                         border.color: "#e2e8f0"
                         Text {
+                            id: categoryPillText
+                            objectName: "categoryPillText"
                             anchors.centerIn: parent
+                            width: parent.width - 8
+                            horizontalAlignment: Text.AlignHCenter
                             text: model.category_name
                             font.pixelSize: 10
                             color: "#475569"
@@ -482,16 +490,25 @@ Rectangle {
                     }
 
                     Rectangle {
+                        id: copyCountPillRect
+                        objectName: "copyCountPillRect"
                         Layout.preferredWidth: 60
-                        height: 22
+                        implicitHeight: Math.max(24, Math.round(copyCountPillText.implicitHeight + 6))
+                        height: implicitHeight
+                        Layout.preferredHeight: implicitHeight
                         radius: 4
                         color: "#dcfce7"
                         Text {
+                            id: copyCountPillText
+                            objectName: "copyCountPillText"
                             anchors.centerIn: parent
+                            width: parent.width - 6
+                            horizontalAlignment: Text.AlignHCenter
                             text: model.copy_count + " เล่ม"
                             font.bold: true
                             font.pixelSize: 10
                             color: "#166534"
+                            elide: Text.ElideRight
                         }
                     }
 
@@ -505,10 +522,13 @@ Rectangle {
                     }
 
                     Button {
+                        id: btnAddCopiesRow
+                        objectName: "btnAddCopiesRow"
                         text: "+ เล่ม"
                         font.pixelSize: 10
                         Layout.preferredWidth: 55
-                        height: 26
+                        implicitHeight: Math.max(28, Math.round(font.pixelSize + 14))
+                        Layout.preferredHeight: implicitHeight
                         flat: true
                         onClicked: barcodePrintScreen.addCopiesRequested(model.book_id, model.title)
                     }
