@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "Typography.js" as Typography
 
 Rectangle {
     id: root
@@ -47,12 +48,16 @@ Rectangle {
             }
 
             delegate: Rectangle {
+                id: logRow
                 width: logList.width
-                height: 48
+                implicitHeight: Math.max(48, Math.round(rowContent.implicitHeight + 14))
+                height: implicitHeight
                 border.color: "#e2e8f0"
                 color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
+                Component.onCompleted: Typography.applyToItem(this)
 
                 RowLayout {
+                    id: rowContent
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 12
@@ -60,23 +65,23 @@ Rectangle {
                     Text {
                         text: model.logged_at ? (model.logged_at.length > 19 ? model.logged_at.substring(0, 19) : model.logged_at) : ""
                         color: "#64748b"
-                        font.pixelSize: 12
-                        Layout.preferredWidth: 150
+                        font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
+                        Layout.preferredWidth: Math.max(150, Math.round(150 * (window.fontScale || 1.0)))
                     }
 
                     Text {
                         text: model.action || ""
                         font.bold: true
                         color: "#1e293b"
-                        font.pixelSize: 13
-                        Layout.preferredWidth: 160
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
+                        Layout.preferredWidth: Math.max(160, Math.round(160 * (window.fontScale || 1.0)))
                         elide: Text.ElideRight
                     }
 
                     Text {
                         text: model.detail || ""
                         color: "#334155"
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                     }

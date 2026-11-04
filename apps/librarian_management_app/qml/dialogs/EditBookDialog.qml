@@ -536,7 +536,7 @@ Dialog {
                                             text: willBeRemoved ? "ลบ" : (model.status === "available" ? "ว่าง" : "ยืม")
                                             font.pixelSize: 8
                                             font.bold: true
-                                            color: willBeRemoved ? "#ef4444" : "#64748b"
+                                            color: willBeRemoved ? "#991b1b" : "#64748b"
                                         }
                                     }
                                 }
@@ -586,16 +586,16 @@ Dialog {
 
                 Button {
                     text: "ยกเลิก"
-                    Layout.preferredWidth: 90
-                    height: 34
+                    Layout.preferredWidth: Math.max(90, implicitWidth)
+                    implicitHeight: Math.max(36, Math.round(contentItem.implicitHeight + 12))
                     onClicked: editDialog.close()
                 }
 
                 Button {
                     text: "💾 บันทึกข้อมูลและปรับปรุงจำนวน"
                     highlighted: true
-                    Layout.preferredWidth: 200
-                    height: 34
+                    Layout.preferredWidth: Math.max(220, implicitWidth)
+                    implicitHeight: Math.max(36, Math.round(contentItem.implicitHeight + 12))
                     font.bold: true
                     enabled: !editDialog.isBelowOnLoan()
                     onClicked: {

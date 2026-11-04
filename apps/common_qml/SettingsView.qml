@@ -161,9 +161,16 @@ Rectangle {
                     RowLayout {
                         spacing: 12
                         Rectangle {
-                            radius: 6; color: "#dcfce7"; implicitWidth: badgeTxt.implicitWidth + 16; implicitHeight: 28
+                            radius: 6
+                            color: "#dcfce7"
+                            implicitWidth: badgeTxt.implicitWidth + 16
+                            implicitHeight: Math.max(28, Math.round(badgeTxt.implicitHeight + 8))
+                            height: implicitHeight
                             Text {
-                                id: badgeTxt; anchors.centerIn: parent; text: "✓ ตัวอย่างสถานะ (Active)"; color: "#166534"
+                                id: badgeTxt
+                                anchors.centerIn: parent
+                                text: "✓ ตัวอย่างสถานะ (Active)"
+                                color: "#166534"
                                 font.pixelSize: Math.round(settingsRoot.currentFontSize * settingsRoot.currentUiScale)
                                 font.family: settingsRoot.activeFontFamily
                             }

@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
     id: root
@@ -232,12 +233,16 @@ Rectangle {
                     spacing: 4
                     model: ListModel { id: diffModel; objectName: "diffModel" }
                     delegate: Rectangle {
+                        id: diffRow
                         width: diffListView.width
-                        height: 36
+                        implicitHeight: Math.max(36, Math.round(diffRowContent.implicitHeight + 10))
+                        height: implicitHeight
                         color: model.category === "conflict" ? "#fffbeb" : (model.category === "new" ? "#ecfdf5" : (model.category === "promo" ? "#f0f9ff" : "#ffffff"))
                         border.color: "#e2e8f0"
                         radius: 4
+                        Component.onCompleted: Typography.applyToItem(this)
                         RowLayout {
+                            id: diffRowContent
                             anchors.fill: parent
                             anchors.leftMargin: 12
                             anchors.rightMargin: 12
@@ -246,7 +251,7 @@ Rectangle {
                                 text: model.desc
                                 color: model.category === "conflict" ? "#b45309" : (model.category === "new" ? "#047857" : (model.category === "promo" ? "#0369a1" : "#475569"))
                                 font.bold: model.category === "conflict" || model.category === "new"
-                                font.pixelSize: 13
+                                font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                                 Layout.fillWidth: true
                             }
                         }

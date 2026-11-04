@@ -41,6 +41,26 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 
 ## [2026-10-02] fix | Windows Inno Setup Installer Path Resolution
 - Fixed Inno Setup build failure in `.github/workflows/build.yml` where relative `dist/StudentManagement.exe` was evaluated relative to `packaging/installers/windows/`.
+## [2026-11-04] fix | UI Invariants & Typography Double-Scaling Resolution (Audit Remediation)
+- **Typography Double-Scaling Elimination**:
+  - `apps/common_qml/Typography.js`: Added baseline normalization (`extractBaselineSize` & `recordBaseHeight`) to divide active scale factor (`obj.font.pixelSize / currentFactor`) upon recording defaults for lazily created QML delegate items. Prevents double-multiplication (1.5 * 1.5 = 2.25x) and ensures exact restoration on 100% reset.
+- **Rule 6 Responsive QML Heights & Delegate Lifecycle**:
+  - `StudentSearchView.qml`: Converted hardcoded table header and delegate heights to dynamic `implicitHeight` with `height: implicitHeight`, bound font sizes to `window.fontScale`, added `Component.onCompleted: Typography.applyToItem(this)`.
+  - `ActiveLoansView.qml`: Replaced hardcoded height with dynamic `implicitHeight: Math.max(54, Math.round(rowContent.implicitHeight + 16))`, added text elision and delegate lifecycle hook.
+  - `FinesManagementView.qml`: Replaced hardcoded height with dynamic `implicitHeight: Math.max(54, Math.round(rowContent.implicitHeight + 16))`, added Typography lifecycle hook.
+  - `AuditLogView.qml`: Converted delegate to dynamic `implicitHeight: Math.max(48, Math.round(rowContent.implicitHeight + 14))`, added Typography hook.
+  - `BookActionDialogs.qml`: Converted barcode confirmation delegate to dynamic `implicitHeight: Math.max(30, Math.round(row.implicitHeight + 8))`.
+  - `ExcelImportView.qml`: Converted diff items delegate to dynamic `implicitHeight: Math.max(36, Math.round(diffRowContent.implicitHeight + 10))`.
+  - `BookInventoryRightPane.qml`: Set category item minimum touch targets to ≥ 24x24 px, made `incomingBookPreviewCard` dynamic height (`Math.max(185, previewCol.implicitHeight + 24)`), and updated `inventorySummaryBadge` to dynamic implicitHeight.
+- **Accessibility & Contrast**:
+  - `EditBookDialog.qml`: Updated strikethrough/delete tag text color on `#fee2e2` background from `#ef4444` to `#991b1b` (WCAG AA > 6:1 contrast ratio) and removed fixed button height.
+- **Layout Overflow Resiliency**:
+  - `CirculationDeskView.qml`: Added `wrapMode: Text.Wrap` and `Layout.fillWidth: true` to `deskStatusText`.
+  - `CategoryManagementView.qml`: Replaced fixed heights on metric cards, toolbar, and PDF banner with dynamic `implicitHeight` bound to content; widened filter combo for high font scales.
+  - `StudentManagement Main.qml`: Bound sidebar width reactively to `(settingsView ? (settingsView.currentFontSize / 14.0) * settingsView.currentUiScale : 1.0)`.
+  - `SettingsView.qml`: Converted status preview badge to dynamic `implicitHeight: Math.max(28, Math.round(badgeTxt.implicitHeight + 8))`.
+- **Testing**: Added `tests/test_ui_responsive_delegates.py`. 100% test pass rate (291/291 passed).
+
 ## [2026-11-04] fix | Reactive Table & Delegate Typography Scaling (Lazy Delegate Lifecycle Fix)
 - Resolved issue where inventory and printable books tables remained at default tiny sizes (10-12px font, 44-48px rows) when fonts were scaled to 18-24px:
   - Root Cause: Qt Quick `ListView` instantiates delegate instances lazily/asynchronously upon model population (`model.append(...)`), which bypassed initial tree traversal.

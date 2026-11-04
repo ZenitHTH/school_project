@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../../common_qml"
+import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
     id: root
@@ -77,14 +78,17 @@ Rectangle {
 
             // Table Header
             Rectangle {
+                id: tableHeaderRect
                 Layout.fillWidth: true
-                height: 38
+                implicitHeight: Math.max(38, Math.round(headerRow.implicitHeight + 10))
+                height: implicitHeight
                 color: "#f8fafc"
                 border.color: "#e2e8f0"
                 border.width: 1
                 radius: 6
 
                 RowLayout {
+                    id: headerRow
                     anchors.fill: parent
                     anchors.leftMargin: 16
                     anchors.rightMargin: 16
@@ -93,15 +97,15 @@ Rectangle {
                     Text {
                         text: "รหัสประจำตัว"
                         font.bold: true
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         color: "#475569"
-                        Layout.preferredWidth: 110
+                        Layout.preferredWidth: Math.max(110, Math.round(110 * (window.fontScale || 1.0)))
                     }
 
                     Text {
                         text: "ชื่อ - นามสกุล"
                         font.bold: true
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         color: "#475569"
                         Layout.fillWidth: true
                     }
@@ -109,26 +113,26 @@ Rectangle {
                     Text {
                         text: "ระดับชั้น/ห้อง"
                         font.bold: true
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         color: "#475569"
-                        Layout.preferredWidth: 100
+                        Layout.preferredWidth: Math.max(100, Math.round(100 * (window.fontScale || 1.0)))
                     }
 
                     Text {
                         text: "สถานะ"
                         font.bold: true
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         color: "#475569"
-                        Layout.preferredWidth: 90
+                        Layout.preferredWidth: Math.max(90, Math.round(90 * (window.fontScale || 1.0)))
                         horizontalAlignment: Text.AlignHCenter
                     }
 
                     Text {
                         text: "จัดการ"
                         font.bold: true
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         color: "#475569"
-                        Layout.preferredWidth: 110
+                        Layout.preferredWidth: Math.max(110, Math.round(110 * (window.fontScale || 1.0)))
                         horizontalAlignment: Text.AlignHCenter
                     }
                 }
@@ -173,12 +177,14 @@ Rectangle {
                 delegate: Rectangle {
                     id: studentRow
                     width: studentTable.width
-                    height: model._empty ? 0 : 48
+                    implicitHeight: model._empty ? 0 : Math.max(48, Math.round(studentRowContent.implicitHeight + 14))
+                    height: implicitHeight
                     visible: !model._empty
                     color: rowMouse.containsMouse ? "#eff6ff" : "#ffffff"
                     border.color: rowMouse.containsMouse ? "#3b82f6" : "#e2e8f0"
                     border.width: rowMouse.containsMouse ? 1.5 : 1
                     radius: 8
+                    Component.onCompleted: Typography.applyToItem(this)
 
                     MouseArea {
                         id: rowMouse
@@ -192,6 +198,7 @@ Rectangle {
                     }
 
                     RowLayout {
+                        id: studentRowContent
                         anchors.fill: parent
                         anchors.leftMargin: 16
                         anchors.rightMargin: 16
@@ -200,14 +207,14 @@ Rectangle {
                         Text {
                             text: model.student_id || ""
                             font.bold: true
-                            font.pixelSize: 13
+                            font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                             color: "#2563eb"
-                            Layout.preferredWidth: 110
+                            Layout.preferredWidth: Math.max(110, Math.round(110 * (window.fontScale || 1.0)))
                         }
 
                         Text {
                             text: model.full_name || ""
-                            font.pixelSize: 13
+                            font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                             font.bold: true
                             color: "#0f172a"
                             Layout.fillWidth: true
@@ -216,21 +223,24 @@ Rectangle {
 
                         Text {
                             text: (model.grade_level && model.room) ? (model.grade_level + "/" + model.room) : (model.grade_level || model.room || "-")
-                            font.pixelSize: 13
+                            font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                             color: "#475569"
-                            Layout.preferredWidth: 100
+                            Layout.preferredWidth: Math.max(100, Math.round(100 * (window.fontScale || 1.0)))
                         }
 
                         Rectangle {
-                            Layout.preferredWidth: 90
-                            height: 28
+                            id: statusBadge
+                            Layout.preferredWidth: Math.max(90, Math.round(90 * (window.fontScale || 1.0)))
+                            implicitHeight: Math.max(26, Math.round(statusTxt.implicitHeight + 6))
+                            height: implicitHeight
                             radius: 14
                             color: (!model.status || model.status === "active") ? "#dcfce7" : (model.status === "on_leave" ? "#fef9c3" : (model.status === "transferred_out" ? "#fee2e2" : "#f1f5f9"))
                             Text {
+                                id: statusTxt
                                 anchors.centerIn: parent
                                 text: (!model.status || model.status === "active") ? "ปกติ" : (model.status === "on_leave" ? "พักการเรียน" : (model.status === "transferred_out" ? "จำหน่าย" : model.status))
                                 color: (!model.status || model.status === "active") ? "#166534" : (model.status === "on_leave" ? "#854d0e" : (model.status === "transferred_out" ? "#991b1b" : "#475569"))
-                                font.pixelSize: 11
+                                font.pixelSize: Math.max(9, Math.round(11 * (window.fontScale || 1.0)))
                                 font.bold: true
                             }
                         }
@@ -240,9 +250,9 @@ Rectangle {
                             objectName: "btnViewDetail"
                             text: "👁️ ดูข้อมูล"
                             font.bold: true
-                            font.pixelSize: 12
-                            Layout.preferredWidth: 110
-                            implicitHeight: 32
+                            font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
+                            Layout.preferredWidth: Math.max(110, Math.round(110 * (window.fontScale || 1.0)))
+                            implicitHeight: Math.max(32, Math.round(contentItem.implicitHeight + 8))
                             contentItem: Text {
                                 text: rowDetailBtn.text
                                 font: rowDetailBtn.font

@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
     id: root
@@ -31,20 +32,53 @@ Rectangle {
             clip: true
             model: ListModel { id: fineModel; objectName: "fineModel" }
             delegate: Rectangle {
+                id: fineRow
                 width: fineList.width
-                height: 54
+                implicitHeight: Math.max(54, Math.round(rowContent.implicitHeight + 16))
+                height: implicitHeight
                 border.color: "#e2e8f0"
                 color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
+                Component.onCompleted: Typography.applyToItem(this)
+
                 RowLayout {
+                    id: rowContent
                     anchors.fill: parent
                     anchors.margins: 12
-                    Text { text: model.full_name; font.bold: true; Layout.preferredWidth: 180; color: "#1e293b" }
-                    Text { text: model.title; Layout.preferredWidth: 260; color: "#334155" }
-                    Text { text: model.amount + " บาท (" + model.reason + ")"; color: "#dc2626"; font.bold: true; Layout.preferredWidth: 160 }
-                    Text { text: model.paid ? "ชำระแล้ว" : "ค้างชำระ"; color: model.paid ? "#166534" : "#991b1b"; Layout.fillWidth: true; font.bold: true }
+                    spacing: 8
+                    Text {
+                        text: model.full_name
+                        font.bold: true
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
+                        Layout.preferredWidth: Math.max(180, Math.round(180 * (window.fontScale || 1.0)))
+                        color: "#1e293b"
+                    }
+                    Text {
+                        text: model.title
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
+                        Layout.preferredWidth: 260
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        color: "#334155"
+                    }
+                    Text {
+                        text: model.amount + " บาท (" + model.reason + ")"
+                        color: "#dc2626"
+                        font.bold: true
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
+                        Layout.preferredWidth: Math.max(160, Math.round(160 * (window.fontScale || 1.0)))
+                    }
+                    Text {
+                        text: model.paid ? "ชำระแล้ว" : "ค้างชำระ"
+                        color: model.paid ? "#166534" : "#991b1b"
+                        Layout.fillWidth: true
+                        font.bold: true
+                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
+                    }
                     Button {
                         text: "บันทึกการชำระ"
                         visible: !model.paid
+                        font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
+                        implicitHeight: Math.max(32, Math.round(contentItem.implicitHeight + 8))
                         onClicked: {
                             librarianAdmin.payFine(model.fine_id)
                             root.loadFinesRequested()

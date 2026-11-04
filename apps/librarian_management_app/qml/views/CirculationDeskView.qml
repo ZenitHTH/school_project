@@ -118,6 +118,8 @@ Rectangle {
                     objectName: "deskStatusText"
                     font.pixelSize: 14
                     color: "#2563eb"
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
                 }
             }
         }

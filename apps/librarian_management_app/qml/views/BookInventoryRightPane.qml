@@ -45,13 +45,14 @@ Rectangle {
             id: incomingBookPreviewCard
             objectName: "incomingBookPreviewCard"
             Layout.fillWidth: true
-            Layout.preferredHeight: 185
+            Layout.preferredHeight: Math.max(185, previewCol.implicitHeight + 24)
             color: "#ffffff"
             radius: 8
             border.color: "#38bdf8"
             border.width: 1.5
 
             ColumnLayout {
+                id: previewCol
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 8
@@ -216,8 +217,10 @@ Rectangle {
                         Rectangle {
                             id: inventorySummaryBadge
                             objectName: "inventorySummaryBadge"
-                            height: 22
-                            width: invCountText.contentWidth + 12
+                            implicitHeight: Math.max(22, Math.round(invCountText.implicitHeight + 4))
+                            height: implicitHeight
+                            implicitWidth: Math.max(40, Math.round(invCountText.implicitWidth + 12))
+                            width: implicitWidth
                             radius: 4
                             color: "#f1f5f9"
                             border.color: "#cbd5e1"
@@ -225,7 +228,7 @@ Rectangle {
                                 id: invCountText
                                 anchors.centerIn: parent
                                 text: inventoryBooksModel.count + " เรื่อง"
-                                font.pixelSize: 10
+                                font.pixelSize: Math.max(9, Math.round(10 * (window.fontScale || 1.0)))
                                 font.bold: true
                                 color: "#475569"
                             }
@@ -475,6 +478,7 @@ Rectangle {
                     model: ListModel { id: categoryListModel; objectName: "categoryListModel" }
 
                     delegate: Rectangle {
+                        id: catDelegateRect
                         implicitHeight: Math.max(28, Math.round(catRow.implicitHeight + 6))
                         height: implicitHeight
                         implicitWidth: Math.round(catRow.implicitWidth + 12)
@@ -482,6 +486,7 @@ Rectangle {
                         radius: 4
                         color: "#f1f5f9"
                         border.color: "#cbd5e1"
+                        Component.onCompleted: Typography.applyToItem(this)
 
                         RowLayout {
                             id: catRow
@@ -489,22 +494,36 @@ Rectangle {
                             spacing: 4
                             Text {
                                 text: model.name
-                                font.pixelSize: 10
+                                font.pixelSize: Math.max(9, Math.round(10 * (window.fontScale || 1.0)))
                                 font.bold: true
                                 color: "#1e293b"
                             }
-                            Text {
-                                text: "✏️"
-                                font.pixelSize: 9
+                            Item {
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                Layout.preferredWidth: 24
+                                Layout.preferredHeight: 24
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✏️"
+                                    font.pixelSize: Math.max(9, Math.round(11 * (window.fontScale || 1.0)))
+                                }
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: rightPaneRoot.editCategoryRequested(model.category_id, model.name)
                                 }
                             }
-                            Text {
-                                text: "❌"
-                                font.pixelSize: 8
+                            Item {
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                Layout.preferredWidth: 24
+                                Layout.preferredHeight: 24
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "❌"
+                                    font.pixelSize: Math.max(8, Math.round(10 * (window.fontScale || 1.0)))
+                                }
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor

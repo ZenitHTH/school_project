@@ -241,11 +241,13 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 52
+                implicitHeight: Math.max(52, Math.round(metricRow1.implicitHeight + 16))
+                height: implicitHeight
                 color: "#ffffff"
                 radius: 6
                 border.color: "#e2e8f0"
                 RowLayout {
+                    id: metricRow1
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 8
@@ -267,11 +269,13 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 52
+                implicitHeight: Math.max(52, Math.round(metricRow2.implicitHeight + 16))
+                height: implicitHeight
                 color: "#ffffff"
                 radius: 6
                 border.color: "#86efac"
                 RowLayout {
+                    id: metricRow2
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 8
@@ -293,11 +297,13 @@ Rectangle {
 
             Rectangle {
                 Layout.fillWidth: true
-                height: 52
+                implicitHeight: Math.max(52, Math.round(metricRow3.implicitHeight + 16))
+                height: implicitHeight
                 color: "#ffffff"
                 radius: 6
                 border.color: "#93c5fd"
                 RowLayout {
+                    id: metricRow3
                     anchors.fill: parent
                     anchors.margins: 10
                     spacing: 8
@@ -321,12 +327,14 @@ Rectangle {
         // Toolbar Card (Search, Filter & Actions)
         Rectangle {
             Layout.fillWidth: true
-            height: 60
+            implicitHeight: Math.max(60, Math.round(toolbarRow.implicitHeight + 16))
+            height: implicitHeight
             color: "#ffffff"
             radius: 8
             border.color: "#e2e8f0"
 
             RowLayout {
+                id: toolbarRow
                 anchors.fill: parent
                 anchors.margins: 10
                 spacing: 10
@@ -345,7 +353,7 @@ Rectangle {
                 ComboBox {
                     id: barcodeCategoryFilterCombo
                     objectName: "barcodeCategoryFilterCombo"
-                    Layout.preferredWidth: 150
+                    Layout.preferredWidth: Math.max(170, Math.round(170 * (window.fontScale || 1.0)))
                     implicitHeight: 34
                     textRole: "name"
                     model: ListModel { id: barcodeCategoryFilterModel; objectName: "barcodeCategoryFilterModel" }
@@ -551,13 +559,15 @@ Rectangle {
         // PDF Status Banner
         Rectangle {
             Layout.fillWidth: true
-            height: 44
+            implicitHeight: Math.max(44, Math.round(pdfStatusRow.implicitHeight + 16))
+            height: implicitHeight
             radius: 6
             color: "#f1f5f9"
             border.color: "#e2e8f0"
             visible: genPdfStatusText.text !== ""
 
             RowLayout {
+                id: pdfStatusRow
                 anchors.fill: parent
                 anchors.margins: 10
                 spacing: 10

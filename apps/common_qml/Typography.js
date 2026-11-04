@@ -6,11 +6,26 @@ var origFamilies = new Map();
 var defaultFamily = "";
 var currentConfig = { family: "", factor: 1.0 };
 
+function extractBaselineSize(obj, factor) {
+    var raw = obj.font.pixelSize > 0 ? obj.font.pixelSize : 14;
+    var safeFactor = (factor && factor > 0) ? factor : 1.0;
+    return safeFactor !== 1.0 ? Math.round(raw / safeFactor) : raw;
+}
+
+function recordBaseHeight(obj, factor) {
+    if (obj.implicitHeight === undefined || baseHeights.has(obj) || obj.implicitHeight <= 0) return;
+    var isEligible = (obj.background !== undefined || obj.contentItem !== undefined || obj.placeholderText !== undefined);
+    if (!isEligible) return;
+    var safeFactor = (factor && factor > 0) ? factor : 1.0;
+    var baseH = safeFactor !== 1.0 ? Math.round(obj.implicitHeight / safeFactor) : obj.implicitHeight;
+    baseHeights.set(obj, baseH);
+}
+
 function recordDefaults(obj) {
     if (!obj || !obj.font) return;
+    var currentFactor = (currentConfig && currentConfig.factor) ? currentConfig.factor : 1.0;
     if (!baseSizes.has(obj)) {
-        var size = obj.font.pixelSize > 0 ? obj.font.pixelSize : 14;
-        baseSizes.set(obj, size);
+        baseSizes.set(obj, extractBaselineSize(obj, currentFactor));
     }
     if (!origFamilies.has(obj)) {
         origFamilies.set(obj, obj.font.family || "");
@@ -18,11 +33,7 @@ function recordDefaults(obj) {
     if (!defaultFamily && obj.font.family && obj.font.family !== "monospace") {
         defaultFamily = obj.font.family;
     }
-    if (obj.implicitHeight !== undefined && !baseHeights.has(obj) && obj.implicitHeight > 0) {
-        if (obj.background !== undefined || obj.contentItem !== undefined || obj.placeholderText !== undefined) {
-            baseHeights.set(obj, obj.implicitHeight);
-        }
-    }
+    recordBaseHeight(obj, currentFactor);
 }
 
 function resolveTargetFamily(obj, configFamily) {

@@ -472,11 +472,14 @@ Item {
                 clip: true
                 model: ListModel { id: barcodeConfirmModel }
                 delegate: Rectangle {
+                    id: barcodeConfirmDelegate
                     width: barcodeConfirmList.width
-                    height: 30
+                    implicitHeight: Math.max(30, Math.round(row.implicitHeight + 8))
+                    height: implicitHeight
                     color: index % 2 === 0 ? "#f8fafc" : "#ffffff"
                     border.color: "#e2e8f0"
                     RowLayout {
+                        id: row
                         anchors.fill: parent
                         anchors.margins: 6
                         Text { text: "• เล่มที่ " + (index + 1) + ": "; font.bold: true }

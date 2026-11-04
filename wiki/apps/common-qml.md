@@ -51,6 +51,7 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
 - Shared `.pragma library` script that maintains baseline font sizes and original font families across QML UI component trees.
 - Recursively traverses QML node hierarchies to apply user-selected font families and scaling factors dynamically without requiring restart.
 - Caches `currentConfig` across the library module to support immediate delegate lifecycle hooks.
+- Automatically normalizes baseline font sizes (`extractBaselineSize`) and control heights (`recordBaseHeight`) by dividing current active scale factors, preventing double-scaling during lazy ListView delegate initialization.
 - Preserves explicit monospace formatting for code/raw identifiers.
 - **Functions**: `recordDefaults(obj)`, `applyToNode(obj, config)`, `applyToTree(root, config, skipNode)`, `applyToItem(item)`, `scale(basePx)`.
 
