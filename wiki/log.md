@@ -325,3 +325,10 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - 100% test pass across all 253 tests.
 
 
+## [2026-11-04] ci(release) | Release v1.2.3: Dynamic Typography, Responsive QML Layouts & Accessibility
+- Bumped version to 1.2.3 across `VERSION` and `packaging/installers/windows/installer.iss`.
+- Normalized `Typography.js` baseline size extraction to prevent double-scaling during asynchronous delegate creation.
+- Converted hardcoded heights on buttons, badges, table headers, and ListView delegates across Student and Librarian apps to dynamic `implicitHeight` (Rule 6).
+- Fixed WCAG AA contrast ratio (> 6:1) in `EditBookDialog.qml` and expanded touch targets in `BookInventoryRightPane.qml`.
+- Added automated and adversarial test suites: `tests/test_ui_responsive_delegates.py` and `tests/test_ui_adversarial_scaling.py`.
+- 100% test pass across full test suite (301/301 passed).
