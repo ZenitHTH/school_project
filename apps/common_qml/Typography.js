@@ -1,6 +1,7 @@
 .pragma library
 
-var ALIGN_VCENTER = 4;
+var ALIGN_LEFT = 1;
+var ALIGN_VCENTER = 128;
 var baseSizes = new Map();
 var baseHeights = new Map();
 var origFamilies = new Map();
@@ -55,6 +56,7 @@ function applyHeightScale(obj, factor) {
 function applyPlaceholderDefaults(obj) {
     if (obj.placeholderText === undefined) return;
     try {
+        obj.horizontalAlignment = ALIGN_LEFT;
         obj.verticalAlignment = ALIGN_VCENTER;
         var curColor = obj.placeholderTextColor ? obj.placeholderTextColor.toString().toLowerCase() : "";
         if (!curColor || curColor === "#94a3b8") {

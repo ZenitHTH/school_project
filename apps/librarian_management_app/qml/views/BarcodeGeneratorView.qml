@@ -523,6 +523,7 @@ Rectangle {
                                 implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
                                 leftPadding: 12
                                 rightPadding: 12
+                                horizontalAlignment: TextInput.AlignLeft
                                 verticalAlignment: TextInput.AlignVCenter
                                 placeholderTextColor: "#64748b"
                                 placeholderText: "เช่น ฟิสิกส์พื้นฐาน ม.1"
@@ -545,6 +546,7 @@ Rectangle {
                                 implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
                                 leftPadding: 12
                                 rightPadding: 12
+                                horizontalAlignment: TextInput.AlignLeft
                                 verticalAlignment: TextInput.AlignVCenter
                                 placeholderTextColor: "#64748b"
                                 placeholderText: "ชื่อผู้แต่ง / คณะผู้จัดทำ"
@@ -570,6 +572,7 @@ Rectangle {
                                     implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
                                     leftPadding: 12
                                     rightPadding: 12
+                                    horizontalAlignment: TextInput.AlignLeft
                                     verticalAlignment: TextInput.AlignVCenter
                                     placeholderTextColor: "#64748b"
                                     placeholderText: "เช่น 978-616-00-1234-5"
@@ -668,10 +671,12 @@ Rectangle {
                                             }
                                         }
                                         contentItem: Text {
-                                            leftPadding: 8
+                                            leftPadding: 12
+                                            rightPadding: 24
                                             text: genCategoryCombo.displayText
                                             color: "#1e293b"
                                             font.pixelSize: 13
+                                            horizontalAlignment: Text.AlignLeft
                                             verticalAlignment: Text.AlignVCenter
                                             elide: Text.ElideRight
                                         }
@@ -687,6 +692,7 @@ Rectangle {
                                         implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
                                         leftPadding: 12
                                         rightPadding: 12
+                                        horizontalAlignment: TextInput.AlignLeft
                                         verticalAlignment: TextInput.AlignVCenter
                                         placeholderTextColor: "#64748b"
                                         placeholderText: "เช่น ชั้น A-01"
@@ -733,10 +739,12 @@ Rectangle {
                                     }
                                 }
                                 contentItem: Text {
-                                    leftPadding: 8
+                                    leftPadding: 12
+                                    rightPadding: 24
                                     text: genExistingBookCombo.displayText
                                     color: "#1e293b"
                                     font.pixelSize: 13
+                                    horizontalAlignment: Text.AlignLeft
                                     verticalAlignment: Text.AlignVCenter
                                     elide: Text.ElideRight
                                 }
@@ -773,6 +781,7 @@ Rectangle {
                                 implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
                                 leftPadding: 12
                                 rightPadding: 12
+                                horizontalAlignment: TextInput.AlignLeft
                                 verticalAlignment: TextInput.AlignVCenter
                                 placeholderTextColor: "#64748b"
                                 validator: IntValidator { bottom: 1; top: 99 }

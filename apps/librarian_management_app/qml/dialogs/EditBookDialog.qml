@@ -295,10 +295,12 @@ Dialog {
                                         radius: 6
                                     }
                                     contentItem: Text {
-                                        leftPadding: 8
+                                        leftPadding: 12
+                                        rightPadding: 24
                                         text: categoryCombo.displayText
                                         color: "#0f172a"
                                         font.pixelSize: 12
+                                        horizontalAlignment: Text.AlignLeft
                                         verticalAlignment: Text.AlignVCenter
                                         elide: Text.ElideRight
                                     }

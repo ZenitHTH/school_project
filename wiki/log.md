@@ -390,3 +390,11 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Harmonized buttons, combo boxes, and steppers to uniform 38px heights.
 - Enforced 38px global fallback in `Typography.js`.
 - 100% test pass across full test suite (331/331 passed).
+
+## [2026-11-04] fix | Text Input Left Alignment, VCenter Alignment Constant & Dropdown Alignment
+- Fixed `Typography.js` alignment constants: corrected `ALIGN_VCENTER = 128` (was 4, which was `AlignHCenter`) and added `ALIGN_LEFT = 1`.
+- Added explicit `horizontalAlignment: TextInput.AlignLeft` and `verticalAlignment: TextInput.AlignVCenter` to `StyledTextInput.qml` and `StyledSearchField.qml`.
+- Standardized `fontFamilyCombo` in `SettingsControlsCard.qml` with 12px left padding, left/vcenter text alignment, and custom `ItemDelegate` dropdown styling.
+- Standardized text input and combo box alignment (`leftPadding: 12`, `horizontalAlignment: Text.AlignLeft`, `verticalAlignment: Text.AlignVCenter`) in `BarcodeGeneratorView.qml` and `EditBookDialog.qml`.
+- 100% test pass across 335 tests.
+

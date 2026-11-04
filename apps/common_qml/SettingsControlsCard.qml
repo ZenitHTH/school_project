@@ -40,8 +40,42 @@ Rectangle {
                 id: fontFamilyCombo
                 objectName: "fontFamilyCombo"
                 Layout.fillWidth: true
+                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
                 model: ["System Default", "Noto Sans", "Sarabun", "TH Sarabun New", "Segoe UI", "Sukhumvit Set", "Tahoma"]
                 onCurrentTextChanged: controlsRoot.fontChanged(currentText)
+
+                contentItem: Text {
+                    leftPadding: 12
+                    rightPadding: fontFamilyCombo.indicator ? fontFamilyCombo.indicator.width + 12 : 24
+                    text: fontFamilyCombo.displayText
+                    font: fontFamilyCombo.font
+                    color: "#0f172a"
+                    verticalAlignment: Text.AlignVCenter
+                    horizontalAlignment: Text.AlignLeft
+                    elide: Text.ElideRight
+                }
+
+                background: Rectangle {
+                    implicitHeight: fontFamilyCombo.implicitHeight
+                    color: "#ffffff"
+                    border.color: fontFamilyCombo.activeFocus ? "#2563eb" : "#cbd5e1"
+                    border.width: fontFamilyCombo.activeFocus ? 2 : 1
+                    radius: 6
+                }
+
+                delegate: ItemDelegate {
+                    width: fontFamilyCombo.width
+                    contentItem: Text {
+                        leftPadding: 12
+                        text: modelData
+                        font: fontFamilyCombo.font
+                        color: highlighted ? "#2563eb" : "#0f172a"
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignLeft
+                        elide: Text.ElideRight
+                    }
+                    highlighted: fontFamilyCombo.highlightedIndex === index
+                }
             }
         }
 

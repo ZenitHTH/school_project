@@ -7,6 +7,7 @@ TextField {
     implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
     leftPadding: 12
     rightPadding: 12
+    horizontalAlignment: TextInput.AlignLeft
     verticalAlignment: TextInput.AlignVCenter
     color: "#0f172a"
     placeholderTextColor: "#64748b"
