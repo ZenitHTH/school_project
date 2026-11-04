@@ -1,5 +1,6 @@
 .pragma library
 
+var ALIGN_VCENTER = 4;
 var baseSizes = new Map();
 var baseHeights = new Map();
 var origFamilies = new Map();
@@ -51,6 +52,24 @@ function applyHeightScale(obj, factor) {
     } catch (e) {}
 }
 
+function applyPlaceholderDefaults(obj) {
+    if (obj.placeholderText === undefined) return;
+    try {
+        obj.verticalAlignment = ALIGN_VCENTER;
+        var curColor = obj.placeholderTextColor ? obj.placeholderTextColor.toString().toLowerCase() : "";
+        if (!curColor || curColor === "#94a3b8") {
+            obj.placeholderTextColor = "#64748b";
+        }
+        var minH = Math.max(38, Math.round(((obj.font && obj.font.pixelSize > 0) ? obj.font.pixelSize : 14) * 2.2));
+        if (obj.implicitHeight === undefined || obj.implicitHeight < minH) {
+            obj.implicitHeight = minH;
+        }
+        if (obj.background && (obj.background.implicitHeight === undefined || obj.background.implicitHeight < obj.implicitHeight)) {
+            obj.background.implicitHeight = obj.implicitHeight;
+        }
+    } catch (e) {}
+}
+
 function applyToNode(obj, config) {
     if (!obj || obj.font === undefined) return;
     recordDefaults(obj);
@@ -58,6 +77,7 @@ function applyToNode(obj, config) {
     var base = baseSizes.get(obj) || 14;
     obj.font.pixelSize = Math.max(8, Math.round(base * config.factor));
     applyHeightScale(obj, config.factor);
+    applyPlaceholderDefaults(obj);
 }
 
 function visitProps(obj, ctx) {

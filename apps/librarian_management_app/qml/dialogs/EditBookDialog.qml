@@ -201,11 +201,16 @@ Dialog {
                                 id: titleInput
                                 objectName: "editBookTitleInput"
                                 Layout.fillWidth: true
+                                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
+                                leftPadding: 12
+                                rightPadding: 12
+                                verticalAlignment: TextInput.AlignVCenter
+                                placeholderTextColor: "#64748b"
                                 selectByMouse: true
-                                padding: 7
                                 font.pixelSize: 12
                                 background: Rectangle {
-                                    border.color: parent.activeFocus ? "#0284c7" : "#cbd5e1"
+                                    implicitHeight: parent.implicitHeight
+                                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
                                     border.width: parent.activeFocus ? 1.5 : 1
                                     radius: 6
                                     color: "#ffffff"
@@ -225,11 +230,16 @@ Dialog {
                                     id: authorInput
                                     objectName: "editBookAuthorInput"
                                     Layout.fillWidth: true
+                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
+                                    leftPadding: 12
+                                    rightPadding: 12
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    placeholderTextColor: "#64748b"
                                     selectByMouse: true
-                                    padding: 7
                                     font.pixelSize: 12
                                     background: Rectangle {
-                                        border.color: parent.activeFocus ? "#0284c7" : "#cbd5e1"
+                                        implicitHeight: parent.implicitHeight
+                                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
                                         border.width: parent.activeFocus ? 1.5 : 1
                                         radius: 6
                                         color: "#ffffff"
@@ -244,11 +254,16 @@ Dialog {
                                     id: isbnInput
                                     objectName: "editBookIsbnInput"
                                     Layout.fillWidth: true
+                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
+                                    leftPadding: 12
+                                    rightPadding: 12
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    placeholderTextColor: "#64748b"
                                     selectByMouse: true
-                                    padding: 7
                                     font.pixelSize: 12
                                     background: Rectangle {
-                                        border.color: parent.activeFocus ? "#0284c7" : "#cbd5e1"
+                                        implicitHeight: parent.implicitHeight
+                                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
                                         border.width: parent.activeFocus ? 1.5 : 1
                                         radius: 6
                                         color: "#ffffff"
@@ -269,9 +284,11 @@ Dialog {
                                     id: categoryCombo
                                     objectName: "editBookCategoryCombo"
                                     Layout.fillWidth: true
+                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
                                     textRole: "name"
                                     model: ListModel { id: categoryModel }
                                     background: Rectangle {
+                                        implicitHeight: categoryCombo.implicitHeight
                                         color: "#ffffff"
                                         border.color: categoryCombo.activeFocus ? "#0284c7" : "#cbd5e1"
                                         border.width: categoryCombo.activeFocus ? 1.5 : 1
@@ -295,11 +312,16 @@ Dialog {
                                     id: shelfInput
                                     objectName: "editBookShelfInput"
                                     Layout.fillWidth: true
+                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
+                                    leftPadding: 12
+                                    rightPadding: 12
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    placeholderTextColor: "#64748b"
                                     selectByMouse: true
-                                    padding: 7
                                     font.pixelSize: 12
                                     background: Rectangle {
-                                        border.color: parent.activeFocus ? "#0284c7" : "#cbd5e1"
+                                        implicitHeight: parent.implicitHeight
+                                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
                                         border.width: parent.activeFocus ? 1.5 : 1
                                         radius: 6
                                         color: "#ffffff"
@@ -379,7 +401,12 @@ Dialog {
                                     id: copiesInput
                                     objectName: "editBookCopiesInput"
                                     Layout.preferredWidth: Math.max(64, Math.round(font.pixelSize * 4.0))
-                                    Layout.preferredHeight: Math.max(32, Math.round(font.pixelSize * 2.0))
+                                    Layout.preferredHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
+                                    implicitHeight: Layout.preferredHeight
+                                    leftPadding: 12
+                                    rightPadding: 12
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    placeholderTextColor: "#64748b"
                                     text: "1"
                                     horizontalAlignment: Text.AlignHCenter
                                     font.bold: true
@@ -387,7 +414,8 @@ Dialog {
                                     validator: IntValidator { bottom: 1; top: 99 }
                                     selectByMouse: true
                                     background: Rectangle {
-                                        border.color: editDialog.isBelowOnLoan() ? "#ef4444" : (parent.activeFocus ? "#0284c7" : "#cbd5e1")
+                                        implicitHeight: parent.implicitHeight
+                                        border.color: editDialog.isBelowOnLoan() ? "#ef4444" : (parent.activeFocus ? "#2563eb" : "#cbd5e1")
                                         border.width: editDialog.isBelowOnLoan() ? 2 : 1
                                         radius: 6
                                         color: "#ffffff"

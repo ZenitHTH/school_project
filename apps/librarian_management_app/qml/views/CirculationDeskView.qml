@@ -53,7 +53,18 @@ Rectangle {
                         objectName: "studentLookupInput"
                         placeholderText: "พิมพ์รหัสนักเรียน หรือชื่อ..."
                         Layout.preferredWidth: 260
+                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
+                        leftPadding: 12
+                        rightPadding: 12
+                        verticalAlignment: TextInput.AlignVCenter
+                        placeholderTextColor: "#64748b"
                         selectByMouse: true
+                        background: Rectangle {
+                            implicitHeight: parent.implicitHeight
+                            color: "#ffffff"
+                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                            radius: 6
+                        }
                         onAccepted: root.lookupStudentRequested()
                     }
                     Button {
@@ -95,8 +106,19 @@ Rectangle {
                         objectName: "barcodeInput"
                         placeholderText: "สแกนบาร์โค้ด..."
                         Layout.preferredWidth: 260
+                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
+                        leftPadding: 12
+                        rightPadding: 12
+                        verticalAlignment: TextInput.AlignVCenter
+                        placeholderTextColor: "#64748b"
                         font.pixelSize: 16
                         selectByMouse: true
+                        background: Rectangle {
+                            implicitHeight: parent.implicitHeight
+                            color: "#ffffff"
+                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                            radius: 6
+                        }
                         onAccepted: root.checkoutRequested()
                     }
                     Button {

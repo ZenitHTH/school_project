@@ -58,7 +58,12 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
 - Preserves explicit monospace formatting for code/raw identifiers.
 - **Functions**: `recordDefaults(obj)`, `applyToNode(obj, config)`, `applyToTree(root, config, skipNode)`, `applyToItem(item)`, `scale(basePx)`.
 
-### 1.8 `BundledFonts.qml` & Built-in Font Assets (`apps/common_qml/fonts/`)
+### 1.8 `StyledTextInput.qml`
+- Standardized text input field with white background, `#cbd5e1` border, blue focus ring (`#2563eb`), dark text `#0f172a`, and WCAG AA placeholder text `#64748b`.
+- Sizing invariants: `implicitWidth: Math.max(120, Math.round(contentWidth + leftPadding + rightPadding + 20))`, `implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))`, `leftPadding: 12`, `rightPadding: 12`, `verticalAlignment: TextInput.AlignVCenter`, and `background.implicitHeight: control.implicitHeight`.
+- Provides mouse selection (`selectByMouse: true`, `selectionColor: "#bfdbfe"`, `selectedTextColor: "#0f172a"`).
+
+### 1.9 `BundledFonts.qml` & Built-in Font Assets (`apps/common_qml/fonts/`)
 - Declares QML `FontLoader` instances for bundled fonts shipped with the application binaries:
   - `NotoSansThai-Regular.ttf` & `NotoSansThai-Bold.ttf`
   - `THSarabunNew.ttf` & `THSarabunNew-Bold.ttf`

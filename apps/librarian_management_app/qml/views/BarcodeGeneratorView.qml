@@ -520,10 +520,20 @@ Rectangle {
                                 id: genBookTitle
                                 objectName: "genBookTitle"
                                 Layout.fillWidth: true
+                                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
+                                leftPadding: 12
+                                rightPadding: 12
+                                verticalAlignment: TextInput.AlignVCenter
+                                placeholderTextColor: "#64748b"
                                 placeholderText: "เช่น ฟิสิกส์พื้นฐาน ม.1"
                                 selectByMouse: true
-                                padding: 8
-                                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                background: Rectangle {
+                                    implicitHeight: parent.implicitHeight
+                                    color: "#ffffff"
+                                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                                    border.width: parent.activeFocus ? 2 : 1
+                                    radius: 6
+                                }
                                 onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
 
@@ -532,10 +542,20 @@ Rectangle {
                                 id: genBookAuthor
                                 objectName: "genBookAuthor"
                                 Layout.fillWidth: true
+                                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
+                                leftPadding: 12
+                                rightPadding: 12
+                                verticalAlignment: TextInput.AlignVCenter
+                                placeholderTextColor: "#64748b"
                                 placeholderText: "ชื่อผู้แต่ง / คณะผู้จัดทำ"
                                 selectByMouse: true
-                                padding: 8
-                                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                background: Rectangle {
+                                    implicitHeight: parent.implicitHeight
+                                    color: "#ffffff"
+                                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                                    border.width: parent.activeFocus ? 2 : 1
+                                    radius: 6
+                                }
                                 onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
 
@@ -547,10 +567,20 @@ Rectangle {
                                     id: genBookIsbn
                                     objectName: "genBookIsbn"
                                     Layout.fillWidth: true
+                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
+                                    leftPadding: 12
+                                    rightPadding: 12
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    placeholderTextColor: "#64748b"
                                     placeholderText: "เช่น 978-616-00-1234-5"
                                     selectByMouse: true
-                                    padding: 8
-                                    background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                    background: Rectangle {
+                                        implicitHeight: parent.implicitHeight
+                                        color: "#ffffff"
+                                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                                        border.width: parent.activeFocus ? 2 : 1
+                                        radius: 6
+                                    }
                                     onAccepted: {
                                         barcodeGenScreen.checkIsbnDuplicate(text.trim())
                                         if (chkAutoFetchIsbn.checked && barcodeGenScreen.duplicateBook === null) {
@@ -583,10 +613,11 @@ Rectangle {
                                     id: btnFetchIsbn
                                     objectName: "btnFetchIsbn"
                                     text: "🔍 ดึงข้อมูล"
-                                    implicitHeight: 36
+                                    implicitHeight: genBookIsbn.implicitHeight
                                     background: Rectangle {
+                                        implicitHeight: parent.implicitHeight
                                         color: btnFetchIsbn.down ? "#1d4ed8" : (btnFetchIsbn.hovered ? "#2563eb" : "#3b82f6")
-                                        radius: 4
+                                        radius: 6
                                     }
                                     contentItem: Text {
                                         text: btnFetchIsbn.text
@@ -618,15 +649,15 @@ Rectangle {
                                         id: genCategoryCombo
                                         objectName: "genCategoryCombo"
                                         Layout.fillWidth: true
-                                        implicitHeight: 36
+                                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
                                         textRole: "name"
                                         model: ListModel { id: genCategoryModel; objectName: "genCategoryModel" }
                                         onCurrentIndexChanged: barcodeGenScreen.updateGenPreview()
                                         background: Rectangle {
-                                            implicitHeight: 36
+                                            implicitHeight: genCategoryCombo.implicitHeight
                                             color: "#ffffff"
                                             border.color: genCategoryCombo.activeFocus ? "#2563eb" : "#cbd5e1"
-                                            radius: 4
+                                            radius: 6
                                             Text {
                                                 anchors.right: parent.right
                                                 anchors.rightMargin: 10
@@ -653,10 +684,20 @@ Rectangle {
                                         id: genShelfLocation
                                         objectName: "genShelfLocation"
                                         Layout.fillWidth: true
+                                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
+                                        leftPadding: 12
+                                        rightPadding: 12
+                                        verticalAlignment: TextInput.AlignVCenter
+                                        placeholderTextColor: "#64748b"
                                         placeholderText: "เช่น ชั้น A-01"
                                         selectByMouse: true
-                                        padding: 8
-                                        background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                        background: Rectangle {
+                                            implicitHeight: parent.implicitHeight
+                                            color: "#ffffff"
+                                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                                            border.width: parent.activeFocus ? 2 : 1
+                                            radius: 6
+                                        }
                                         onTextChanged: barcodeGenScreen.updateGenPreview()
                                     }
                                 }
@@ -729,18 +770,29 @@ Rectangle {
                                 objectName: "genCopyCountInput"
                                 text: "1"
                                 Layout.preferredWidth: 90
+                                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
+                                leftPadding: 12
+                                rightPadding: 12
+                                verticalAlignment: TextInput.AlignVCenter
+                                placeholderTextColor: "#64748b"
                                 validator: IntValidator { bottom: 1; top: 99 }
                                 selectByMouse: true
-                                padding: 8
-                                background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
+                                background: Rectangle {
+                                    implicitHeight: parent.implicitHeight
+                                    color: "#ffffff"
+                                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                                    border.width: parent.activeFocus ? 2 : 1
+                                    radius: 6
+                                }
                                 onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
                             Item { Layout.fillWidth: true }
-                            Button { text: "-1"; Layout.preferredWidth: 44; onClicked: { var c = Math.max(1, (parseInt(genCopyCountInput.text) || 1) - 1); genCopyCountInput.text = c.toString(); } }
-                            Button { text: "+1"; Layout.preferredWidth: 44; onClicked: { var c = Math.min(99, (parseInt(genCopyCountInput.text) || 1) + 1); genCopyCountInput.text = c.toString(); } }
+                            Button { text: "-1"; Layout.preferredWidth: 44; implicitHeight: genCopyCountInput.implicitHeight; onClicked: { var c = Math.max(1, (parseInt(genCopyCountInput.text) || 1) - 1); genCopyCountInput.text = c.toString(); } }
+                            Button { text: "+1"; Layout.preferredWidth: 44; implicitHeight: genCopyCountInput.implicitHeight; onClicked: { var c = Math.min(99, (parseInt(genCopyCountInput.text) || 1) + 1); genCopyCountInput.text = c.toString(); } }
                             Button {
                                 text: "+5"
                                 Layout.preferredWidth: 44
+                                implicitHeight: genCopyCountInput.implicitHeight
                                 onClicked: {
                                     var cur = parseInt(genCopyCountInput.text) || 1
                                     var c = (cur === 1) ? 5 : Math.min(99, cur + 5)

@@ -10,3 +10,4 @@ SettingsPreviewCard 1.0 SettingsPreviewCard.qml
 SettingsControlsCard 1.0 SettingsControlsCard.qml
 SettingsHeader 1.0 SettingsHeader.qml
 SettingsFooter 1.0 SettingsFooter.qml
+StyledTextInput 1.0 StyledTextInput.qml

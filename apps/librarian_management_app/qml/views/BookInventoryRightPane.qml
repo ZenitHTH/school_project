@@ -244,14 +244,25 @@ Rectangle {
                             placeholderText: "🔍 ค้นคลัง..."
                             Layout.fillWidth: true
                             font.pixelSize: 11
-                            padding: 6
-                            background: Rectangle { border.color: "#cbd5e1"; radius: 4 }
+                            implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 12)) * 2.2))
+                            leftPadding: 12
+                            rightPadding: 12
+                            verticalAlignment: TextInput.AlignVCenter
+                            placeholderTextColor: "#64748b"
+                            selectByMouse: true
+                            background: Rectangle {
+                                implicitHeight: parent.implicitHeight
+                                color: "#ffffff"
+                                border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                                radius: 4
+                            }
                             onTextChanged: rightPaneRoot.refreshInventoryRequested()
                         }
                         Button {
                             text: "🔄"
                             font.pixelSize: 11
-                            Layout.preferredWidth: 36
+                            Layout.preferredWidth: 38
+                            implicitHeight: inventorySearchInput.implicitHeight
                             flat: true
                             onClicked: rightPaneRoot.refreshInventoryRequested()
                         }
@@ -445,8 +456,18 @@ Rectangle {
                         placeholderText: "ชื่อหมวดหมู่ใหม่..."
                         Layout.fillWidth: true
                         font.pixelSize: 11
-                        padding: 6
-                        background: Rectangle { border.color: "#cbd5e1"; radius: 4 }
+                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 12)) * 2.2))
+                        leftPadding: 12
+                        rightPadding: 12
+                        verticalAlignment: TextInput.AlignVCenter
+                        placeholderTextColor: "#64748b"
+                        selectByMouse: true
+                        background: Rectangle {
+                            implicitHeight: parent.implicitHeight
+                            color: "#ffffff"
+                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
+                            radius: 4
+                        }
                         onAccepted: rightPaneRoot.addNewCategoryRequested()
                     }
                     Button {

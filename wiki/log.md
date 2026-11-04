@@ -361,3 +361,25 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Shipped WCAG AA contrast `#64748b` in `StyledSearchField` and responsive dialog layout bounds.
 - Shipped NLT Primo series title prepending and parallel title cleaning (`primo_title_cleaner.py`).
 - 100% test pass across full test suite (323/323 passed).
+
+## [2026-11-04] fix | Library Views & Dialogs Squashed Input Fields & Typography Invariants
+- Enforced uniform height (`implicitHeight >= 36-38px`), padding (`10-12px`), vertical centering (`TextInput.AlignVCenter`), and WCAG AA contrast (`#64748b`) across all inputs in:
+  - `apps/librarian_management_app/qml/views/BarcodeGeneratorView.qml` (`genBookTitle`, `genBookAuthor`, `genBookIsbn`, `genShelfLocation`, `genCopyCountInput`).
+  - `apps/librarian_management_app/qml/views/BookInventoryRightPane.qml` (`inventorySearchInput`, `categoryNameInput`).
+  - `apps/librarian_management_app/qml/views/BookCatalogView.qml` (`catalogSearchInput`).
+  - `apps/librarian_management_app/qml/views/CirculationDeskView.qml` (`studentLookupInput`, `barcodeInput`).
+  - `apps/librarian_management_app/qml/dialogs/EditBookDialog.qml` (`titleInput`, `authorInput`, `isbnInput`, `shelfInput`, `copiesInput`).
+  - `apps/librarian_management_app/qml/views/CategoryManagementView.qml` (`barcodePrintSearchInput`).
+  - `apps/student_management_app/qml/views/StudentDetailView.qml` (`directIdInput`).
+  - `apps/librarian_management_app/qml/views/StudentSyncView.qml` (`snapshotPathInput`).
+- Updated `apps/common_qml/Typography.js`: automatically enforces `verticalAlignment = TextInput.AlignVCenter`, default contrast `#64748b`, and minimum `implicitHeight >= 36px` on any QML item with `placeholderText`.
+- 100% test pass across all 327 tests.
+
+## [2026-11-04] refactor | StyledTextInput Component Extraction & Sizing Polish
+- Created reusable `StyledTextInput.qml` in `apps/common_qml/` (24 lines) registered in `apps/common_qml/qmldir`.
+- Refactored `Typography.js`: defined `ALIGN_VCENTER = 4` module constant and extracted `applyPlaceholderDefaults(obj)` helper (<20 lines/function).
+- Aligned `btnFetchIsbn`, `genCategoryCombo`, and stepper buttons (`-1`, `+1`, `+5`) in `BarcodeGeneratorView.qml` to match input heights and 6px border radii.
+- Upgraded `EditBookDialog.qml` and `BookInventoryRightPane.qml` input controls, refresh button, and combo boxes to the unified 38px height and 12px padding standard.
+- 100% test pass across full suite (331/331 passed).
+
+

@@ -96,6 +96,7 @@ def test_common_qml_components_load(qapp):
         "SettingsControlsCard.qml",
         "SettingsHeader.qml",
         "SettingsFooter.qml",
+        "StyledTextInput.qml",
     ]
 
     for comp_name in components:
@@ -130,6 +131,7 @@ def test_common_qml_module_import(qapp):
         SettingsControlsCard { id: controls }
         SettingsHeader { id: header }
         SettingsFooter { id: footer }
+        StyledTextInput { id: textInput }
     }
     """
     comp = QQmlComponent(engine)
