@@ -25,6 +25,8 @@ This file instructs AI coding assistants on how to navigate, maintain, and contr
 4. **Air-Gapped Sync**: Student records are authoritative in Student Management and sync via `snapshot.sqlite` diffs to Library Management.
 5. **Testing**: Maintain 100% test coverage. Always run `.venv/bin/pytest tests/` after modifying services or adapters.
 6. **Responsive QML Layouts & Typography**: Never use hardcoded pixel heights (`height: 26`, `44`, `48`) on buttons, badges, table headers, or `ListView` delegates. Always use dynamic `implicitHeight: Math.max(minH, Math.round(content.implicitHeight + pad))` and `height: implicitHeight`. For `ListView` delegates, bind text sizes reactively to `(window.fontScale || 1.0)` and add `Component.onCompleted: Typography.applyToItem(this)` so asynchronously loaded rows scale seamlessly.
+7. **QML Form Inputs & Dropdown Alignment**: All text inputs (`StyledTextInput`, `StyledSearchField`, modal inputs) and `ComboBox` controls must explicitly enforce `horizontalAlignment: TextInput.AlignLeft` (or `Text.AlignLeft` = 1) and `verticalAlignment: TextInput.AlignVCenter` (or `Text.AlignVCenter` = 128) with minimum 12px left padding. In ComboBoxes, both the button `contentItem` and dropdown popup `delegate` must declare left-aligned, vertically centered text. (Warning: Qt enum `AlignVCenter` is 128, while 4 is `AlignHCenter`).
+8. **Git Branch Invariant (Dev-First)**: Always commit and push exclusively to the `dev` branch. Never push to `main` (or push both branches simultaneously) unless explicitly ordered by the user. Do not push tags manually when push to `main` triggers automated GitHub release workflows.
 
 ---
 
