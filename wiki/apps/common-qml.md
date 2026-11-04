@@ -34,6 +34,35 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
 - Provides choice between selecting an Excel roster file for initial import or creating a blank standard schema database.
 - **ObjectNames**: `firstLaunchDialog`, `firstLaunchStatusText`, `firstLaunchImportBtn`, `firstLaunchBlankBtn`.
 
+### 1.6 `SettingsView.qml`
+- Visual display settings view allowing runtime customization of typography and interface proportions.
+- Features:
+  - Font family selector with system font presets (System Default, Noto Sans, Sarabun, TH Sarabun New, Segoe UI, Sukhumvit Set, Tahoma) and dynamic font lookup.
+  - Font size adjustment slider and steppers constrained between 10px and 24px (default 14px).
+  - UI scaling slider constrained between 50% (0.5x) and 150% (1.5x) with preset quick buttons (75%, 100%, 125%, 150%).
+  - Live interactive preview card displaying typography hierarchy (headings, body, metadata, badges) in real time.
+  - Global application typography propagation across all views via `Typography.js` and Qt application font sync (`setAppFont`).
+  - Reset to factory defaults button.
+- **Properties**: `currentFontFamily`, `activeFontFamily`, `currentFontSize`, `currentUiScale`, `targetWindow`.
+- **Functions**: `resetToDefaults()`, `applySettingsToWindow()`.
+- **ObjectNames**: `settingsView`, `fontFamilyCombo`, `fontSizeSlider`, `btnFontSizeMinus`, `btnFontSizePlus`, `scaleSlider`, `btnResetSettings`.
+
+### 1.7 `Typography.js`
+- Shared `.pragma library` script that maintains baseline font sizes and original font families across QML UI component trees.
+- Recursively traverses QML node hierarchies to apply user-selected font families and scaling factors dynamically without requiring restart.
+- Preserves explicit monospace formatting for code/raw identifiers.
+- **Functions**: `recordDefaults(obj)`, `applyToNode(obj, config)`, `applyToTree(root, config, skipNode)`.
+
+### 1.8 `BundledFonts.qml` & Built-in Font Assets (`apps/common_qml/fonts/`)
+- Declares QML `FontLoader` instances for bundled fonts shipped with the application binaries:
+  - `NotoSansThai-Regular.ttf` & `NotoSansThai-Bold.ttf`
+  - `THSarabunNew.ttf` & `THSarabunNew-Bold.ttf`
+  - `THSarabun.ttf` & `THSarabun-Bold.ttf`
+  - `Tahoma.ttf` & `Tahoma-Bold.ttf`
+  - `SukhumvitSet.ttc`
+- Registered at application startup via `core.shared.mock_qt.register_bundled_fonts()` using `QFontDatabase.addApplicationFont` with automatic `QFont.insertSubstitution` aliases for `"Noto Sans"` and `"Sarabun"`.
+- Shipped out-of-the-box across all platforms without requiring host operating system font installations.
+
 ---
 
 ## 2. QML Engine Integration

@@ -53,6 +53,21 @@ class CatalogService:
         except Exception as e:
             return Result.fail(f"Failed to delete category: {e}")
 
+    def _prepare_barcodes(self, book_id: int, copy_count: int, barcodes: Optional[List[str]]) -> List[str]:
+        """Generate formatted barcodes by count or clean explicit barcode list."""
+        if copy_count > 0:
+            return [format_barcode(book_id, seq) for seq in range(1, copy_count + 1)]
+        if barcodes:
+            return [b.strip() for b in barcodes if b.strip()]
+        return []
+
+    def _validate_add_book(self, title: str, isbn: Optional[str]) -> Optional[str]:
+        if not title or not title.strip():
+            return "Book title cannot be empty"
+        if isbn and str(isbn).strip() and book_repo.get_active_book_by_isbn(self.conn, isbn):
+            return "Active book with this ISBN already exists"
+        return None
+
     def add_book(
         self,
         title: str,
@@ -66,8 +81,9 @@ class CatalogService:
         actor: Optional[str] = None,
     ) -> Result:
         """Add a book and optionally its physical copies."""
-        if not title or not title.strip():
-            return Result.fail("Book title cannot be empty")
+        err = self._validate_add_book(title, isbn)
+        if err:
+            return Result.fail(err)
         try:
             book_id = book_repo.add_book(
                 self.conn,
@@ -79,23 +95,9 @@ class CatalogService:
                 shelf_location=shelf_location.strip() if shelf_location else None,
                 actor=actor,
             )
-
-            generated_barcodes = []
-            if copy_count > 0:
-                for seq in range(1, copy_count + 1):
-                    generated_barcodes.append(format_barcode(book_id, seq))
-            elif barcodes:
-                generated_barcodes = [b.strip() for b in barcodes if b.strip()]
-
-            copy_ids = []
-            if generated_barcodes:
-                copy_ids = book_repo.add_copies(self.conn, book_id=book_id, barcodes=generated_barcodes, actor=actor)
-
-            return Result.success({
-                "book_id": book_id,
-                "copy_ids": copy_ids,
-                "barcodes": generated_barcodes,
-            })
+            gen_barcodes = self._prepare_barcodes(book_id, copy_count, barcodes)
+            copy_ids = book_repo.add_copies(self.conn, book_id=book_id, barcodes=gen_barcodes, actor=actor) if gen_barcodes else []
+            return Result.success({"book_id": book_id, "copy_ids": copy_ids, "barcodes": gen_barcodes})
         except Exception as e:
             return Result.fail(f"Failed to add book: {e}")
 
@@ -249,6 +251,14 @@ class CatalogService:
             return Result.success(book_dict)
         except Exception as e:
             return Result.fail(f"Failed to fetch book: {e}")
+
+    def get_active_book_by_isbn(self, isbn: str) -> Result[Optional[Dict[str, Any]], str]:
+        """Lookup active book by ISBN, returning None if not found."""
+        try:
+            row = book_repo.get_active_book_by_isbn(self.conn, isbn)
+            return Result.success(dict(row) if row else None)
+        except Exception as e:
+            return Result.fail(f"Failed to lookup book by ISBN: {e}")
 
     def search(
         self,

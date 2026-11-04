@@ -8,6 +8,7 @@ Rectangle {
     color: "#f8fafc"
 
     property int currentGenMode: 0 // 0: New Book, 1: Add Copies to Existing
+    property var duplicateBook: null
     onCurrentGenModeChanged: updateGenPreview()
 
     property alias btnModeNewBook: btnModeNewBook
@@ -168,52 +169,84 @@ Rectangle {
     }
 
     function updateGenPreview() {
-        var count = parseInt(genCopyCountInput.text) || 1
-        if (count <= 0) count = 1
-
-        if (barcodeGenScreen.currentGenMode === 0) {
-            var t = genBookTitle.text.trim()
-            incomingTitleText.text = t ? t : "(ยังไม่ได้ระบุชื่อหนังสือ)"
-            var a = genBookAuthor.text.trim()
-            var isbn = genBookIsbn.text.trim()
-            incomingMetaText.text = "ผู้แต่ง: " + (a ? a : "-") + " | ISBN: " + (isbn ? isbn : "-")
-
-            var catName = "-"
-            if (genCategoryCombo.currentIndex > 0 && genCategoryCombo.currentIndex < genCategoryModel.count) {
-                catName = genCategoryModel.get(genCategoryCombo.currentIndex).name
-            }
-            var shelf = genShelfLocation.text.trim()
-            incomingLocationText.text = "หมวด: " + catName + " | ชั้นวาง: " + (shelf ? shelf : "-")
-            incomingCopyCountText.text = "จำนวน: " + count + " เล่ม"
-
-            try {
-                var previewRes = JSON.parse(librarianAdmin.previewBarcodes(0, count))
-                if (previewRes.ok && previewRes.barcodes && previewRes.barcodes.length > 0) {
-                    var bcs = previewRes.barcodes
-                    incomingBarcodePreviewText.text = (bcs.length <= 4)
-                        ? bcs.join(", ")
-                        : (bcs[0] + " ... " + bcs[bcs.length - 1] + " (รวม " + bcs.length + " เล่ม)")
-                }
-            } catch (e) {}
-        } else {
-            if (genExistingBooksModel.count > 0 && genExistingBookCombo.currentIndex >= 0) {
-                var sel = genExistingBooksModel.get(genExistingBookCombo.currentIndex)
-                incomingTitleText.text = sel.title + " (เพิ่มเล่มเดิม)"
-                incomingMetaText.text = "ผู้แต่ง: " + (sel.author || "-") + " | มีอยู่แล้ว: " + sel.total_copies + " เล่ม"
-                incomingLocationText.text = "รหัสหนังสือเดิม: #" + sel.book_id
-                incomingCopyCountText.text = "เพิ่มเล่มใหม่: +" + count + " เล่ม"
-
-                try {
-                    var prevCopiesRes = JSON.parse(librarianAdmin.previewBarcodes(sel.book_id, count))
-                    if (prevCopiesRes.ok && prevCopiesRes.barcodes && prevCopiesRes.barcodes.length > 0) {
-                        var cbcs = prevCopiesRes.barcodes
-                        incomingBarcodePreviewText.text = (cbcs.length <= 4)
-                            ? cbcs.join(", ")
-                            : (cbcs[0] + " ... " + cbcs[cbcs.length - 1] + " (รวม " + cbcs.length + " เล่ม)")
-                    }
-                } catch (e) {}
-            }
+        var count = Math.max(1, parseInt(genCopyCountInput.text) || 1)
+        if (barcodeGenScreen.currentGenMode === 1) {
+            updateGenPreviewExistingMode(count)
+            return
         }
+        if (duplicateBook) {
+            updateGenPreviewDuplicateBook(count)
+            return
+        }
+        updateGenPreviewNewBook(count)
+    }
+
+    function updateGenPreviewDuplicateBook(count) {
+        incomingTitleText.text = duplicateBook.title + " (พบหนังสือเดิมในระบบ - เพิ่มเล่ม)"
+        incomingMetaText.text = "ผู้แต่ง: " + (duplicateBook.author || "-") + " | ISBN: " + (duplicateBook.isbn || "-") + " | มีอยู่แล้ว: " + duplicateBook.total_copies + " เล่ม"
+        incomingLocationText.text = "รหัสหนังสือเดิม: #" + duplicateBook.book_id
+        incomingCopyCountText.text = "เพิ่มเล่มใหม่: +" + count + " เล่ม"
+        previewBarcodesForBook(duplicateBook.book_id, count)
+    }
+
+    function updateGenPreviewNewBook(count) {
+        var t = genBookTitle.text.trim()
+        incomingTitleText.text = t ? t : "(ยังไม่ได้ระบุชื่อหนังสือ)"
+        var a = genBookAuthor.text.trim()
+        var isbn = genBookIsbn.text.trim()
+        incomingMetaText.text = "ผู้แต่ง: " + (a ? a : "-") + " | ISBN: " + (isbn ? isbn : "-")
+        var catName = "-"
+        if (genCategoryCombo.currentIndex > 0 && genCategoryCombo.currentIndex < genCategoryModel.count) {
+            catName = genCategoryModel.get(genCategoryCombo.currentIndex).name
+        }
+        var shelf = genShelfLocation.text.trim()
+        incomingLocationText.text = "หมวด: " + catName + " | ชั้นวาง: " + (shelf ? shelf : "-")
+        incomingCopyCountText.text = "จำนวน: " + count + " เล่ม"
+        previewBarcodesForBook(0, count)
+    }
+
+    function updateGenPreviewExistingMode(count) {
+        if (genExistingBooksModel.count <= 0 || genExistingBookCombo.currentIndex < 0) return
+        var sel = genExistingBooksModel.get(genExistingBookCombo.currentIndex)
+        incomingTitleText.text = sel.title + " (เพิ่มเล่มเดิม)"
+        incomingMetaText.text = "ผู้แต่ง: " + (sel.author || "-") + " | มีอยู่แล้ว: " + sel.total_copies + " เล่ม"
+        incomingLocationText.text = "รหัสหนังสือเดิม: #" + sel.book_id
+        incomingCopyCountText.text = "เพิ่มเล่มใหม่: +" + count + " เล่ม"
+        previewBarcodesForBook(sel.book_id, count)
+    }
+
+    function previewBarcodesForBook(bookId, count) {
+        try {
+            var res = JSON.parse(librarianAdmin.previewBarcodes(bookId, count))
+            if (res.ok && res.barcodes && res.barcodes.length > 0) {
+                var bcs = res.barcodes
+                incomingBarcodePreviewText.text = (bcs.length <= 4)
+                    ? bcs.join(", ")
+                    : (bcs[0] + " ... " + bcs[bcs.length - 1] + " (รวม " + bcs.length + " เล่ม)")
+            }
+        } catch (e) {}
+    }
+
+    function checkIsbnDuplicate(rawIsbn) {
+        if (!rawIsbn || !rawIsbn.trim() || !isArabicIsbn(rawIsbn)) {
+            duplicateBook = null
+            if (genStatusMessage.text.indexOf("⚠️ พบหนังสือเดิมในระบบ") !== -1) genStatusMessage.text = ""
+            updateGenPreview()
+            return
+        }
+        try {
+            var res = JSON.parse(librarianAdmin.checkBookByIsbn(rawIsbn.trim()))
+            if (res.ok && res.exists && res.book) {
+                duplicateBook = res.book
+                genStatusMessage.text = "⚠️ พบหนังสือเดิมในระบบ: '" + res.book.title + "' (มีอยู่แล้ว " + res.book.total_copies + " เล่ม) - จะเป็นการเพิ่มเล่มใหม่"
+                if (!genBookTitle.text.trim() && res.book.title) genBookTitle.text = res.book.title
+                if (!genBookAuthor.text.trim() && res.book.author) genBookAuthor.text = res.book.author
+            } else {
+                duplicateBook = null
+                if (genStatusMessage.text.indexOf("⚠️ พบหนังสือเดิมในระบบ") !== -1) genStatusMessage.text = ""
+            }
+        } catch (e) {}
+        updateGenPreview()
     }
 
     function isArabicIsbn(input) {
@@ -226,12 +259,15 @@ Rectangle {
     function applyAutofillMetadata(data) {
         if (data.title) genBookTitle.text = data.title
         if (data.author !== undefined) genBookAuthor.text = data.author
-        genStatusMessage.text = "✓ ดึงข้อมูลสำเร็จ"
+        if (!duplicateBook) {
+            genStatusMessage.text = "✓ ดึงข้อมูลสำเร็จ"
+        }
         updateGenPreview()
     }
 
     function fetchIsbnAndAutofill() {
         if (isbnAutoFetchTimer.running) isbnAutoFetchTimer.stop()
+        if (duplicateBook !== null) return
         var rawIsbn = genBookIsbn.text.trim()
         if (!rawIsbn) {
             genStatusMessage.text = "✗ cannot fetch data"
@@ -241,6 +277,10 @@ Rectangle {
             genStatusMessage.text = "✗ ลืมเปลี่ยนภาษา"
             return
         }
+        executeIsbnFetch(rawIsbn)
+    }
+
+    function executeIsbnFetch(rawIsbn) {
         btnFetchIsbn.enabled = false
         btnExecuteGenerate.enabled = false
         genStatusMessage.text = "กำลังค้นหา..."
@@ -264,7 +304,7 @@ Rectangle {
         interval: 300
         repeat: false
         onTriggered: {
-            if (chkAutoFetchIsbn.checked) {
+            if (chkAutoFetchIsbn.checked && barcodeGenScreen.duplicateBook === null) {
                 barcodeGenScreen.fetchIsbnAndAutofill()
             }
         }
@@ -276,78 +316,112 @@ Rectangle {
         }
     }
 
-    function executeGenerateAndSave() {
-        var count = parseInt(genCopyCountInput.text) || 1
-        if (count <= 0) count = 1
-
-        var res
-        if (barcodeGenScreen.currentGenMode === 0) {
-            var title = genBookTitle.text.trim()
-            if (!title) {
-                genStatusMessage.text = "✗ กรุณาระบุชื่อหนังสือ"
-                return
-            }
-            var isbn = genBookIsbn.text.trim()
-            var author = genBookAuthor.text.trim()
-            var catId = ""
-            if (genCategoryCombo.currentIndex > 0 && genCategoryCombo.currentIndex < genCategoryModel.count) {
-                catId = genCategoryModel.get(genCategoryCombo.currentIndex).category_id.toString()
-            }
-            var shelf = genShelfLocation.text.trim()
-
-            // Check if active book with identical title already exists
-            var existingBook = null
-            try {
-                var found = JSON.parse(librarianAdmin.searchBooks(title))
-                for (var fi = 0; fi < found.length; fi++) {
-                    if (found[fi].title.trim() === title && (!isbn || found[fi].isbn === isbn)) {
-                        existingBook = found[fi]
-                        break
-                    }
-                }
-            } catch (e) {}
-
-            if (existingBook && existingBook.total_copies < count) {
-                var diff = count - existingBook.total_copies
-                res = JSON.parse(librarianAdmin.addCopies(existingBook.book_id, diff.toString()))
-                if (res.ok) {
-                    genStatusMessage.text = "✓ ปรับจำนวนเล่มหนังสือ '" + title + "' เป็น " + count + " เล่ม (สร้างบาร์โค้ดเพิ่ม " + diff + " เล่ม)"
-                    barcodeGenScreen.bookSaved()
-                    loadBooksForExistingSelector(existingBook.book_id)
-                    loadInventoryGrid()
-                    updateGenPreview()
-                } else {
-                    genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
-                }
-            } else {
-                res = JSON.parse(librarianAdmin.addBook(title, isbn, author, "", catId, shelf, count.toString()))
-                if (res.ok) {
-                    genStatusMessage.text = "✓ บันทึกหนังสือ '" + title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
-                    barcodeGenScreen.bookSaved()
-                    loadBooksForExistingSelector(res.data.book_id)
-                    loadInventoryGrid()
-                    updateGenPreview()
-                } else {
-                    genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
-                }
-            }
-        } else {
-            if (genExistingBooksModel.count === 0 || genExistingBookCombo.currentIndex < 0) {
-                genStatusMessage.text = "✗ กรุณาเลือกหนังสือเดิมในระบบ"
-                return
-            }
-            var selBook = genExistingBooksModel.get(genExistingBookCombo.currentIndex)
-            res = JSON.parse(librarianAdmin.addCopies(selBook.book_id, count.toString()))
-            if (res.ok) {
-                genStatusMessage.text = "✓ เพิ่มเล่มหนังสือ '" + selBook.title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
-                barcodeGenScreen.bookSaved()
-                loadBooksForExistingSelector(selBook.book_id)
-                loadInventoryGrid()
-                updateGenPreview()
-            } else {
-                genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
-            }
+    function clearRegistrationForm(savedBookId) {
+        genBookTitle.text = ""
+        genBookAuthor.text = ""
+        genBookIsbn.text = ""
+        genShelfLocation.text = ""
+        genCopyCountInput.text = "1"
+        genCategoryCombo.currentIndex = 0
+        duplicateBook = null
+        barcodeGenScreen.bookSaved()
+        if (savedBookId) {
+            loadBooksForExistingSelector(savedBookId)
         }
+        loadInventoryGrid()
+        updateGenPreview()
+        genBookIsbn.forceActiveFocus()
+    }
+
+    function findExistingBookCandidate(isbn, title) {
+        if (duplicateBook) return duplicateBook
+        try {
+            var q = isbn ? isbn : title
+            var found = JSON.parse(librarianAdmin.searchBooks(q))
+            var norm = isbn ? isbn.replace(/[-\s]/g, "").toUpperCase() : ""
+            for (var i = 0; i < found.length; i++) {
+                var cIsbn = (found[i].isbn || "").replace(/[-\s]/g, "").toUpperCase()
+                var match = norm ? (cIsbn === norm) : (found[i].title && found[i].title.trim() === title)
+                if (match) return found[i]
+            }
+        } catch (e) {}
+        return null
+    }
+
+    function saveExistingBookCopies(targetBook, count) {
+        var res = JSON.parse(librarianAdmin.addCopies(targetBook.book_id, count.toString()))
+        if (!res.ok) {
+            genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
+            return
+        }
+        genStatusMessage.text = "✓ เพิ่มเล่มหนังสือเดิม '" + targetBook.title + "' สำเร็จ (เพิ่ม " + count + " เล่ม)"
+        clearRegistrationForm(targetBook.book_id)
+    }
+
+    function saveNewBook(bookData) {
+        var catId = ""
+        if (genCategoryCombo.currentIndex > 0 && genCategoryCombo.currentIndex < genCategoryModel.count) {
+            catId = genCategoryModel.get(genCategoryCombo.currentIndex).category_id.toString()
+        }
+        var res = JSON.parse(librarianAdmin.addBook(
+            bookData.title,
+            bookData.isbn,
+            bookData.author,
+            "",
+            catId,
+            bookData.shelf,
+            bookData.count.toString()
+        ))
+        if (!res.ok) {
+            genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
+            return
+        }
+        genStatusMessage.text = "✓ บันทึกหนังสือ '" + bookData.title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
+        clearRegistrationForm(res.data.book_id)
+    }
+
+    function executeGenerateAndSave() {
+        var count = Math.max(1, parseInt(genCopyCountInput.text) || 1)
+        if (barcodeGenScreen.currentGenMode === 1) {
+            executeGenerateExistingMode(count)
+            return
+        }
+        var title = genBookTitle.text.trim()
+        var isbn = genBookIsbn.text.trim()
+        var existingBook = findExistingBookCandidate(isbn, title)
+        if (existingBook) {
+            saveExistingBookCopies(existingBook, count)
+            return
+        }
+        if (!title) {
+            genStatusMessage.text = "✗ กรุณาระบุชื่อหนังสือ"
+            return
+        }
+        saveNewBook({
+            title: title,
+            isbn: isbn,
+            author: genBookAuthor.text.trim(),
+            shelf: genShelfLocation.text.trim(),
+            count: count
+        })
+    }
+
+    function executeGenerateExistingMode(count) {
+        if (genExistingBooksModel.count === 0 || genExistingBookCombo.currentIndex < 0) {
+            genStatusMessage.text = "✗ กรุณาเลือกหนังสือเดิมในระบบ"
+            return
+        }
+        var selBook = genExistingBooksModel.get(genExistingBookCombo.currentIndex)
+        var res = JSON.parse(librarianAdmin.addCopies(selBook.book_id, count.toString()))
+        if (!res.ok) {
+            genStatusMessage.text = "✗ เกิดข้อผิดพลาด: " + res.error
+            return
+        }
+        genStatusMessage.text = "✓ เพิ่มเล่มหนังสือ '" + selBook.title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
+        barcodeGenScreen.bookSaved()
+        loadBooksForExistingSelector(selBook.book_id)
+        loadInventoryGrid()
+        updateGenPreview()
     }
 
     ColumnLayout {
@@ -478,20 +552,28 @@ Rectangle {
                                     padding: 8
                                     background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
                                     onAccepted: {
-                                        if (chkAutoFetchIsbn.checked) {
+                                        barcodeGenScreen.checkIsbnDuplicate(text.trim())
+                                        if (chkAutoFetchIsbn.checked && barcodeGenScreen.duplicateBook === null) {
                                             barcodeGenScreen.fetchIsbnAndAutofill()
                                         }
                                     }
                                     onTextChanged: {
-                                        barcodeGenScreen.updateGenPreview()
                                         if (text.trim() !== "" && !barcodeGenScreen.isArabicIsbn(text)) {
                                             genStatusMessage.text = "✗ ลืมเปลี่ยนภาษา"
+                                            barcodeGenScreen.updateGenPreview()
                                             return
                                         }
                                         if (genStatusMessage.text === "✗ ลืมเปลี่ยนภาษา") {
                                             genStatusMessage.text = ""
                                         }
                                         var clean = text.replace(/[-\s]/g, "")
+                                        if (clean.length >= 10) {
+                                            barcodeGenScreen.checkIsbnDuplicate(text.trim())
+                                        } else if (clean.length < 10 && barcodeGenScreen.duplicateBook !== null) {
+                                            barcodeGenScreen.checkIsbnDuplicate("")
+                                        } else {
+                                            barcodeGenScreen.updateGenPreview()
+                                        }
                                         if (chkAutoFetchIsbn.checked && clean.length === 13) {
                                             isbnAutoFetchTimer.restart()
                                         }
@@ -698,7 +780,7 @@ Rectangle {
                             font.pixelSize: 12
                             font.bold: true
                             wrapMode: Text.Wrap
-                            color: text.indexOf("✗") !== -1 ? "#ef4444" : "#10b981"
+                            color: text.indexOf("✗") !== -1 ? "#ef4444" : (text.indexOf("⚠️") !== -1 ? "#d97706" : "#10b981")
                             visible: text !== ""
                             Layout.fillWidth: true
                         }

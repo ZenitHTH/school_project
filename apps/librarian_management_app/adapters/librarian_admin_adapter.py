@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from core.shared.mock_qt import (
     QObject, Signal, Slot, HAVE_QT,
     NUMERIC_KEYS, _sanitize_for_qml, normalize_file_path,
+    apply_qt_app_font,
 )
 
 from core.library.services.catalog_service import CatalogService
@@ -132,6 +133,16 @@ class LibrarianAdminAdapter(QObject):
         data = _sanitize_for_qml(res.data) if res.ok else {}
         return json.dumps(data)
 
+    @Slot(str, result=str)
+    def checkBookByIsbn(self, isbn: str) -> str:
+        """Check if an active book with this ISBN already exists."""
+        res = self.catalog_svc.get_active_book_by_isbn(isbn)
+        if not res.ok:
+            return json.dumps({"ok": False, "exists": False, "error": res.error, "book": None})
+        if res.data is None:
+            return json.dumps({"ok": True, "exists": False, "book": None})
+        return json.dumps({"ok": True, "exists": True, "book": _sanitize_for_qml(res.data)})
+
     @Slot(result=str)
     @Slot(str, result=str)
     def getBooksWithBarcodes(self, query: str = "") -> str:
@@ -216,6 +227,20 @@ class LibrarianAdminAdapter(QObject):
         except Exception as e:
             return json.dumps({"ok": False, "error": str(e)})
 
+    def _resolve_next_book_id(self) -> int:
+        """Query next book_id from sqlite_sequence or fallback to MAX(book_id)."""
+        sql = """
+            SELECT COALESCE(
+                (SELECT seq FROM sqlite_sequence WHERE name = 'books'),
+                (SELECT MAX(book_id) FROM books),
+                0
+            ) + 1;
+        """
+        cur = self.conn.cursor()
+        cur.execute(sql)
+        row = cur.fetchone()
+        return row[0] if row else 1
+
     @Slot(int, int, result=str)
     def previewBarcodes(self, book_id: int, count: int) -> str:
         """Preview deterministic barcode generation before committing."""
@@ -223,15 +248,8 @@ class LibrarianAdminAdapter(QObject):
             from core.library.policy import format_barcode
             from data.repositories import book_repo
             count = max(1, count)
-            if book_id <= 0:
-                cur = self.conn.cursor()
-                cur.execute("SELECT COALESCE(MAX(book_id), 0) + 1 FROM books;")
-                target_id = cur.fetchone()[0]
-                start_seq = 1
-            else:
-                target_id = book_id
-                start_seq = book_repo.count_copies_ever(self.conn, book_id) + 1
-
+            target_id = self._resolve_next_book_id() if book_id <= 0 else book_id
+            start_seq = 1 if book_id <= 0 else (book_repo.count_copies_ever(self.conn, book_id) + 1)
             barcodes = [format_barcode(target_id, seq) for seq in range(start_seq, start_seq + count)]
             return json.dumps({"ok": True, "target_book_id": target_id, "barcodes": barcodes})
         except Exception as e:
@@ -413,6 +431,11 @@ class LibrarianAdminAdapter(QObject):
         payload = json.dumps({"ok": res.ok, "error": res.error, "data": data})
         self.isbnLookupCompleted.emit(payload)
         return payload
+
+    @Slot(str, int)
+    def setAppFont(self, family: str, pixel_size: int) -> None:
+        """Update application-level font family and pixel size."""
+        apply_qt_app_font(family, pixel_size)
 
 
 

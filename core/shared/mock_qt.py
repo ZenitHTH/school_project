@@ -1,7 +1,7 @@
 """Mock Qt types for non-Qt environments and shared adapter utilities."""
 
 import sys
-from typing import Any, Set
+from typing import Any, List, Set
 from urllib.parse import unquote, urlparse
 
 NUMERIC_KEYS: Set[str] = {
@@ -75,3 +75,70 @@ try:
 
 except ImportError:
     HAVE_QT = False
+
+_LOADED_FONTS: List[str] = []
+
+
+def get_bundled_fonts_dir() -> str:
+    """Return path to bundled font directory in source or frozen binary mode."""
+    import os
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, "apps", "common_qml", "fonts")
+    return os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "apps", "common_qml", "fonts")
+    )
+
+
+def _setup_font_substitutions() -> None:
+    """Configure font substitutions for cross-platform compatibility."""
+    from PySide6.QtGui import QFont
+    QFont.insertSubstitution("Noto Sans", "Noto Sans Thai")
+    QFont.insertSubstitution("Sarabun", "TH Sarabun New")
+    QFont.insertSubstitution("Sarabun", "TH SarabunPSK")
+
+
+def register_bundled_fonts() -> List[str]:
+    """Register all project bundled fonts with QFontDatabase."""
+    global _LOADED_FONTS
+    if not HAVE_QT:
+        return []
+    if _LOADED_FONTS:
+        return list(_LOADED_FONTS)
+
+    import os
+    from PySide6.QtGui import QFontDatabase
+    font_dir = get_bundled_fonts_dir()
+    if not os.path.isdir(font_dir):
+        return []
+
+    families = []
+    for f in sorted(os.listdir(font_dir)):
+        if f.lower().endswith((".ttf", ".ttc", ".otf")):
+            fid = QFontDatabase.addApplicationFont(os.path.join(font_dir, f))
+            if fid >= 0:
+                families.extend(QFontDatabase.applicationFontFamilies(fid))
+
+    _setup_font_substitutions()
+    _LOADED_FONTS = families
+    return list(_LOADED_FONTS)
+
+
+def apply_qt_app_font(family: str, pixel_size: int) -> None:
+    """Update application-level font family and pixel size."""
+    if not HAVE_QT:
+        return
+    try:
+        from PySide6.QtGui import QGuiApplication
+        app = QGuiApplication.instance()
+        if not app:
+            return
+        register_bundled_fonts()
+        font = app.font()
+        if family:
+            font.setFamily(family)
+        if pixel_size > 0:
+            font.setPixelSize(pixel_size)
+        app.setFont(font)
+    except Exception:
+        pass
+

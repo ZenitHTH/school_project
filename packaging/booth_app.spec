@@ -12,6 +12,8 @@ datas = [
     ('../data/migrations/*.sql', 'data/migrations'),
     ('../apps/booth_app/qml/*.qml', 'apps/booth_app/qml'),
     ('../apps/common_qml/*.qml', 'apps/common_qml'),
+    ('../apps/common_qml/*.js', 'apps/common_qml'),
+    ('../apps/common_qml/fonts/*', 'apps/common_qml/fonts'),
     ('../apps/common_qml/qmldir', 'apps/common_qml'),
 ]
 binaries = []

@@ -46,6 +46,8 @@ apps/librarian_management_app/
 ### 2.3 Book Registration, Live Preview & Inventory Grid (`BarcodeGeneratorView.qml` & `BookInventoryRightPane.qml`, Tab 6)
 - 2-column split screen:
   - **Left Card (Book Registration)**: Register new book or add copies to an existing book. Immediately commits deterministic `SMTE-xxxxx-xx` barcodes to `book_copies` in SQLite upon save. Auto-selects existing books upon switching to mode 1 and supports topping up copies to a target count.
+  - **Duplicate ISBN Detection (`checkBookByIsbn`)**: Scans/inputs trigger duplicate checks against active catalog. If a matching book exists, alerts librarian with existing copy count and routes save operation to append copies to the existing title rather than failing database unique constraints.
+  - **Form Auto-Clear & Continuous Scanning**: Clearing of input fields upon successful save (`clearRegistrationForm`), immediately returning focus to the ISBN input field for rapid barcode gun scanning.
   - **Right Card (Live Incoming Preview & Inventory Grid Table)**:
     - **Top Bordered Table Box**: Displays real-time live preview of the book currently being entered/modified (`incomingBookPreviewCard`), including Title, Author, ISBN, Category, Shelf Location, Copy Count, and deterministic barcode sequence preview (`SMTE-xxxxx-01` ...).
     - **Middle Bordered Table Box**: Structured inventory table (`inventoryBooksList` / `inventoryBooksModel`) showing all books currently in library stock with search filter, copy count badges, and inline actions (`+ เพิ่มเล่ม`, `✏️ แก้ไข`, `🗑️ ลบ`).
@@ -65,3 +67,8 @@ apps/librarian_management_app/
 ### 2.5 Student Snapshot Sync (`StudentSyncView.qml`)
 - Imports `snapshot.sqlite` exported from the Student Management App.
 - Computes additions, promotions, and status changes, displaying a preview before applying updates to `library.sqlite`.
+
+### 2.6 System Settings & Sidebar Navigation (`Main.qml` & `SettingsView.qml`)
+- Left sidebar navigation uses dynamic `implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 18))` and `Layout.preferredHeight` on `NavBtn` to ensure active highlight pills cleanly encase text labels across all system font sizes and UI scaling factors.
+- Tab 8 embeds the shared `SettingsView.qml` for real-time font family, font size (10–24px), and UI scaling (50%–150%) adjustment.
+

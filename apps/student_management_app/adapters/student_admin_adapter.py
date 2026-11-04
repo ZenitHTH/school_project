@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from core.shared.mock_qt import (
     QObject, Signal, Slot, HAVE_QT,
     NUMERIC_KEYS, _sanitize_for_qml, normalize_file_path,
+    apply_qt_app_font,
 )
 from core.importers.xlsx_validator import validate_xlsx_structure, check_live_data_exists
 from core.importers.build_db import import_roster
@@ -43,21 +44,16 @@ class StudentAdminAdapter(QObject):
     def initializeBlankDatabase(self, actor: str = "Admin") -> str:
         """Confirm blank database initialization and mark first-launch complete."""
         try:
-            cur = self.conn.cursor()
             now = datetime.datetime.now().isoformat()
-            cur.execute(
+            self.conn.execute(
                 "INSERT OR REPLACE INTO sync_state (key, value, updated_at) VALUES ('first_launch_done', '1', ?);",
-                (now,)
+                (now,),
             )
             self.conn.commit()
             from core.shared.log_service import record_activity
             record_activity(
-                self.conn,
-                action="system.init_blank_db",
-                entity_type="system",
-                entity_id=0,
-                detail="Initialized blank database following table rules.",
-                actor=actor,
+                self.conn, action="system.init_blank_db", entity_type="system", entity_id=0,
+                detail="Initialized blank database following table rules.", actor=actor,
             )
             return json.dumps({"ok": True, "message": "Initialized blank database successfully."})
         except Exception as e:
@@ -99,12 +95,8 @@ class StudentAdminAdapter(QObject):
     def updateName(self, student_id: int, prefix: str, first_name: str, last_name: str, reason: str = "", actor: str = "Admin") -> str:
         """Update student name."""
         res = self.student_svc.update_name(
-            student_id,
-            prefix=prefix or None,
-            first_name=first_name,
-            last_name=last_name,
-            reason=reason or None,
-            actor=actor,
+            student_id, prefix=prefix or None, first_name=first_name,
+            last_name=last_name, reason=reason or None, actor=actor,
         )
         return json.dumps({"ok": res.ok, "error": res.error})
 
@@ -156,25 +148,13 @@ class StudentAdminAdapter(QObject):
         res = import_roster(xlsx_path, conn=self.conn)
         if res.ok:
             try:
-                cur = self.conn.cursor()
                 now = datetime.datetime.now().isoformat()
-                cur.execute(
-                    "INSERT OR REPLACE INTO sync_state (key, value, updated_at) VALUES ('first_launch_done', '1', ?);",
-                    (now,)
-                )
+                self.conn.execute("INSERT OR REPLACE INTO sync_state (key, value, updated_at) VALUES ('first_launch_done', '1', ?);", (now,))
                 self.conn.commit()
             except Exception:
                 pass
-
             from core.shared.log_service import record_activity
-            record_activity(
-                self.conn,
-                action="student.import_xlsx",
-                entity_type="system",
-                entity_id=0,
-                detail=f"Imported xlsx: {xlsx_path}",
-                actor=actor,
-            )
+            record_activity(self.conn, action="student.import_xlsx", entity_type="system", entity_id=0, detail=f"Imported xlsx: {xlsx_path}", actor=actor)
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
     @Slot(str, result=str)
@@ -208,3 +188,9 @@ class StudentAdminAdapter(QObject):
         """Fetch local activity log entries."""
         rows = log_repo.get_activity_logs(self.conn, limit=100)
         return json.dumps(_sanitize_for_qml([dict(r) for r in rows]))
+
+    @Slot(str, int)
+    def setAppFont(self, family: str, pixel_size: int) -> None:
+        """Update application-level font family and pixel size."""
+        apply_qt_app_font(family, pixel_size)
+

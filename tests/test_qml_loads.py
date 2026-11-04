@@ -90,6 +90,8 @@ def test_common_qml_components_load(qapp):
         "ActionFeedbackBanner.qml",
         "AuditLogView.qml",
         "FirstLaunchDialog.qml",
+        "SettingsView.qml",
+        "BundledFonts.qml",
     ]
 
     for comp_name in components:
@@ -118,6 +120,8 @@ def test_common_qml_module_import(qapp):
         ActionFeedbackBanner { id: banner }
         AuditLogView { id: audit }
         FirstLaunchDialog { id: dialog }
+        SettingsView { id: settings }
+        BundledFonts { id: fonts }
     }
     """
     comp = QQmlComponent(engine)

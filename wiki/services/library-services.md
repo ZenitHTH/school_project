@@ -24,8 +24,17 @@ Manages categories, book titles, and individual physical book copies.
 ### Key Workflows:
 - **Category Hierarchy**:
   - `add_category(name)`, `rename_category(id, new_name)`, `delete_category(id, reassign_to_id)`
-- **Auto-Incremented Barcode Generation**:
-  - Generates barcodes with prefix `SMTE` and zero-padded sequence (e.g. `SMTE000001`).
+- **Auto-Incremented Barcode Generation & Sequence Sync**:
+  - Generates barcodes with prefix `SMTE` and zero-padded sequence (e.g. `SMTE-00001-01`).
+  - Barcode preview queries `sqlite_sequence` fallback to `MAX(book_id)` to deterministically match SQLite AUTOINCREMENT allocation.
+- **Duplicate ISBN Rejection & Normalization**:
+  - `add_book` prevents registering active duplicate books sharing the same ISBN (`Result.fail("Active book with this ISBN already exists")`).
+  - ISBN lookup is normalized across whitespace and hyphens via `get_active_book_by_isbn`.
+- **Accidental Entry Recovery & Sequence Recycling**:
+  - `retire_book` checks if a book has any historical or active loans or reservations (`_book_has_history`).
+  - Books with zero history (accidental creations) are hard-deleted along with their copies and status logs, and `sqlite_sequence` for `books` and `book_copies` is automatically rewound to prevent barcode/ID jumps.
+  - Books with existing loan or reservation history retain soft-delete preservation (`active = 0`), preserving foreign key integrity and audit logs.
+  - `remove_excess_copies` similarly rewinds `book_copies` sequence upon copy deletion.
 - **Disposal & Copy Lifecycle**:
   - Tracks individual copy status (`available`, `borrowed`, `reserved`, `lost`, `disposed`).
 

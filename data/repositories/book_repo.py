@@ -54,6 +54,67 @@ def delete_category(conn: sqlite3.Connection, category_id: int, reassign_to_id: 
         conn.execute("DELETE FROM categories WHERE category_id = ?", (category_id,))
 
 
+def _normalize_isbn(isbn: Optional[str]) -> Optional[str]:
+    """Strip whitespace and hyphens from ISBN string and uppercase."""
+    if not isbn or not str(isbn).strip():
+        return None
+    return str(isbn).strip().replace("-", "").replace(" ", "").upper()
+
+
+def get_book_by_isbn(conn: sqlite3.Connection, isbn: Optional[str]) -> Optional[sqlite3.Row]:
+    """Retrieve any book matching normalized ISBN."""
+    clean = _normalize_isbn(isbn)
+    if not clean:
+        return None
+    sql = """
+        SELECT * FROM books
+        WHERE UPPER(REPLACE(REPLACE(isbn, '-', ''), ' ', '')) = ?
+        LIMIT 1
+    """
+    return conn.execute(sql, (clean,)).fetchone()
+
+
+def get_active_book_by_isbn(conn: sqlite3.Connection, isbn: Optional[str]) -> Optional[sqlite3.Row]:
+    """Retrieve active book matching normalized ISBN."""
+    clean = _normalize_isbn(isbn)
+    if not clean:
+        return None
+    sql = """
+        SELECT * FROM books
+        WHERE active = 1
+          AND UPPER(REPLACE(REPLACE(isbn, '-', ''), ' ', '')) = ?
+        LIMIT 1
+    """
+    return conn.execute(sql, (clean,)).fetchone()
+
+
+def _validate_new_isbn(conn: sqlite3.Connection, isbn: Optional[str]) -> Optional[str]:
+    """Ensure ISBN does not collide with an active book."""
+    if not isbn or not str(isbn).strip():
+        return None
+    clean = str(isbn).strip()
+    if get_active_book_by_isbn(conn, clean):
+        raise ValueError("Active book with this ISBN already exists")
+    return clean
+
+
+def _insert_book_row(
+    cur: sqlite3.Cursor,
+    title: str,
+    isbn: Optional[str],
+    author: Optional[str],
+    publisher: Optional[str],
+    category_id: Optional[int],
+    shelf_location: Optional[str],
+) -> int:
+    sql = """
+        INSERT INTO books (title, isbn, author, publisher, category_id, shelf_location, total_copies, active)
+        VALUES (?, ?, ?, ?, ?, ?, 0, 1)
+    """
+    cur.execute(sql, (title, isbn, author, publisher, category_id, shelf_location))
+    return cur.lastrowid
+
+
 def add_book(
     conn: sqlite3.Connection,
     title: str,
@@ -65,26 +126,19 @@ def add_book(
     actor: Optional[str] = None,
 ) -> int:
     """Insert a new book record into books table."""
+    clean_isbn = _validate_new_isbn(conn, isbn)
     with conn:
         cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO books (title, isbn, author, publisher, category_id, shelf_location, total_copies, active)
-            VALUES (?, ?, ?, ?, ?, ?, 0, 1)
-            """,
-            (title, isbn, author, publisher, category_id, shelf_location),
-        )
-        book_id = cur.lastrowid
-
+        bid = _insert_book_row(cur, title, clean_isbn, author, publisher, category_id, shelf_location)
         record_activity(
             conn,
             action="catalog.add_book",
             entity_type="book",
-            entity_id=book_id,
+            entity_id=bid,
             detail=f"Added book: '{title}'",
             actor=actor,
         )
-        return book_id
+        return bid
 
 
 def update_book(
@@ -118,35 +172,93 @@ def update_book(
         )
 
 
-def retire_book(conn: sqlite3.Connection, book_id: int, actor: Optional[str] = None) -> None:
-    """Soft-delete a book (active = 0) and mark all its copies retired."""
+def _rewind_sequence(conn: sqlite3.Connection, table_name: str, pk_col: str) -> None:
+    """Rewind sqlite_sequence for table if seq exceeds current maximum PK."""
+    sql = f"""
+        UPDATE sqlite_sequence
+        SET seq = (SELECT COALESCE(MAX({pk_col}), 0) FROM {table_name})
+        WHERE name = ?
+          AND seq > (SELECT COALESCE(MAX({pk_col}), 0) FROM {table_name})
+    """
+    conn.execute(sql, (table_name,))
+
+
+def _rewind_catalog_sequences(conn: sqlite3.Connection) -> None:
+    """Rewind sqlite_sequence for books and book_copies."""
+    _rewind_sequence(conn, "books", "book_id")
+    _rewind_sequence(conn, "book_copies", "copy_id")
+
+
+def _book_has_history(conn: sqlite3.Connection, book_id: int) -> bool:
+    """Check if the book has loan records or reservations."""
+    sql = """
+        SELECT 1 FROM loans l
+        JOIN book_copies c ON l.copy_id = c.copy_id
+        WHERE c.book_id = ?
+        UNION ALL
+        SELECT 1 FROM reservations WHERE book_id = ?
+        LIMIT 1
+    """
+    return conn.execute(sql, (book_id, book_id)).fetchone() is not None
+
+
+def _hard_delete_book(conn: sqlite3.Connection, book_id: int, actor: Optional[str] = None) -> None:
+    """Purge unloaned book and its copies from database and rewind sequence."""
+    conn.execute(
+        "DELETE FROM book_copy_status_log WHERE copy_id IN (SELECT copy_id FROM book_copies WHERE book_id = ?)",
+        (book_id,),
+    )
+    conn.execute("DELETE FROM book_copies WHERE book_id = ?", (book_id,))
+    conn.execute("DELETE FROM books WHERE book_id = ?", (book_id,))
+    _rewind_catalog_sequences(conn)
+    record_activity(
+        conn,
+        action="catalog.retire_book",
+        entity_type="book",
+        entity_id=book_id,
+        detail="Book purged (hard delete, 0 loans)",
+        actor=actor,
+    )
+
+
+def _record_copy_retirement_logs(cur: sqlite3.Cursor, copies: List[sqlite3.Row], now_iso: str) -> None:
+    """Retire active copies and append transition entries to book_copy_status_log."""
+    for c in copies:
+        if c["status"] != "retired":
+            cur.execute("UPDATE book_copies SET status = 'retired' WHERE copy_id = ?", (c["copy_id"],))
+            cur.execute(
+                """
+                INSERT INTO book_copy_status_log (copy_id, old_status, new_status, reason, changed_at)
+                VALUES (?, ?, 'retired', 'Book retired', ?)
+                """,
+                (c["copy_id"], c["status"], now_iso),
+            )
+
+
+def _soft_delete_book(conn: sqlite3.Connection, book_id: int, actor: Optional[str] = None) -> None:
+    """Soft-delete a book (active = 0) and mark its active copies retired."""
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    cur = conn.cursor()
+    cur.execute("UPDATE books SET active = 0 WHERE book_id = ?", (book_id,))
+    cur.execute("SELECT copy_id, status FROM book_copies WHERE book_id = ?", (book_id,))
+    _record_copy_retirement_logs(cur, cur.fetchall(), now_iso)
+    record_activity(
+        conn,
+        action="catalog.retire_book",
+        entity_type="book",
+        entity_id=book_id,
+        detail="Book retired (soft delete)",
+        actor=actor,
+    )
+
+
+def retire_book(conn: sqlite3.Connection, book_id: int, actor: Optional[str] = None) -> None:
+    """Retire a book: hard-delete if no history, or soft-delete if loans/reservations exist."""
     with conn:
-        cur = conn.cursor()
-        cur.execute("UPDATE books SET active = 0 WHERE book_id = ?", (book_id,))
-
-        cur.execute("SELECT copy_id, status FROM book_copies WHERE book_id = ?", (book_id,))
-        copies = cur.fetchall()
-
-        for c in copies:
-            if c["status"] != "retired":
-                cur.execute("UPDATE book_copies SET status = 'retired' WHERE copy_id = ?", (c["copy_id"],))
-                cur.execute(
-                    """
-                    INSERT INTO book_copy_status_log (copy_id, old_status, new_status, reason, changed_at)
-                    VALUES (?, ?, 'retired', 'Book retired', ?)
-                    """,
-                    (c["copy_id"], c["status"], now_iso),
-                )
-
-        record_activity(
-            conn,
-            action="catalog.retire_book",
-            entity_type="book",
-            entity_id=book_id,
-            detail="Book retired (soft delete)",
-            actor=actor,
-        )
+        if _book_has_history(conn, book_id):
+            _soft_delete_book(conn, book_id, actor=actor)
+        else:
+            _hard_delete_book(conn, book_id, actor=actor)
 
 
 def get_book(conn: sqlite3.Connection, book_id: int) -> Optional[sqlite3.Row]:
@@ -278,6 +390,51 @@ def get_book_copy_breakdown(conn: sqlite3.Connection, book_id: int) -> Dict[str,
     }
 
 
+def _find_removable_copies(conn: sqlite3.Connection, book_id: int, count: int) -> List[sqlite3.Row]:
+    """Find unloaned available copies suitable for removal."""
+    sql = """
+        SELECT c.copy_id, c.barcode
+        FROM book_copies c
+        WHERE c.book_id = ? AND c.status = 'available'
+          AND NOT EXISTS (SELECT 1 FROM loans l WHERE l.copy_id = c.copy_id)
+        ORDER BY c.copy_id DESC
+        LIMIT ?
+    """
+    return conn.execute(sql, (book_id, count)).fetchall()
+
+
+def _delete_candidate_copies(conn: sqlite3.Connection, candidates: List[sqlite3.Row]) -> List[str]:
+    """Delete candidate copy records and status logs, returning removed barcodes."""
+    removed_barcodes = []
+    for row in candidates:
+        cid = row["copy_id"]
+        conn.execute("DELETE FROM book_copy_status_log WHERE copy_id = ?", (cid,))
+        conn.execute("DELETE FROM book_copies WHERE copy_id = ?", (cid,))
+        removed_barcodes.append(row["barcode"])
+    return removed_barcodes
+
+
+def _sync_book_total_copies_and_log(
+    conn: sqlite3.Connection,
+    book_id: int,
+    removed: List[str],
+    actor: Optional[str],
+) -> None:
+    conn.execute(
+        "UPDATE books SET total_copies = (SELECT count(*) FROM book_copies WHERE book_id = ?) WHERE book_id = ?",
+        (book_id, book_id),
+    )
+    _rewind_sequence(conn, "book_copies", "copy_id")
+    record_activity(
+        conn,
+        action="catalog.remove_copies",
+        entity_type="book",
+        entity_id=book_id,
+        detail=f"Removed {len(removed)} cop(ies): {', '.join(removed)}",
+        actor=actor,
+    )
+
+
 def remove_excess_copies(
     conn: sqlite3.Connection,
     book_id: int,
@@ -287,39 +444,15 @@ def remove_excess_copies(
     """Safely remove unloaned available copies for a book (e.g. entered by mistake)."""
     if count_to_remove <= 0:
         return []
-    sql = """
-        SELECT c.copy_id, c.barcode
-        FROM book_copies c
-        WHERE c.book_id = ? AND c.status = 'available'
-          AND NOT EXISTS (SELECT 1 FROM loans l WHERE l.copy_id = c.copy_id)
-        ORDER BY c.copy_id DESC
-        LIMIT ?
-    """
-    candidates = conn.execute(sql, (book_id, count_to_remove)).fetchall()
+    candidates = _find_removable_copies(conn, book_id, count_to_remove)
     if len(candidates) < count_to_remove:
         raise ValueError(
             f"Cannot remove {count_to_remove} copies; only {len(candidates)} unloaned available copies found."
         )
-    removed_barcodes = []
     with conn:
-        for row in candidates:
-            cid = row["copy_id"]
-            conn.execute("DELETE FROM book_copy_status_log WHERE copy_id = ?", (cid,))
-            conn.execute("DELETE FROM book_copies WHERE copy_id = ?", (cid,))
-            removed_barcodes.append(row["barcode"])
-        conn.execute(
-            "UPDATE books SET total_copies = (SELECT count(*) FROM book_copies WHERE book_id = ?) WHERE book_id = ?",
-            (book_id, book_id),
-        )
-        record_activity(
-            conn,
-            action="catalog.remove_copies",
-            entity_type="book",
-            entity_id=book_id,
-            detail=f"Removed {len(removed_barcodes)} cop(ies): {', '.join(removed_barcodes)}",
-            actor=actor,
-        )
-    return removed_barcodes
+        removed = _delete_candidate_copies(conn, candidates)
+        _sync_book_total_copies_and_log(conn, book_id, removed, actor)
+    return removed
 
 
 

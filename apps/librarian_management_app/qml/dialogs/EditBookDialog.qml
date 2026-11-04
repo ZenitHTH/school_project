@@ -351,9 +351,9 @@ Dialog {
                         }
 
                         // Copy Adjustment Stepper & Quick-buttons
-                        RowLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            spacing: 8
+                            spacing: 6
 
                             Text {
                                 text: "จำนวนเล่มที่ถูกต้อง:"
@@ -362,68 +362,80 @@ Dialog {
                                 color: "#334155"
                             }
 
-                            // Minus Button
-                            Button {
-                                text: "−"
-                                Layout.preferredWidth: 32
-                                height: 32
-                                font.bold: true
-                                font.pixelSize: 14
-                                onClicked: editDialog.stepCopies(-1)
-                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
 
-                            TextField {
-                                id: copiesInput
-                                objectName: "editBookCopiesInput"
-                                Layout.preferredWidth: 64
-                                height: 32
-                                text: "1"
-                                horizontalAlignment: Text.AlignHCenter
-                                font.bold: true
-                                font.pixelSize: 13
-                                validator: IntValidator { bottom: 1; top: 99 }
-                                selectByMouse: true
-                                background: Rectangle {
-                                    border.color: editDialog.isBelowOnLoan() ? "#ef4444" : (parent.activeFocus ? "#0284c7" : "#cbd5e1")
-                                    border.width: editDialog.isBelowOnLoan() ? 2 : 1
-                                    radius: 6
-                                    color: "#ffffff"
+                                Button {
+                                    text: "−"
+                                    Layout.preferredWidth: Math.max(32, Math.round(font.pixelSize * 2.2))
+                                    Layout.preferredHeight: Math.max(32, Math.round(font.pixelSize * 2.0))
+                                    font.bold: true
+                                    font.pixelSize: 14
+                                    onClicked: editDialog.stepCopies(-1)
                                 }
-                            }
 
-                            // Plus Button
-                            Button {
-                                text: "+"
-                                Layout.preferredWidth: 32
-                                height: 32
-                                font.bold: true
-                                font.pixelSize: 14
-                                onClicked: editDialog.stepCopies(1)
-                            }
+                                TextField {
+                                    id: copiesInput
+                                    objectName: "editBookCopiesInput"
+                                    Layout.preferredWidth: Math.max(64, Math.round(font.pixelSize * 4.0))
+                                    Layout.preferredHeight: Math.max(32, Math.round(font.pixelSize * 2.0))
+                                    text: "1"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.bold: true
+                                    font.pixelSize: 13
+                                    validator: IntValidator { bottom: 1; top: 99 }
+                                    selectByMouse: true
+                                    background: Rectangle {
+                                        border.color: editDialog.isBelowOnLoan() ? "#ef4444" : (parent.activeFocus ? "#0284c7" : "#cbd5e1")
+                                        border.width: editDialog.isBelowOnLoan() ? 2 : 1
+                                        radius: 6
+                                        color: "#ffffff"
+                                    }
+                                }
 
-                            // Quick Delta Chips
-                            Button {
-                                text: "+1"
-                                Layout.preferredWidth: 36; height: 28; font.pixelSize: 10
-                                onClicked: editDialog.stepCopies(1)
-                            }
-                            Button {
-                                text: "+5"
-                                Layout.preferredWidth: 36; height: 28; font.pixelSize: 10
-                                onClicked: editDialog.stepCopies(5)
-                            }
-                            Button {
-                                text: "-1"
-                                Layout.preferredWidth: 36; height: 28; font.pixelSize: 10
-                                enabled: (parseInt(copiesInput.text) || 1) > 1
-                                onClicked: editDialog.stepCopies(-1)
+                                Button {
+                                    text: "+"
+                                    Layout.preferredWidth: Math.max(32, Math.round(font.pixelSize * 2.2))
+                                    Layout.preferredHeight: Math.max(32, Math.round(font.pixelSize * 2.0))
+                                    font.bold: true
+                                    font.pixelSize: 14
+                                    onClicked: editDialog.stepCopies(1)
+                                }
+
+                                Item { Layout.preferredWidth: 6 }
+
+                                Button {
+                                    text: "+1"
+                                    Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
+                                    Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
+                                    font.pixelSize: 10
+                                    onClicked: editDialog.stepCopies(1)
+                                }
+                                Button {
+                                    text: "+5"
+                                    Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
+                                    Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
+                                    font.pixelSize: 10
+                                    onClicked: editDialog.stepCopies(5)
+                                }
+                                Button {
+                                    text: "-1"
+                                    Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
+                                    Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
+                                    font.pixelSize: 10
+                                    enabled: (parseInt(copiesInput.text) || 1) > 1
+                                    onClicked: editDialog.stepCopies(-1)
+                                }
+
+                                Item { Layout.fillWidth: true }
                             }
                         }
 
                         // Live Action Feedback Banner
                         Rectangle {
                             Layout.fillWidth: true
-                            height: 32
+                            implicitHeight: Math.max(34, bannerRow.implicitHeight + 12)
                             radius: 6
                             color: {
                                 if (editDialog.isBelowOnLoan()) return "#fee2e2"
@@ -441,6 +453,7 @@ Dialog {
                             }
 
                             RowLayout {
+                                id: bannerRow
                                 anchors.fill: parent
                                 anchors.leftMargin: 10
                                 anchors.rightMargin: 10
@@ -459,6 +472,7 @@ Dialog {
                                     Layout.fillWidth: true
                                     font.pixelSize: 10
                                     font.bold: true
+                                    wrapMode: Text.Wrap
                                     color: {
                                         if (editDialog.isBelowOnLoan()) return "#991b1b"
                                         var d = editDialog.calculateDiff()

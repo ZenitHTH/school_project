@@ -191,49 +191,60 @@ Rectangle {
                 spacing: 8
 
                 // Header & Search
-                RowLayout {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 8
-                    Text {
-                        text: "🏛️ ข้อมูลหนังสือที่อยู่ในคลังตอนนี้"
-                        font.bold: true
-                        font.pixelSize: 13
-                        color: "#0f172a"
-                    }
-                    Rectangle {
-                        id: inventorySummaryBadge
-                        objectName: "inventorySummaryBadge"
-                        height: 20
-                        width: invCountText.contentWidth + 10
-                        radius: 4
-                        color: "#f1f5f9"
-                        border.color: "#cbd5e1"
+                    spacing: 6
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
                         Text {
-                            id: invCountText
-                            anchors.centerIn: parent
-                            text: inventoryBooksModel.count + " เรื่อง"
-                            font.pixelSize: 10
+                            text: "🏛️ ข้อมูลหนังสือที่อยู่ในคลังตอนนี้"
                             font.bold: true
-                            color: "#475569"
+                            font.pixelSize: 13
+                            color: "#0f172a"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+                        Rectangle {
+                            id: inventorySummaryBadge
+                            objectName: "inventorySummaryBadge"
+                            height: 22
+                            width: invCountText.contentWidth + 12
+                            radius: 4
+                            color: "#f1f5f9"
+                            border.color: "#cbd5e1"
+                            Text {
+                                id: invCountText
+                                anchors.centerIn: parent
+                                text: inventoryBooksModel.count + " เรื่อง"
+                                font.pixelSize: 10
+                                font.bold: true
+                                color: "#475569"
+                            }
                         }
                     }
-                    Item { Layout.fillWidth: true }
-                    TextField {
-                        id: inventorySearchInput
-                        objectName: "inventorySearchInput"
-                        placeholderText: "🔍 ค้นคลัง..."
-                        Layout.preferredWidth: 140
-                        font.pixelSize: 11
-                        padding: 6
-                        background: Rectangle { border.color: "#cbd5e1"; radius: 4 }
-                        onTextChanged: rightPaneRoot.refreshInventoryRequested()
-                    }
-                    Button {
-                        text: "🔄"
-                        font.pixelSize: 11
-                        Layout.preferredWidth: 32
-                        flat: true
-                        onClicked: rightPaneRoot.refreshInventoryRequested()
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        TextField {
+                            id: inventorySearchInput
+                            objectName: "inventorySearchInput"
+                            placeholderText: "🔍 ค้นคลัง..."
+                            Layout.fillWidth: true
+                            font.pixelSize: 11
+                            padding: 6
+                            background: Rectangle { border.color: "#cbd5e1"; radius: 4 }
+                            onTextChanged: rightPaneRoot.refreshInventoryRequested()
+                        }
+                        Button {
+                            text: "🔄"
+                            font.pixelSize: 11
+                            Layout.preferredWidth: 36
+                            flat: true
+                            onClicked: rightPaneRoot.refreshInventoryRequested()
+                        }
                     }
                 }
 
@@ -385,12 +396,13 @@ Rectangle {
         // Bottom Strip: Quick Category Management Strip (Preserves existing API)
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 110
+            Layout.preferredHeight: Math.max(110, catCol.implicitHeight + 20)
             color: "#ffffff"
             radius: 8
             border.color: "#e2e8f0"
 
             ColumnLayout {
+                id: catCol
                 anchors.fill: parent
                 anchors.margins: 10
                 spacing: 6

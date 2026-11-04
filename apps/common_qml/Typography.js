@@ -1,0 +1,80 @@
+.pragma library
+
+var baseSizes = new Map();
+var baseHeights = new Map();
+var origFamilies = new Map();
+var defaultFamily = "";
+
+function recordDefaults(obj) {
+    if (!obj || !obj.font) return;
+    if (!baseSizes.has(obj)) {
+        var size = obj.font.pixelSize > 0 ? obj.font.pixelSize : 14;
+        baseSizes.set(obj, size);
+    }
+    if (!origFamilies.has(obj)) {
+        origFamilies.set(obj, obj.font.family || "");
+    }
+    if (!defaultFamily && obj.font.family && obj.font.family !== "monospace") {
+        defaultFamily = obj.font.family;
+    }
+    if (obj.implicitHeight !== undefined && !baseHeights.has(obj) && obj.implicitHeight > 0) {
+        if (obj.background !== undefined || obj.contentItem !== undefined || obj.placeholderText !== undefined) {
+            baseHeights.set(obj, obj.implicitHeight);
+        }
+    }
+}
+
+function resolveTargetFamily(obj, configFamily) {
+    var orig = origFamilies.get(obj);
+    if (orig === "monospace") return "monospace";
+    if (configFamily) return configFamily;
+    return orig || defaultFamily;
+}
+
+function applyHeightScale(obj, factor) {
+    if (!baseHeights.has(obj)) return;
+    try {
+        var baseH = baseHeights.get(obj);
+        obj.implicitHeight = Math.max(baseH, Math.round(baseH * factor));
+    } catch (e) {}
+}
+
+function applyToNode(obj, config) {
+    if (!obj || obj.font === undefined) return;
+    recordDefaults(obj);
+    obj.font.family = resolveTargetFamily(obj, config.family);
+    var base = baseSizes.get(obj) || 14;
+    obj.font.pixelSize = Math.max(8, Math.round(base * config.factor));
+    applyHeightScale(obj, config.factor);
+}
+
+function visitProps(obj, ctx) {
+    var props = ["contentItem", "header", "footer", "background"];
+    for (var i = 0; i < props.length; i++) {
+        var p = props[i];
+        if (obj[p] && typeof obj[p] === "object") traverseNode(obj[p], ctx);
+    }
+}
+
+function visitList(list, ctx) {
+    if (!list || !list.length) return;
+    for (var i = 0; i < list.length; i++) traverseNode(list[i], ctx);
+}
+
+function traverseNode(obj, ctx) {
+    if (!obj || obj === ctx.skipNode || ctx.visited.has(obj)) return;
+    ctx.visited.add(obj);
+    applyToNode(obj, ctx.config);
+    visitProps(obj, ctx);
+    visitList(obj.children, ctx);
+    visitList(obj.data, ctx);
+    visitList(obj.resources, ctx);
+    visitList(obj.contentChildren, ctx);
+    visitList(obj.contentData, ctx);
+}
+
+function applyToTree(root, config, skipNode) {
+    if (!root) return;
+    var ctx = { config: config, skipNode: skipNode, visited: new Set() };
+    traverseNode(root, ctx);
+}

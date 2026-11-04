@@ -35,15 +35,19 @@ Rectangle {
         // Student lookup section
         Rectangle {
             Layout.fillWidth: true
-            height: 120
+            implicitHeight: studentCol.implicitHeight + 28
             color: "#f1f5f9"
             radius: 8
             ColumnLayout {
+                id: studentCol
+                objectName: "studentCol"
                 anchors.fill: parent
                 anchors.margins: 14
                 spacing: 8
                 Text { text: "1. ระบุนักเรียนผู้ยืม:"; font.bold: true; color: "#1e293b" }
                 RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
                     TextField {
                         id: studentLookupInput
                         objectName: "studentLookupInput"
@@ -58,13 +62,16 @@ Rectangle {
                         text: "ค้นหา"
                         onClicked: root.lookupStudentRequested()
                     }
-                    Text {
-                        id: checkoutStudentName
-                        objectName: "checkoutStudentName"
-                        text: root.currentCheckoutStudent ? ("ผู้ยืม: " + root.currentCheckoutStudent.full_name + " (รหัส " + root.currentCheckoutStudent.student_id + " - สถานะ " + root.currentCheckoutStudent.status + ")") : "ยังไม่ได้เลือกนักเรียน"
-                        font.bold: true
-                        color: root.currentCheckoutStudent ? "#0f766e" : "#64748b"
-                    }
+                    Item { Layout.fillWidth: true }
+                }
+                Text {
+                    id: checkoutStudentName
+                    objectName: "checkoutStudentName"
+                    text: root.currentCheckoutStudent ? ("ผู้ยืม: " + root.currentCheckoutStudent.full_name + " (รหัส " + root.currentCheckoutStudent.student_id + " - สถานะ " + root.currentCheckoutStudent.status + ")") : "ยังไม่ได้เลือกนักเรียน"
+                    font.bold: true
+                    color: root.currentCheckoutStudent ? "#0f766e" : "#64748b"
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
                 }
             }
         }
@@ -72,11 +79,12 @@ Rectangle {
         // Barcode scan section
         Rectangle {
             Layout.fillWidth: true
-            height: 140
+            implicitHeight: barcodeCol.implicitHeight + 28
             color: "#f8fafc"
             border.color: "#cbd5e1"
             radius: 8
             ColumnLayout {
+                id: barcodeCol
                 anchors.fill: parent
                 anchors.margins: 14
                 spacing: 8

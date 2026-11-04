@@ -4,3 +4,6 @@ PaginationBar 1.0 PaginationBar.qml
 ActionFeedbackBanner 1.0 ActionFeedbackBanner.qml
 AuditLogView 1.0 AuditLogView.qml
 FirstLaunchDialog 1.0 FirstLaunchDialog.qml
+SettingsView 1.0 SettingsView.qml
+BundledFonts 1.0 BundledFonts.qml
+

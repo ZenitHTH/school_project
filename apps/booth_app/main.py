@@ -62,6 +62,8 @@ def main():
 
     app = QGuiApplication(sys.argv)
     app.setApplicationVersion(APP_VERSION)
+    from core.shared.mock_qt import register_bundled_fonts
+    register_bundled_fonts()
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("boothAdapter", adapter)
 

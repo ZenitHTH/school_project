@@ -41,6 +41,59 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 
 ## [2026-10-02] fix | Windows Inno Setup Installer Path Resolution
 - Fixed Inno Setup build failure in `.github/workflows/build.yml` where relative `dist/StudentManagement.exe` was evaluated relative to `packaging/installers/windows/`.
+## [2026-11-04] fix | Sidebar NavBtn Height Bounding & Active Border Pill Clipping
+- Fixed layout collapse in `apps/librarian_management_app/qml/Main.qml` where sidebar `NavBtn` components were rendered with an 8px tall active border pill clipping through button text:
+  - Re-anchored `component NavBtn` with `implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 18))` and `Layout.preferredHeight: implicitHeight`, ensuring Qt Quick `ColumnLayout` properly allocates vertical bounds (>= 38px) rather than collapsing to default 8px padding.
+  - Linked `background: Rectangle` to `implicitHeight: navBtnRoot.implicitHeight` to bound the rounded pill border around the entire label.
+  - Adjusted sidebar `ColumnLayout` spacing from 12 to 8 to maintain balanced vertical rhythm.
+  - Added automated layout regression test `test_librarian_sidebar_nav_btn_height_and_bounds` to `tests/test_ui_overlap_and_layout.py` (5/5 passing).
+- All 282 tests passing across the workspace.
+
+## [2026-11-04] fix | High-Scale Typography Layout Resiliency & Text-Button Overlap Prevention
+- Resolved text and button/textbox collision issues occurring at higher font sizes (18-24px) or UI scaling factors (125%-150%):
+  - `BookInventoryRightPane.qml`: Re-architected inventory header area into a 2-row layout separating the title/badge row from the search textbox and refresh button row, guaranteeing zero horizontal collisions regardless of title text length.
+  - `CirculationDeskView.qml`: Moved `checkoutStudentName` to its own dedicated row below `studentLookupInput` and `btnLookupStudent`, and replaced fixed 120px/140px card heights with dynamic `implicitHeight` to prevent text pushing into and overlapping the input box and buttons.
+  - `EditBookDialog.qml`: Decomposed copy adjustment stepper into a 2-row column separating the label from stepper `-`/`+` and quick delta chips with responsive `preferredHeight` and `preferredWidth`. Made feedback banner dynamically adapt to text content height with `wrapMode: Text.Wrap`.
+  - `StyledSearchField.qml`: Replaced hardcoded 38px height with dynamic `Math.max(38, Math.round((font.pixelSize || 14) * 2.2))` ensuring text glyphs never clip borders.
+  - `SettingsView.qml`: Replaced rigid 200px label widths with responsive `minimumWidth: 160`, `preferredWidth: Math.max(180, implicitWidth)`, and `wrapMode: Text.Wrap` preventing labels from spilling over dropdowns and sliders.
+  - `Typography.js`: Added safe control height scaling (`applyHeightScale`) that adjusts `implicitHeight` proportionally for buttons and text inputs during live tree traversal.
+- Added regression test suite `tests/test_ui_overlap_and_layout.py` (4/4 passing). All 281 tests passing.
+
+## [2026-11-04] feat | Built-in Font Assets Bundling & Runtime Registration
+- Bundled full font binary assets into `apps/common_qml/fonts/`:
+  - `NotoSansThai-Regular.ttf` & `NotoSansThai-Bold.ttf`
+  - `THSarabunNew.ttf` & `THSarabunNew-Bold.ttf`
+  - `THSarabun.ttf` & `THSarabun-Bold.ttf`
+  - `Tahoma.ttf` & `Tahoma-Bold.ttf`
+  - `SukhumvitSet.ttc`
+- Implemented `get_bundled_fonts_dir()` and `register_bundled_fonts()` in `core/shared/mock_qt.py`:
+  - Dynamically registers font files via `QFontDatabase.addApplicationFont`.
+  - Configures `QFont.insertSubstitution` so `"Noto Sans"` automatically aliases to `"Noto Sans Thai"` and `"Sarabun"` to `"TH Sarabun New"`.
+  - Integrated into application entry points (`apps/librarian_management_app/main.py`, `apps/student_management_app/main.py`, `apps/booth_app/main.py`) and `apply_qt_app_font`.
+- Created `apps/common_qml/BundledFonts.qml` with `FontLoader` declarations and registered in `apps/common_qml/qmldir`.
+- Updated PyInstaller spec files (`packaging/librarian_management.spec`, `packaging/student_management.spec`, `packaging/booth_app.spec`) to include `apps/common_qml/fonts/*` and `apps/common_qml/*.js`.
+- Added test suite `tests/test_bundled_fonts.py` (4/4 passing) and verified all 277 tests pass.
+
+## [2026-11-04] feat | Visual System Settings Menu & Global Typography Traversal (Noto Sans)
+- Created shared `SettingsView.qml` in `apps/common_qml/` providing runtime UI customization:
+  - Added `"Noto Sans"` along with Thai & system font presets (`System Default`, `Noto Sans`, `Sarabun`, `TH Sarabun New`, `Segoe UI`, `Sukhumvit Set`, `Tahoma`).
+  - Font size adjustment slider and steppers constrained between 10px and 24px (default 14px).
+  - UI scaling sliding bar restricted to 50% - 150% (0.5x - 1.5x) with preset chips (75%, 100%, 125%, 150%).
+  - Live preview card rendering sample headings, paragraph, metadata, and badge tags reacting immediately to slider/combo adjustments.
+  - Reset to factory defaults button (`resetToDefaults()`).
+- Created `apps/common_qml/Typography.js` (.pragma library) to record baseline fonts and recursively traverse QML component trees, dynamically applying user-selected font family and scale factors to all labels, inputs, and buttons while preserving monospace elements.
+- Implemented `setAppFont` slots in `LibrarianAdminAdapter` and `StudentAdminAdapter` via `core.shared.mock_qt.apply_qt_app_font` to propagate active typography to `QGuiApplication.instance().setFont(...)` so newly instantiated delegates inherit active styles.
+- Wired `targetWindow: window` and `onCurrentIndexChanged` synchronization hooks in both Librarian and Student `Main.qml`.
+- Followed Robert C. Martin's Clean Code principles: all files strictly under 200 lines (`Typography.js` 77 lines, `SettingsView.qml` 189 lines, `student_admin_adapter.py` 196 lines, `test_ui_settings_view.py` 192 lines), all functions under 20 lines, max 3 arguments, max 2 levels of nesting, and zero unhandled exceptions.
+- Authored test suite `tests/test_ui_settings_view.py` (7/7 passing) and verified entire test suite (273/273 passing).
+
+## [2026-11-03] feat | ISBN Duplicate Detection & Registration Form Auto-Clear
+- Added `CatalogService.get_active_book_by_isbn` and `LibrarianAdminAdapter.checkBookByIsbn` to query existing active books by normalized ISBN.
+- Implemented real-time duplicate ISBN detection in `BarcodeGeneratorView.qml` and `BookActionDialogs.qml` to prevent unique constraint failures and warn librarians before duplicate book creation.
+- Enhanced `BarcodeGeneratorView.qml` to auto-clear registration fields (`clearRegistrationForm`) and refocus the ISBN scanner input on save, enabling continuous barcode gun scanning.
+- Modularized QML preview and execution logic into small, single-responsibility functions adhering to Robert C. Martin's Clean Code principles.
+- Added comprehensive unit and UI tests in `tests/test_isbn_duplicate_and_form_clear.py` and `tests/test_ui_isbn_scanning.py` (266/266 passing).
+
 ## [2026-11-03] fix | Catalog Layout Truncation, Row Factory Resiliency & Add Copies Debounce
 - Fixed delegate text horizontal layout explosion in `BookCatalogView.qml` with responsive width (`fillWidth: true`, min: 280, pref: 380), `elide: Text.ElideRight`, and `maximumLineCount: 1`.
 - Made `book_repo.get_book_copy_breakdown` resilient to arbitrary row factories (supporting both `sqlite3.Row`/dict and standard `tuple` rows) via `_extract_copy_item`.
@@ -196,4 +249,18 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
   - Clears warning automatically when text is cleared or corrected.
 - Added comprehensive unit and UI tests in `tests/test_isbn_service.py` and `tests/test_ui_librarian.py`.
 - 100% test pass across full test suite (242/242 passed).
+
+## [2026-11-03] fix | Duplicate ISBN Rejection, Accidental Book Purge & Sequence Recycling
+- Added `get_book_by_isbn` and `get_active_book_by_isbn` in `data/repositories/book_repo.py` with hyphen/whitespace normalization and enforced active ISBN uniqueness check in `add_book` (`ValueError("Active book with this ISBN already exists")`).
+- Enforced duplicate active ISBN check in `CatalogService.add_book` returning `Result.fail("Active book with this ISBN already exists")`.
+- Updated `retire_book` in `data/repositories/book_repo.py` to check for loans AND reservations (`_book_has_history`):
+  - Books with zero history (accidental entries) are hard-deleted along with their copies and status logs, and `sqlite_sequence` is rewound to the maximum remaining IDs for `books` and `book_copies`, eliminating barcode skips and ID jumps.
+  - Books with loan or reservation history remain soft-deleted (`active = 0`), preserving foreign key integrity and audit logs.
+- Extracted `_record_copy_retirement_logs` in `book_repo.py` ensuring functions remain strictly under 20 lines.
+- Updated `remove_excess_copies` in `data/repositories/book_repo.py` to rewind `book_copies` sequence upon copy deletion.
+- Updated `LibrarianAdminAdapter.previewBarcodes` to resolve next `book_id` by querying `sqlite_sequence` with fallback to `MAX(book_id)`, ensuring preview barcodes match SQLite allocation.
+- Updated `BarcodeGeneratorView.qml` to prioritize matching existing books by normalized ISBN and title, routing double-scanned books to `addCopies` instead of creating duplicate book records.
+- Added comprehensive unit and regression tests in `tests/test_id_jump_repro.py` covering sequence rewind, reservation soft-delete preservation, and real adapter double-scan behavior.
+- 100% test pass across all 253 tests.
+
 

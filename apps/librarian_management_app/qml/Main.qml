@@ -110,6 +110,9 @@ ApplicationWindow {
     property alias categoryListView: barcodeGenView.categoryListView
     property alias categoryListModel: barcodeGenView.categoryListModel
 
+    property alias settingsView: settingsView
+    property alias navBtnSettings: navBtnSettings
+
     // Dialog aliases
     property alias addBookDialog: bookDialogs.addBookDialog
     property alias newBookTitle: bookDialogs.newBookTitle
@@ -159,7 +162,7 @@ ApplicationWindow {
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 16
-                spacing: 12
+                spacing: 8
 
                 Text {
                     text: "📚 ห้องสมุดโรงเรียน"
@@ -178,22 +181,26 @@ ApplicationWindow {
                 }
 
                 component NavBtn: Button {
+                    id: navBtnRoot
                     property bool active: false
                     Layout.fillWidth: true
-                    height: 38
+                    implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 18))
+                    Layout.preferredHeight: implicitHeight
                     contentItem: Text {
-                        text: parent.text
-                        color: parent.active ? "#38bdf8" : (parent.hovered ? "#ffffff" : "#cbd5e1")
+                        id: navText
+                        text: navBtnRoot.text
+                        color: navBtnRoot.active ? "#38bdf8" : (navBtnRoot.hovered ? "#ffffff" : "#cbd5e1")
                         font.pixelSize: 13
-                        font.bold: parent.active
+                        font.bold: navBtnRoot.active
                         verticalAlignment: Text.AlignVCenter
-                        leftPadding: 10
+                        leftPadding: 12
                     }
                     background: Rectangle {
-                        color: parent.active ? "#1e293b" : (parent.hovered ? "#334155" : "transparent")
+                        implicitHeight: navBtnRoot.implicitHeight
+                        color: navBtnRoot.active ? "#1e293b" : (navBtnRoot.hovered ? "#334155" : "transparent")
                         radius: 6
-                        border.color: parent.active ? "#38bdf8" : "transparent"
-                        border.width: parent.active ? 1 : 0
+                        border.color: navBtnRoot.active ? "#38bdf8" : "transparent"
+                        border.width: navBtnRoot.active ? 1 : 0
                     }
                 }
 
@@ -264,6 +271,14 @@ ApplicationWindow {
                     }
                 }
 
+                NavBtn {
+                    id: navBtnSettings
+                    objectName: "navBtnSettings"
+                    text: "⚙️ การตั้งค่าระบบ (Settings)"
+                    active: stackLayout.currentIndex === 8
+                    onClicked: stackLayout.currentIndex = 8
+                }
+
                 Item { Layout.fillHeight: true }
 
                 Button {
@@ -298,6 +313,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: 0
+            onCurrentIndexChanged: settingsView.applySettingsToWindow()
 
             // 0. Book Catalog View
             BookCatalogView {
@@ -325,6 +341,7 @@ ApplicationWindow {
             // 1. Circulation Desk View
             CirculationDeskView {
                 id: deskView
+                objectName: "deskView"
                 currentCheckoutStudent: window.currentCheckoutStudent
                 onLookupStudentRequested: window.lookupStudent()
                 onCheckoutRequested: window.doCheckout()
@@ -393,6 +410,13 @@ ApplicationWindow {
                 onAddCopiesRequested: function(bookId, title) {
                     bookDialogs.openAddCopiesDialog(bookId, title)
                 }
+            }
+
+            // 8. Visual Settings View
+            SettingsView {
+                id: settingsView
+                objectName: "settingsView"
+                targetWindow: window
             }
         }
     }

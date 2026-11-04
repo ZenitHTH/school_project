@@ -8,6 +8,7 @@ Item {
     anchors.fill: parent
 
     property var rootWindow: null
+    property var dialogDuplicateBook: null
 
     property alias addBookDialog: addBookDialog
     property alias newBookTitle: newBookTitle
@@ -149,14 +150,35 @@ Item {
         return /^[0-9]+$/.test(clean) || (/^[0-9]{9}[xX]$/.test(clean))
     }
 
+    function checkDialogIsbnDuplicate(rawIsbn) {
+        if (!rawIsbn || !rawIsbn.trim() || !root.isArabicIsbn(rawIsbn)) {
+            dialogDuplicateBook = null
+            if (addBookStatusText.text.indexOf("⚠️") !== -1) addBookStatusText.text = ""
+            return
+        }
+        try {
+            var res = JSON.parse(librarianAdmin.checkBookByIsbn(rawIsbn.trim()))
+            if (res.ok && res.exists && res.book) {
+                dialogDuplicateBook = res.book
+                addBookStatusText.text = "⚠️ หนังสือนี้มีอยู่ในระบบแล้ว: '" + res.book.title + "'"
+            } else {
+                dialogDuplicateBook = null
+                if (addBookStatusText.text.indexOf("⚠️") !== -1) addBookStatusText.text = ""
+            }
+        } catch (e) {}
+    }
+
     function applyDialogAutofill(data) {
         if (data.title) newBookTitle.text = data.title
         if (data.author !== undefined) newBookAuthor.text = data.author
-        addBookStatusText.text = "✓ ดึงข้อมูลสำเร็จ"
+        if (!dialogDuplicateBook) {
+            addBookStatusText.text = "✓ ดึงข้อมูลสำเร็จ"
+        }
     }
 
     function fetchDialogIsbnAndAutofill() {
         if (dialogIsbnAutoFetchTimer.running) dialogIsbnAutoFetchTimer.stop()
+        if (dialogDuplicateBook !== null) return
         var rawIsbn = newBookIsbn.text.trim()
         if (!rawIsbn) {
             addBookStatusText.text = "✗ cannot fetch data"
@@ -166,15 +188,19 @@ Item {
             addBookStatusText.text = "✗ ลืมเปลี่ยนภาษา"
             return
         }
+        executeDialogFetch(rawIsbn)
+    }
+
+    function executeDialogFetch(rawIsbn) {
         btnDialogFetchIsbn.enabled = false
         addBookStatusText.text = "กำลังค้นหา..."
         try {
             var res = JSON.parse(librarianAdmin.fetchIsbnMetadata(rawIsbn))
-            if (!res.ok || !res.data) {
+            if (res.ok && res.data) {
+                applyDialogAutofill(res.data)
+            } else {
                 addBookStatusText.text = res.error === "ลืมเปลี่ยนภาษา" ? "✗ ลืมเปลี่ยนภาษา" : "✗ cannot fetch data"
-                return
             }
-            applyDialogAutofill(res.data)
         } catch (e) {
             addBookStatusText.text = "✗ cannot fetch data"
         } finally {
@@ -187,7 +213,7 @@ Item {
         interval: 300
         repeat: false
         onTriggered: {
-            if (chkDialogAutoFetchIsbn.checked) {
+            if (chkDialogAutoFetchIsbn.checked && root.dialogDuplicateBook === null) {
                 root.fetchDialogIsbnAndAutofill()
             }
         }
@@ -209,7 +235,17 @@ Item {
         standardButtons: Dialog.Ok | Dialog.Cancel
         anchors.centerIn: parent
         width: Math.min(480, rootWindow ? rootWindow.width - 40 : 450)
-        onAboutToShow: addBookStatusText.text = ""
+        onAboutToShow: {
+            dialogDuplicateBook = null
+            if (addBookStatusText.text.indexOf("✗") !== -1) {
+                return
+            }
+            addBookStatusText.text = ""
+            newBookTitle.text = ""
+            newBookAuthor.text = ""
+            newBookIsbn.text = ""
+            newBookBarcodes.text = "1"
+        }
 
         ColumnLayout {
             TextField { id: newBookTitle; objectName: "newBookTitle"; placeholderText: "ชื่อหนังสือ" }
@@ -220,7 +256,8 @@ Item {
                     objectName: "newBookIsbn"
                     placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)"
                     onAccepted: {
-                        if (chkDialogAutoFetchIsbn.checked) {
+                        root.checkDialogIsbnDuplicate(text)
+                        if (chkDialogAutoFetchIsbn.checked && root.dialogDuplicateBook === null) {
                             root.fetchDialogIsbnAndAutofill()
                         }
                     }
@@ -233,6 +270,11 @@ Item {
                             addBookStatusText.text = ""
                         }
                         var clean = text.replace(/[-\s]/g, "")
+                        if (clean.length >= 10) {
+                            root.checkDialogIsbnDuplicate(text)
+                        } else if (clean.length < 10 && addBookStatusText.text.indexOf("⚠️") !== -1) {
+                            addBookStatusText.text = ""
+                        }
                         if (chkDialogAutoFetchIsbn.checked && clean.length === 13) {
                             dialogIsbnAutoFetchTimer.restart()
                         }
@@ -258,15 +300,16 @@ Item {
                 id: addBookStatusText
                 objectName: "addBookStatusText"
                 visible: text !== ""
-                color: text.startsWith("✓") ? "#16a34a" : "#dc2626"
+                color: text.startsWith("✓") ? "#16a34a" : (text.startsWith("⚠️") ? "#d97706" : "#dc2626")
                 font.pixelSize: 12
             }
         }
 
         onAccepted: {
-            if (newBookTitle.text) {
-                var res = JSON.parse(librarianAdmin.addBook(newBookTitle.text, newBookIsbn.text, newBookAuthor.text, "", "", "", newBookBarcodes.text))
-                if (res.ok && res.data && res.data.barcodes && res.data.barcodes.length > 0) {
+            if (!newBookTitle.text.trim()) return
+            var res = JSON.parse(librarianAdmin.addBook(newBookTitle.text, newBookIsbn.text, newBookAuthor.text, "", "", "", newBookBarcodes.text))
+            if (res.ok) {
+                if (res.data && res.data.barcodes && res.data.barcodes.length > 0) {
                     barcodeConfirmModel.clear()
                     if (rootWindow) rootWindow.lastGeneratedBarcodes = res.data.barcodes
                     for (var i = 0; i < res.data.barcodes.length; i++) {
@@ -275,6 +318,12 @@ Item {
                     pdfExportStatusText.text = ""
                     barcodeConfirmDialog.open()
                 }
+                newBookTitle.text = ""
+                newBookAuthor.text = ""
+                newBookIsbn.text = ""
+                newBookBarcodes.text = "1"
+                addBookStatusText.text = ""
+                dialogDuplicateBook = null
                 if (rootWindow) {
                     rootWindow.searchBooks()
                     rootWindow.loadBooksForExistingSelector()
@@ -282,6 +331,9 @@ Item {
                         rootWindow.loadPrintableBooks("")
                     }
                 }
+            } else {
+                addBookStatusText.text = "✗ " + (res.error || "บันทึกหนังสือไม่สำเร็จ")
+                addBookDialog.open()
             }
         }
     }

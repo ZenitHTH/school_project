@@ -16,9 +16,10 @@ Each app has a unified cross-platform spec file:
 - `packaging/booth_app.spec`
 
 ### Bundled Asset Requirements:
-1. **Common QML library**: `('../apps/common_qml/*.qml', 'apps/common_qml')`.
-2. **Local views & dialogs**: E.g. `('../apps/student_management_app/qml/views/*.qml', 'apps/student_management_app/qml/views')`.
-3. **Database migrations**: `('../data/migrations/*.sql', 'data/migrations')`.
+1. **Common QML library**: `('../apps/common_qml/*.qml', 'apps/common_qml')`, `('../apps/common_qml/*.js', 'apps/common_qml')`, and `('../apps/common_qml/qmldir', 'apps/common_qml')`.
+2. **Built-in Fonts**: `('../apps/common_qml/fonts/*', 'apps/common_qml/fonts')` ensuring Thai and system fonts (Noto Sans Thai, TH Sarabun New, Tahoma, Sukhumvit Set) work out-of-the-box on clean client machines without OS font installation.
+3. **Local views & dialogs**: E.g. `('../apps/student_management_app/qml/views/*.qml', 'apps/student_management_app/qml/views')`.
+4. **Database migrations**: `('../data/migrations/*.sql', 'data/migrations')`.
 
 ---
 

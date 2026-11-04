@@ -60,6 +60,7 @@ ApplicationWindow {
     property alias confirmImportDialog: actionDialogs.confirmImportDialog
 
     property alias firstLaunchDialog: firstLaunchDialog
+    property alias settingsView: settingsView
 
     RowLayout {
         anchors.fill: parent
@@ -99,7 +100,8 @@ ApplicationWindow {
                         { text: "📈 เลื่อนชั้นประจำปี", index: 2 },
                         { text: "📤 ส่งออกข้อมูล (LINE Sync)", index: 3 },
                         { text: "📜 ประวัติกิจกรรม (Audit Log)", index: 4 },
-                        { text: "📥 นำเข้าไฟล์ Excel (.xlsx)", index: 5 }
+                        { text: "📥 นำเข้าไฟล์ Excel (.xlsx)", index: 5 },
+                        { text: "⚙️ การตั้งค่าระบบ (Settings)", index: 6 }
                     ]
                     delegate: Rectangle {
                         Layout.fillWidth: true
@@ -167,6 +169,7 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: 0
+            onCurrentIndexChanged: settingsView.applySettingsToWindow()
 
             // 0. Search Screen
             StudentSearchView {
@@ -228,6 +231,13 @@ ApplicationWindow {
                 onSelectFileClicked: excelFileDialog.open()
                 onPreviewDiffClicked: window.previewXlsxDiff()
                 onImportClicked: window.doImportXlsx(false)
+            }
+
+            // 6. Visual Settings View
+            SettingsView {
+                id: settingsView
+                objectName: "settingsView"
+                targetWindow: window
             }
         }
     }
