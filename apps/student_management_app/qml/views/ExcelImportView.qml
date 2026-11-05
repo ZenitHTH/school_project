@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../../common_qml/Typography.js" as Typography
+import "../../../common_qml"
 
 Rectangle {
     id: root
@@ -57,9 +58,10 @@ Rectangle {
                 anchors.margins: 16
                 spacing: 16
 
-                Button {
+                StyledButton {
                     id: selectFileButton
                     objectName: "selectFileButton"
+                    variant: StyledButton.Primary
                     text: "📁 เลือกไฟล์ Excel (.xlsx)..."
                     font.pixelSize: Math.max(13, root.baseFontSize)
                     font.bold: true
@@ -86,18 +88,20 @@ Rectangle {
                     }
                 }
 
-                Button {
+                StyledButton {
                     id: btnPreviewDiff
                     objectName: "btnPreviewDiff"
+                    variant: StyledButton.Primary
                     text: "🔍 ตรวจสอบความเปลี่ยนแปลง (Preview Diff)"
                     highlighted: true
                     enabled: root.selectedXlsxPath !== ""
                     onClicked: root.previewDiffClicked()
                 }
 
-                Button {
+                StyledButton {
                     id: importButton
                     objectName: "importButton"
+                    variant: StyledButton.Primary
                     text: "⚡ เริ่มนำเข้าข้อมูลทันที"
                     highlighted: true
                     enabled: root.selectedXlsxPath !== ""

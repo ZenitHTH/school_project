@@ -1,11 +1,12 @@
 import QtQuick 2.15
+import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "Typography.js" as Typography
 
 Rectangle {
     id: root
-    color: "#ffffff"
+    color: Theme.surfaceWhite
 
     property alias title: headerText.text
     property alias logList: logList
@@ -21,7 +22,7 @@ Rectangle {
             text: "บันทึกประวัติกิจกรรม (Audit Log)"
             font.bold: true
             font.pixelSize: 22
-            color: "#0f172a"
+            color: Theme.textPrimary
         }
 
         ListView {
@@ -42,7 +43,7 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: "ยังไม่มีบันทึกประวัติกิจกรรม"
-                    color: "#94a3b8"
+                    color: Theme.textFaint
                     font.pixelSize: 14
                 }
             }
@@ -52,8 +53,8 @@ Rectangle {
                 width: logList.width
                 implicitHeight: Math.max(48, Math.round(rowContent.implicitHeight + 14))
                 height: implicitHeight
-                border.color: "#e2e8f0"
-                color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
+                border.color: Theme.borderSubtle
+                color: index % 2 === 0 ? Theme.surfaceWhite : Theme.surfaceSubtle
                 Component.onCompleted: Typography.applyToItem(this)
 
                 RowLayout {
@@ -64,7 +65,7 @@ Rectangle {
 
                     Text {
                         text: model.logged_at ? (model.logged_at.length > 19 ? model.logged_at.substring(0, 19) : model.logged_at) : ""
-                        color: "#64748b"
+                        color: Theme.textMuted
                         font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
                         Layout.preferredWidth: Math.max(150, Math.round(150 * (window.fontScale || 1.0)))
                     }
@@ -72,7 +73,7 @@ Rectangle {
                     Text {
                         text: model.action || ""
                         font.bold: true
-                        color: "#1e293b"
+                        color: Theme.textStrong
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         Layout.preferredWidth: Math.max(160, Math.round(160 * (window.fontScale || 1.0)))
                         elide: Text.ElideRight
@@ -80,7 +81,7 @@ Rectangle {
 
                     Text {
                         text: model.detail || ""
-                        color: "#334155"
+                        color: Theme.textSecondary
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         Layout.fillWidth: true
                         elide: Text.ElideRight

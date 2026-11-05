@@ -398,3 +398,13 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Standardized text input and combo box alignment (`leftPadding: 12`, `horizontalAlignment: Text.AlignLeft`, `verticalAlignment: Text.AlignVCenter`) in `BarcodeGeneratorView.qml` and `EditBookDialog.qml`.
 - 100% test pass across 335 tests.
 
+## [2026-11-05] feat | Theme.js — single theme-token source ("global.css") for shared QML
+- Added `apps/common_qml/Theme.js` (`.pragma library`) with 25 color tokens covering surfaces, borders, text, accent, success, and error palettes.
+- Replaced all hardcoded hex color values across the 11 shared `common_qml` components (StyledSearchField, StyledTextInput, ActionFeedbackBanner, AuditLogView, PaginationBar, FirstLaunchDialog, SettingsView, SettingsPreviewCard, SettingsControlsCard, SettingsHeader, SettingsFooter) with `Theme.*` token references — zero visual change, one-file retheme.
+- 100% test pass across 336 tests.
+
+## [2026-11-05] feat | Shared StyledButton & StyledComboBox; full view migration to common_qml components
+- Added `apps/common_qml/StyledButton.qml` (variant enum Primary/Neutral/Danger/Ghost, Theme tokens) and `apps/common_qml/StyledComboBox.qml` (Rule-7 alignment baked into contentItem + dropdown delegate); both registered in `qmldir` and smoke-tested in `tests/test_qml_loads.py`.
+- Migrated all app views/dialogs: 76 raw `Button` -> `StyledButton`, 35 raw `TextField` -> `StyledTextInput`, 6 raw `ComboBox` -> `StyledComboBox`; deleted the duplicated background/contentItem/popup styling blocks (net -318 lines) while preserving ids, objectNames, handlers, and non-standard custom backgrounds as pass-throughs.
+- 100% test pass across 336 tests.
+

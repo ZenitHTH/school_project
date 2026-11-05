@@ -47,25 +47,14 @@ Rectangle {
                 onAccepted: root.searchRequested()
             }
 
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: searchBtn
                 objectName: "searchButton"
                 text: "🔍 ค้นหา"
                 font.bold: true
                 font.pixelSize: Math.max(13, root.baseFontSize)
-                contentItem: Text {
-                    text: searchBtn.text
-                    font: searchBtn.font
-                    color: "#ffffff"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    implicitWidth: 84
-                    implicitHeight: 38
-                    color: searchBtn.down ? "#1d4ed8" : (searchBtn.hovered ? "#2563eb" : "#3b82f6")
-                    radius: 6
-                }
+                implicitWidth: 84
                 onClicked: root.searchRequested()
             }
         }
@@ -245,7 +234,8 @@ Rectangle {
                             }
                         }
 
-                        Button {
+                        StyledButton {
+                            variant: StyledButton.Primary
                             id: rowDetailBtn
                             objectName: "btnViewDetail"
                             text: "👁️ ดูข้อมูล"
@@ -253,17 +243,6 @@ Rectangle {
                             font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
                             Layout.preferredWidth: Math.max(110, Math.round(110 * (window.fontScale || 1.0)))
                             implicitHeight: Math.max(32, Math.round(contentItem.implicitHeight + 8))
-                            contentItem: Text {
-                                text: rowDetailBtn.text
-                                font: rowDetailBtn.font
-                                color: "#ffffff"
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            background: Rectangle {
-                                color: rowDetailBtn.down ? "#1d4ed8" : (rowDetailBtn.hovered ? "#2563eb" : "#3b82f6")
-                                radius: 6
-                            }
                             onClicked: root.viewStudentRequested(model.student_id)
                         }
                     }

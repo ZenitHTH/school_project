@@ -146,19 +146,14 @@ ApplicationWindow {
 
                 Item { Layout.fillHeight: true }
 
-                Button {
+                StyledButton {
                     id: openWizardBtn
                     objectName: "openWizardBtn"
+                    variant: StyledButton.Ghost
                     Layout.fillWidth: true
                     text: "⚙️ ตัวช่วยสร้างฐานข้อมูล"
                     font.pixelSize: 11
                     flat: true
-                    contentItem: Text {
-                        text: openWizardBtn.text
-                        font: openWizardBtn.font
-                        color: "#94a3b8"
-                        horizontalAlignment: Text.AlignHCenter
-                    }
                     onClicked: firstLaunchDialog.open()
                 }
 

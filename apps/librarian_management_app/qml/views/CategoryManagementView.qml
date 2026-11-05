@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
@@ -227,9 +228,9 @@ Rectangle {
                     color: "#64748b"
                 }
             }
-            Button {
+            StyledButton {
+                variant: StyledButton.Ghost
                 text: "🔄 รีเฟรชรายการ"
-                flat: true
                 onClicked: barcodePrintScreen.loadPrintableBooks()
             }
         }
@@ -339,32 +340,20 @@ Rectangle {
                 anchors.margins: 10
                 spacing: 10
 
-                TextField {
+                StyledTextInput {
                     id: barcodePrintSearchInput
                     objectName: "barcodePrintSearchInput"
                     placeholderText: "🔍 ค้นหาชื่อหนังสือ / ผู้แต่ง..."
                     Layout.fillWidth: true
                     font.pixelSize: 12
-                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 12)) * 2.2))
-                    leftPadding: 12
-                    rightPadding: 12
-                    verticalAlignment: TextInput.AlignVCenter
-                    placeholderTextColor: "#64748b"
                     selectByMouse: true
-                    background: Rectangle {
-                        implicitHeight: parent.implicitHeight
-                        color: "#ffffff"
-                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                        radius: 6
-                    }
                     onTextChanged: barcodePrintScreen.loadPrintableBooks(text)
                 }
 
-                ComboBox {
+                StyledComboBox {
                     id: barcodeCategoryFilterCombo
                     objectName: "barcodeCategoryFilterCombo"
                     Layout.preferredWidth: Math.max(170, Math.round(170 * (window.fontScale || 1.0)))
-                    implicitHeight: 34
                     textRole: "name"
                     model: ListModel { id: barcodeCategoryFilterModel; objectName: "barcodeCategoryFilterModel" }
                     onCurrentIndexChanged: {
@@ -374,23 +363,25 @@ Rectangle {
                     }
                 }
 
-                Button {
+                StyledButton {
+                    variant: StyledButton.Primary
                     id: btnSelectAllBooks
                     objectName: "btnSelectAllBooks"
                     text: "☑️ เลือกทั้งหมด"
                     onClicked: barcodePrintScreen.toggleSelectAllPrintableBooks()
                 }
 
-                Button {
+                StyledButton {
+                    variant: StyledButton.Primary
                     id: btnPrintSelectedPdf
                     objectName: "btnPrintSelectedPdf"
                     text: "📄 พิมพ์เฉพาะที่เลือก"
-                    highlighted: true
                     enabled: genBarcodesModel.count > 0
                     onClicked: barcodePrintScreen.exportSelectedBooksPdf()
                 }
 
-                Button {
+                StyledButton {
+                    variant: StyledButton.Primary
                     id: btnExportPdfSheet
                     objectName: "btnExportPdfSheet"
                     text: "🖨️ พิมพ์ทั้งหมด"
@@ -551,7 +542,8 @@ Rectangle {
                         elide: Text.ElideRight
                     }
 
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Ghost
                         id: btnAddCopiesRow
                         objectName: "btnAddCopiesRow"
                         text: "+ เล่ม"
@@ -559,7 +551,6 @@ Rectangle {
                         Layout.preferredWidth: Math.max(55, Math.round(55 * (window.fontScale || 1.0)))
                         implicitHeight: Math.max(28, Math.round(font.pixelSize + 14))
                         Layout.preferredHeight: implicitHeight
-                        flat: true
                         onClicked: barcodePrintScreen.addCopiesRequested(model.book_id, model.title)
                     }
                 }
@@ -591,7 +582,8 @@ Rectangle {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                 }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Primary
                     text: "📂 เปิดไฟล์ PDF"
                     visible: barcodePrintScreen.lastPdfExported !== ""
                     onClicked: Qt.openUrlExternally("file://" + barcodePrintScreen.lastPdfExported)

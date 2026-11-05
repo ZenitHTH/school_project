@@ -58,6 +58,19 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
 - Preserves explicit monospace formatting for code/raw identifiers.
 - **Functions**: `recordDefaults(obj)`, `applyToNode(obj, config)`, `applyToTree(root, config, skipNode)`, `applyToItem(item)`, `scale(basePx)`.
 
+### 1.10 `Theme.js`
+- Shared `.pragma library` script acting as the single theme-token source for all shared components — the QML equivalent of a `global.css` stylesheet.
+- All color values in `common_qml/` components reference tokens from this file (e.g. `Theme.textPrimary`, `Theme.accentPrimary`); **edit a token here to retheme every shared component at once**.
+- Token groups: surfaces (`surfaceWhite`, `surfaceSubtle`, `surfaceHover`), borders (`borderSubtle`, `borderDefault`, `borderLightBlue`), text (`textPrimary`, `textStrong`, `textSecondary`, `textMuted`, `textFaint`), accent (`accentPrimary`, `accentHover`, `accentMid`, `accentDeep`, `accentSurface`), success (`successBackground`, `successBorder`, `successText`, `successDot`, `successBright`), error (`errorBackground`, `errorBorder`, `errorText`, `errorDot`, `errorBright`).
+- Current values are the app's existing slate/Tailwind-derived palette — changing a value is a deliberate design decision, not a refactor.
+- Usage: `import "Theme.js" as Theme` (same-directory, or relative path from other directories, same as `Typography.js`).
+- Scope: shared components only; app view files (`apps/*/qml/`) may still hold local hex values pending a future sweep to `Theme.js` tokens.
+
+### 1.11 `StyledButton.qml` & `StyledComboBox.qml`
+- `StyledButton`: shared `Button` root with `enum Variant { Primary, Neutral, Danger, Ghost }` (filled accent, white+slate-border, filled error-red, borderless). All colors come from `Theme.js`; dynamic variants are allowed (e.g. `variant: mode === 0 ? StyledButton.Primary : StyledButton.Neutral`).
+- `StyledComboBox`: shared `ComboBox` root with the AGENTS Rule-7 alignment (left-align / VCenter, 12px padding) baked into `contentItem` and the dropdown `ItemDelegate`, so ad-hoc alignment styling in views is no longer required. `model`/`textRole`/`displayedText` pass through as real ComboBox properties.
+- All app views and dialogs use these (plus `StyledTextInput`/`StyledSearchField`); raw `Button`/`TextField`/`ComboBox` with custom backgrounds no longer appear in `apps/*/qml/`. Non-standard styling (e.g. orange/purple status chips, red-border validation states, gradient backgrounds) is preserved by passing a custom `background`/`contentItem` through on the styled component.
+
 ### 1.8 `StyledTextInput.qml`
 - Standardized text input field with white background, `#cbd5e1` border, blue focus ring (`#2563eb`), dark text `#0f172a`, and WCAG AA placeholder text `#64748b`.
 - Sizing invariants: `implicitWidth: Math.max(120, Math.round(contentWidth + leftPadding + rightPadding + 20))`, `implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))`, `leftPadding: 12`, `rightPadding: 12`, `verticalAlignment: TextInput.AlignVCenter`, and `background.implicitHeight: control.implicitHeight`.

@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Dialog {
     id: editDialog
@@ -143,7 +144,8 @@ Dialog {
 
                 Item { Layout.fillWidth: true }
 
-                Button {
+                StyledButton {
+                    variant: StyledButton.Ghost
                     text: "✕"
                     flat: true
                     font.pixelSize: 13
@@ -197,24 +199,12 @@ Dialog {
                             Layout.fillWidth: true
                             spacing: 3
                             Text { text: "ชื่อหนังสือ *"; font.bold: true; font.pixelSize: 11; color: "#475569" }
-                            TextField {
+                            StyledTextInput {
                                 id: titleInput
                                 objectName: "editBookTitleInput"
                                 Layout.fillWidth: true
-                                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
-                                leftPadding: 12
-                                rightPadding: 12
-                                verticalAlignment: TextInput.AlignVCenter
-                                placeholderTextColor: "#64748b"
                                 selectByMouse: true
                                 font.pixelSize: 12
-                                background: Rectangle {
-                                    implicitHeight: parent.implicitHeight
-                                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                    border.width: parent.activeFocus ? 1.5 : 1
-                                    radius: 6
-                                    color: "#ffffff"
-                                }
                             }
                         }
 
@@ -226,48 +216,24 @@ Dialog {
                                 Layout.fillWidth: true
                                 spacing: 3
                                 Text { text: "ผู้แต่ง (Author)"; font.bold: true; font.pixelSize: 11; color: "#475569" }
-                                TextField {
+                                StyledTextInput {
                                     id: authorInput
                                     objectName: "editBookAuthorInput"
                                     Layout.fillWidth: true
-                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
-                                    leftPadding: 12
-                                    rightPadding: 12
-                                    verticalAlignment: TextInput.AlignVCenter
-                                    placeholderTextColor: "#64748b"
                                     selectByMouse: true
                                     font.pixelSize: 12
-                                    background: Rectangle {
-                                        implicitHeight: parent.implicitHeight
-                                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                        border.width: parent.activeFocus ? 1.5 : 1
-                                        radius: 6
-                                        color: "#ffffff"
-                                    }
                                 }
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 3
                                 Text { text: "ISBN"; font.bold: true; font.pixelSize: 11; color: "#475569" }
-                                TextField {
+                                StyledTextInput {
                                     id: isbnInput
                                     objectName: "editBookIsbnInput"
                                     Layout.fillWidth: true
-                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
-                                    leftPadding: 12
-                                    rightPadding: 12
-                                    verticalAlignment: TextInput.AlignVCenter
-                                    placeholderTextColor: "#64748b"
                                     selectByMouse: true
                                     font.pixelSize: 12
-                                    background: Rectangle {
-                                        implicitHeight: parent.implicitHeight
-                                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                        border.width: parent.activeFocus ? 1.5 : 1
-                                        radius: 6
-                                        color: "#ffffff"
-                                    }
                                 }
                             }
                         }
@@ -280,54 +246,24 @@ Dialog {
                                 Layout.fillWidth: true
                                 spacing: 3
                                 Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: 11; color: "#475569" }
-                                ComboBox {
+                                StyledComboBox {
                                     id: categoryCombo
                                     objectName: "editBookCategoryCombo"
                                     Layout.fillWidth: true
-                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
                                     textRole: "name"
                                     model: ListModel { id: categoryModel }
-                                    background: Rectangle {
-                                        implicitHeight: categoryCombo.implicitHeight
-                                        color: "#ffffff"
-                                        border.color: categoryCombo.activeFocus ? "#0284c7" : "#cbd5e1"
-                                        border.width: categoryCombo.activeFocus ? 1.5 : 1
-                                        radius: 6
-                                    }
-                                    contentItem: Text {
-                                        leftPadding: 12
-                                        rightPadding: 24
-                                        text: categoryCombo.displayText
-                                        color: "#0f172a"
-                                        font.pixelSize: 12
-                                        horizontalAlignment: Text.AlignLeft
-                                        verticalAlignment: Text.AlignVCenter
-                                        elide: Text.ElideRight
-                                    }
                                 }
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 3
                                 Text { text: "ตำแหน่งชั้นวาง"; font.bold: true; font.pixelSize: 11; color: "#475569" }
-                                TextField {
+                                StyledTextInput {
                                     id: shelfInput
                                     objectName: "editBookShelfInput"
                                     Layout.fillWidth: true
-                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
-                                    leftPadding: 12
-                                    rightPadding: 12
-                                    verticalAlignment: TextInput.AlignVCenter
-                                    placeholderTextColor: "#64748b"
                                     selectByMouse: true
                                     font.pixelSize: 12
-                                    background: Rectangle {
-                                        implicitHeight: parent.implicitHeight
-                                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                        border.width: parent.activeFocus ? 1.5 : 1
-                                        radius: 6
-                                        color: "#ffffff"
-                                    }
                                 }
                             }
                         }
@@ -390,7 +326,8 @@ Dialog {
                                 Layout.fillWidth: true
                                 spacing: 6
 
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Neutral
                                     text: "−"
                                     Layout.preferredWidth: Math.max(32, Math.round(font.pixelSize * 2.2))
                                     Layout.preferredHeight: Math.max(32, Math.round(font.pixelSize * 2.0))
@@ -399,16 +336,11 @@ Dialog {
                                     onClicked: editDialog.stepCopies(-1)
                                 }
 
-                                TextField {
+                                StyledTextInput {
                                     id: copiesInput
                                     objectName: "editBookCopiesInput"
                                     Layout.preferredWidth: Math.max(64, Math.round(font.pixelSize * 4.0))
                                     Layout.preferredHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
-                                    implicitHeight: Layout.preferredHeight
-                                    leftPadding: 12
-                                    rightPadding: 12
-                                    verticalAlignment: TextInput.AlignVCenter
-                                    placeholderTextColor: "#64748b"
                                     text: "1"
                                     horizontalAlignment: Text.AlignHCenter
                                     font.bold: true
@@ -424,7 +356,8 @@ Dialog {
                                     }
                                 }
 
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Neutral
                                     text: "+"
                                     Layout.preferredWidth: Math.max(32, Math.round(font.pixelSize * 2.2))
                                     Layout.preferredHeight: Math.max(32, Math.round(font.pixelSize * 2.0))
@@ -435,21 +368,24 @@ Dialog {
 
                                 Item { Layout.preferredWidth: 6 }
 
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Neutral
                                     text: "+1"
                                     Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
                                     Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
                                     font.pixelSize: 10
                                     onClicked: editDialog.stepCopies(1)
                                 }
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Neutral
                                     text: "+5"
                                     Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
                                     Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
                                     font.pixelSize: 10
                                     onClicked: editDialog.stepCopies(5)
                                 }
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Neutral
                                     text: "-1"
                                     Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
                                     Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
@@ -614,14 +550,17 @@ Dialog {
 
                 Item { Layout.fillWidth: true }
 
-                Button {
+                StyledButton {
+                    variant: StyledButton.Neutral
                     text: "ยกเลิก"
                     Layout.preferredWidth: Math.max(90, implicitWidth)
                     implicitHeight: Math.max(36, Math.round(contentItem.implicitHeight + 12))
                     onClicked: editDialog.close()
                 }
 
-                Button {
+                StyledButton {
+                    variant: StyledButton.Primary
+                    
                     text: "💾 บันทึกข้อมูลและปรับปรุงจำนวน"
                     highlighted: true
                     Layout.preferredWidth: Math.max(220, implicitWidth)

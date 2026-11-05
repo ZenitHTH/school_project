@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Rectangle {
     id: root
@@ -29,34 +30,24 @@ Rectangle {
         }
 
         RowLayout {
-            TextField {
+            StyledTextInput {
                 id: snapshotPathInput
                 objectName: "snapshotPathInput"
                 text: "snapshot.sqlite"
                 placeholderText: "path ของไฟล์ snapshot.sqlite"
                 Layout.preferredWidth: 320
-                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                leftPadding: 12
-                rightPadding: 12
-                verticalAlignment: TextInput.AlignVCenter
-                placeholderTextColor: "#64748b"
                 selectByMouse: true
-                background: Rectangle {
-                    implicitHeight: parent.implicitHeight
-                    color: "#ffffff"
-                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                    radius: 6
-                }
                 onAccepted: root.previewDiffRequested()
             }
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: btnPreviewDiff
                 objectName: "btnPreviewDiff"
                 text: "ตรวจสอบความเปลี่ยนแปลง (Preview Diff)"
-                highlighted: true
                 onClicked: root.previewDiffRequested()
             }
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: applySyncBtn
                 objectName: "applySyncBtn"
                 text: "ยืนยันนำเข้าข้อมูล (Apply Sync)"

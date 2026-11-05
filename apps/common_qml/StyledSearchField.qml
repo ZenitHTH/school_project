@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 
 TextField {
@@ -9,16 +10,16 @@ TextField {
     rightPadding: 12
     horizontalAlignment: TextInput.AlignLeft
     verticalAlignment: TextInput.AlignVCenter
-    color: "#0f172a"
-    placeholderTextColor: "#64748b"
+    color: Theme.textPrimary
+    placeholderTextColor: Theme.textMuted
     selectByMouse: true
-    selectionColor: "#bfdbfe"
-    selectedTextColor: "#0f172a"
+    selectionColor: Theme.borderLightBlue
+    selectedTextColor: Theme.textPrimary
 
     background: Rectangle {
         implicitHeight: control.implicitHeight
-        color: "#ffffff"
-        border.color: control.activeFocus ? "#3b82f6" : "#cbd5e1"
+        color: Theme.surfaceWhite
+        border.color: control.activeFocus ? Theme.accentMid : Theme.borderDefault
         border.width: control.activeFocus ? 2 : 1
         radius: 6
     }

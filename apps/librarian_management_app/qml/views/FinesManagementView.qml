@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
@@ -74,7 +75,8 @@ Rectangle {
                         font.bold: true
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Primary
                         text: "บันทึกการชำระ"
                         visible: !model.paid
                         font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))

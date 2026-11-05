@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Rectangle {
     id: root
@@ -36,24 +37,12 @@ Rectangle {
                 color: "#0f172a"
             }
             Item { Layout.fillWidth: true }
-            Button {
+            StyledButton {
+                variant: StyledButton.Neutral
                 id: btnBackToSearch
                 text: "← กลับไปค้นหานักเรียน"
                 font.pixelSize: 13
-                contentItem: Text {
-                    text: btnBackToSearch.text
-                    color: "#334155"
-                    font.bold: true
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    implicitWidth: 160
-                    implicitHeight: 36
-                    color: btnBackToSearch.down ? "#e2e8f0" : (btnBackToSearch.hovered ? "#f1f5f9" : "#ffffff")
-                    border.color: "#cbd5e1"
-                    radius: 6
-                }
+                implicitWidth: 160
                 onClicked: root.backToSearchRequested()
             }
         }
@@ -87,71 +76,38 @@ Rectangle {
                 RowLayout {
                     spacing: 10
                     Layout.alignment: Qt.AlignHCenter
-                    TextField {
+                    StyledTextInput {
                         id: directIdInput
+                        objectName: "directIdInput"
                         placeholderText: "พิมพ์รหัสนักเรียน หรือชื่อ..."
                         font.pixelSize: Math.max(13, root.baseFontSize)
                         Layout.preferredWidth: 260
-                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                        leftPadding: 12
-                        rightPadding: 12
-                        verticalAlignment: TextInput.AlignVCenter
-                        placeholderTextColor: "#64748b"
                         selectByMouse: true
-                        background: Rectangle {
-                            implicitHeight: parent.implicitHeight
-                            color: "#ffffff"
-                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                            radius: 6
-                        }
                         onAccepted: {
                             if (directIdInput.text) {
                                 root.directLookupRequested(directIdInput.text)
                             }
                         }
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Primary
                         id: btnDirectOpen
                         text: "เปิดดูข้อมูล"
                         font.bold: true
                         font.pixelSize: 13
-                        contentItem: Text {
-                            text: btnDirectOpen.text
-                            font: btnDirectOpen.font
-                            color: "#ffffff"
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        background: Rectangle {
-                            implicitWidth: 110
-                            implicitHeight: 38
-                            color: btnDirectOpen.down ? "#1d4ed8" : (btnDirectOpen.hovered ? "#2563eb" : "#3b82f6")
-                            radius: 6
-                        }
+                        implicitWidth: 110
                         onClicked: {
                             if (directIdInput.text) {
                                 root.directLookupRequested(directIdInput.text)
                             }
                         }
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Neutral
                         id: btnGoSearch
                         text: "🔍 ไปที่หน้ารายการค้นหา"
                         font.pixelSize: 13
-                        contentItem: Text {
-                            text: btnGoSearch.text
-                            color: "#2563eb"
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-                        background: Rectangle {
-                            implicitWidth: 170
-                            implicitHeight: 38
-                            color: btnGoSearch.down ? "#dbeafe" : (btnGoSearch.hovered ? "#eff6ff" : "#ffffff")
-                            border.color: "#93c5fd"
-                            radius: 6
-                        }
+                        implicitWidth: 170
                         onClicked: root.backToSearchRequested()
                     }
                 }
@@ -245,43 +201,26 @@ Rectangle {
             spacing: 12
             visible: root.selectedStudent !== null
 
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: btnRoom
                 objectName: "btnChangeRoom"
                 text: "🏫 เปลี่ยนห้องเรียน"
                 font.bold: true
                 font.pixelSize: Math.max(13, root.baseFontSize)
                 enabled: root.selectedStudent !== null
-                contentItem: Text {
-                    text: btnRoom.text
-                    font: btnRoom.font
-                    color: "#ffffff"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-                background: Rectangle {
-                    implicitWidth: 160
-                    implicitHeight: 42
-                    color: btnRoom.down ? "#1d4ed8" : (btnRoom.hovered ? "#2563eb" : "#3b82f6")
-                    radius: 8
-                }
+                implicitWidth: 160
                 onClicked: root.requestChangeRoom()
             }
 
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: btnStatus
                 objectName: "btnChangeStatus"
                 text: "📋 เปลี่ยนสถานะ"
                 font.bold: true
                 font.pixelSize: Math.max(13, root.baseFontSize)
                 enabled: root.selectedStudent !== null
-                contentItem: Text {
-                    text: btnStatus.text
-                    font: btnStatus.font
-                    color: "#ffffff"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
                 background: Rectangle {
                     implicitWidth: 150
                     implicitHeight: 42
@@ -291,20 +230,14 @@ Rectangle {
                 onClicked: root.requestChangeStatus()
             }
 
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: btnName
                 objectName: "btnEditName"
                 text: "✏️ แก้ไขชื่อ-นามสกุล"
                 font.bold: true
                 font.pixelSize: Math.max(13, root.baseFontSize)
                 enabled: root.selectedStudent !== null
-                contentItem: Text {
-                    text: btnName.text
-                    font: btnName.font
-                    color: "#ffffff"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
                 background: Rectangle {
                     implicitWidth: 170
                     implicitHeight: 42
@@ -314,20 +247,14 @@ Rectangle {
                 onClicked: root.requestEditName()
             }
 
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: btnId
                 objectName: "btnChangeId"
                 text: "🔢 เปลี่ยนรหัสนักเรียน"
                 font.bold: true
                 font.pixelSize: Math.max(13, root.baseFontSize)
                 enabled: root.selectedStudent !== null
-                contentItem: Text {
-                    text: btnId.text
-                    font: btnId.font
-                    color: "#ffffff"
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
                 background: Rectangle {
                     implicitWidth: 175
                     implicitHeight: 42

@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
@@ -6,8 +7,8 @@ Rectangle {
     id: root
     Layout.fillWidth: true
     height: 48
-    color: "#f8fafc"
-    border.color: "#e2e8f0"
+    color: Theme.surfaceSubtle
+    border.color: Theme.borderSubtle
     border.width: 1
     radius: 6
     visible: totalPages > 1
@@ -59,13 +60,13 @@ Rectangle {
                 text: "«"
                 font.pixelSize: 14
                 font.bold: true
-                color: btnFirstPage.enabled ? "#334155" : "#94a3b8"
+                color: btnFirstPage.enabled ? Theme.textSecondary : Theme.textFaint
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
             background: Rectangle {
-                color: btnFirstPage.down ? "#e2e8f0" : (btnFirstPage.hovered ? "#f1f5f9" : "#ffffff")
-                border.color: "#cbd5e1"
+                color: btnFirstPage.down ? Theme.borderSubtle : (btnFirstPage.hovered ? Theme.surfaceHover : Theme.surfaceWhite)
+                border.color: Theme.borderDefault
                 radius: 6
             }
             onClicked: root.pageRequested(1)
@@ -81,13 +82,13 @@ Rectangle {
                 text: "‹ ก่อนหน้า"
                 font.pixelSize: 12
                 font.bold: true
-                color: btnPrevPage.enabled ? "#334155" : "#94a3b8"
+                color: btnPrevPage.enabled ? Theme.textSecondary : Theme.textFaint
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
             background: Rectangle {
-                color: btnPrevPage.down ? "#e2e8f0" : (btnPrevPage.hovered ? "#f1f5f9" : "#ffffff")
-                border.color: "#cbd5e1"
+                color: btnPrevPage.down ? Theme.borderSubtle : (btnPrevPage.hovered ? Theme.surfaceHover : Theme.surfaceWhite)
+                border.color: Theme.borderDefault
                 radius: 6
             }
             onClicked: root.pageRequested(root.currentPage - 1)
@@ -102,8 +103,8 @@ Rectangle {
                 implicitWidth: modelData === "..." ? 28 : 34
                 implicitHeight: 32
                 radius: 6
-                color: modelData === root.currentPage.toString() ? "#2563eb" : (pageMouse.containsMouse && modelData !== "..." ? "#eff6ff" : "#ffffff")
-                border.color: modelData === root.currentPage.toString() ? "#2563eb" : (modelData === "..." ? "transparent" : "#cbd5e1")
+                color: modelData === root.currentPage.toString() ? Theme.accentPrimary : (pageMouse.containsMouse && modelData !== "..." ? Theme.accentSurface : Theme.surfaceWhite)
+                border.color: modelData === root.currentPage.toString() ? Theme.accentPrimary : (modelData === "..." ? "transparent" : Theme.borderDefault)
                 border.width: 1
 
                 Text {
@@ -111,7 +112,7 @@ Rectangle {
                     text: modelData
                     font.bold: modelData === root.currentPage.toString()
                     font.pixelSize: 12
-                    color: modelData === root.currentPage.toString() ? "#ffffff" : (modelData === "..." ? "#64748b" : "#334155")
+                    color: modelData === root.currentPage.toString() ? Theme.surfaceWhite : (modelData === "..." ? Theme.textMuted : Theme.textSecondary)
                 }
 
                 MouseArea {
@@ -138,13 +139,13 @@ Rectangle {
                 text: "ถัดไป ›"
                 font.pixelSize: 12
                 font.bold: true
-                color: btnNextPage.enabled ? "#334155" : "#94a3b8"
+                color: btnNextPage.enabled ? Theme.textSecondary : Theme.textFaint
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
             background: Rectangle {
-                color: btnNextPage.down ? "#e2e8f0" : (btnNextPage.hovered ? "#f1f5f9" : "#ffffff")
-                border.color: "#cbd5e1"
+                color: btnNextPage.down ? Theme.borderSubtle : (btnNextPage.hovered ? Theme.surfaceHover : Theme.surfaceWhite)
+                border.color: Theme.borderDefault
                 radius: 6
             }
             onClicked: root.pageRequested(root.currentPage + 1)
@@ -160,13 +161,13 @@ Rectangle {
                 text: "»"
                 font.pixelSize: 14
                 font.bold: true
-                color: btnLastPage.enabled ? "#334155" : "#94a3b8"
+                color: btnLastPage.enabled ? Theme.textSecondary : Theme.textFaint
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
             }
             background: Rectangle {
-                color: btnLastPage.down ? "#e2e8f0" : (btnLastPage.hovered ? "#f1f5f9" : "#ffffff")
-                border.color: "#cbd5e1"
+                color: btnLastPage.down ? Theme.borderSubtle : (btnLastPage.hovered ? Theme.surfaceHover : Theme.surfaceWhite)
+                border.color: Theme.borderDefault
                 radius: 6
             }
             onClicked: root.pageRequested(root.totalPages)
@@ -175,7 +176,7 @@ Rectangle {
         // Page Summary Info Text
         Text {
             text: "หน้า " + root.currentPage + " จาก " + root.totalPages + " (" + root.totalCount + " " + root.countUnit + ")"
-            color: "#64748b"
+            color: Theme.textMuted
             font.pixelSize: 12
             Layout.leftMargin: 8
         }

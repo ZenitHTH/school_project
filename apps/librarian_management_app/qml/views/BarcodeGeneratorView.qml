@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Rectangle {
     id: barcodeGenScreen
@@ -449,7 +450,8 @@ Rectangle {
                     Layout.fillWidth: true
                 }
             }
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 text: "📖 กลับแคตตาล็อก"
                 onClicked: barcodeGenScreen.backToCatalogRequested()
             }
@@ -484,22 +486,22 @@ Rectangle {
                         // Mode Switch
                         RowLayout {
                             Layout.fillWidth: true
-                            Button {
+                            StyledButton {
+                                variant: barcodeGenScreen.currentGenMode === 0 ? StyledButton.Primary : StyledButton.Neutral
                                 id: btnModeNewBook
                                 objectName: "btnModeNewBook"
                                 text: "🆕 เพิ่มหนังสือใหม่"
                                 Layout.fillWidth: true
-                                highlighted: barcodeGenScreen.currentGenMode === 0
                                 onClicked: {
                                     barcodeGenScreen.currentGenMode = 0
                                 }
                             }
-                            Button {
+                            StyledButton {
+                                variant: barcodeGenScreen.currentGenMode === 1 ? StyledButton.Primary : StyledButton.Neutral
                                 id: btnModeAddCopies
                                 objectName: "btnModeAddCopies"
                                 text: "➕ เพิ่มเล่มหนังสือเดิม"
                                 Layout.fillWidth: true
-                                highlighted: barcodeGenScreen.currentGenMode === 1
                                 onClicked: {
                                     barcodeGenScreen.currentGenMode = 1
                                     barcodeGenScreen.loadBooksForExistingSelector()
@@ -516,48 +518,22 @@ Rectangle {
                             visible: barcodeGenScreen.currentGenMode === 0
 
                             Text { text: "ชื่อหนังสือ (Title) *"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-                            TextField {
+                            StyledTextInput {
                                 id: genBookTitle
                                 objectName: "genBookTitle"
                                 Layout.fillWidth: true
-                                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                                leftPadding: 12
-                                rightPadding: 12
-                                horizontalAlignment: TextInput.AlignLeft
-                                verticalAlignment: TextInput.AlignVCenter
-                                placeholderTextColor: "#64748b"
                                 placeholderText: "เช่น ฟิสิกส์พื้นฐาน ม.1"
                                 selectByMouse: true
-                                background: Rectangle {
-                                    implicitHeight: parent.implicitHeight
-                                    color: "#ffffff"
-                                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                    border.width: parent.activeFocus ? 2 : 1
-                                    radius: 6
-                                }
                                 onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
 
                             Text { text: "ผู้แต่ง (Author)"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-                            TextField {
+                            StyledTextInput {
                                 id: genBookAuthor
                                 objectName: "genBookAuthor"
                                 Layout.fillWidth: true
-                                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                                leftPadding: 12
-                                rightPadding: 12
-                                horizontalAlignment: TextInput.AlignLeft
-                                verticalAlignment: TextInput.AlignVCenter
-                                placeholderTextColor: "#64748b"
                                 placeholderText: "ชื่อผู้แต่ง / คณะผู้จัดทำ"
                                 selectByMouse: true
-                                background: Rectangle {
-                                    implicitHeight: parent.implicitHeight
-                                    color: "#ffffff"
-                                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                    border.width: parent.activeFocus ? 2 : 1
-                                    radius: 6
-                                }
                                 onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
 
@@ -565,25 +541,12 @@ Rectangle {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 8
-                                TextField {
+                                StyledTextInput {
                                     id: genBookIsbn
                                     objectName: "genBookIsbn"
                                     Layout.fillWidth: true
-                                    implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                                    leftPadding: 12
-                                    rightPadding: 12
-                                    horizontalAlignment: TextInput.AlignLeft
-                                    verticalAlignment: TextInput.AlignVCenter
-                                    placeholderTextColor: "#64748b"
                                     placeholderText: "เช่น 978-616-00-1234-5"
                                     selectByMouse: true
-                                    background: Rectangle {
-                                        implicitHeight: parent.implicitHeight
-                                        color: "#ffffff"
-                                        border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                        border.width: parent.activeFocus ? 2 : 1
-                                        radius: 6
-                                    }
                                     onAccepted: {
                                         barcodeGenScreen.checkIsbnDuplicate(text.trim())
                                         if (chkAutoFetchIsbn.checked && barcodeGenScreen.duplicateBook === null) {
@@ -612,7 +575,8 @@ Rectangle {
                                         }
                                     }
                                 }
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Primary
                                     id: btnFetchIsbn
                                     objectName: "btnFetchIsbn"
                                     text: "🔍 ดึงข้อมูล"
@@ -648,62 +612,24 @@ Rectangle {
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     Text { text: "หมวดหมู่"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-                                    ComboBox {
+                                    StyledComboBox {
                                         id: genCategoryCombo
                                         objectName: "genCategoryCombo"
                                         Layout.fillWidth: true
-                                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
                                         textRole: "name"
                                         model: ListModel { id: genCategoryModel; objectName: "genCategoryModel" }
                                         onCurrentIndexChanged: barcodeGenScreen.updateGenPreview()
-                                        background: Rectangle {
-                                            implicitHeight: genCategoryCombo.implicitHeight
-                                            color: "#ffffff"
-                                            border.color: genCategoryCombo.activeFocus ? "#2563eb" : "#cbd5e1"
-                                            radius: 6
-                                            Text {
-                                                anchors.right: parent.right
-                                                anchors.rightMargin: 10
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                text: "▼"
-                                                font.pixelSize: 10
-                                                color: "#64748b"
-                                            }
-                                        }
-                                        contentItem: Text {
-                                            leftPadding: 12
-                                            rightPadding: 24
-                                            text: genCategoryCombo.displayText
-                                            color: "#1e293b"
-                                            font.pixelSize: 13
-                                            horizontalAlignment: Text.AlignLeft
-                                            verticalAlignment: Text.AlignVCenter
-                                            elide: Text.ElideRight
-                                        }
                                     }
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     Text { text: "ตำแหน่งชั้นวาง"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-                                    TextField {
+                                    StyledTextInput {
                                         id: genShelfLocation
                                         objectName: "genShelfLocation"
                                         Layout.fillWidth: true
-                                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                                        leftPadding: 12
-                                        rightPadding: 12
-                                        horizontalAlignment: TextInput.AlignLeft
-                                        verticalAlignment: TextInput.AlignVCenter
-                                        placeholderTextColor: "#64748b"
                                         placeholderText: "เช่น ชั้น A-01"
                                         selectByMouse: true
-                                        background: Rectangle {
-                                            implicitHeight: parent.implicitHeight
-                                            color: "#ffffff"
-                                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                            border.width: parent.activeFocus ? 2 : 1
-                                            radius: 6
-                                        }
                                         onTextChanged: barcodeGenScreen.updateGenPreview()
                                     }
                                 }
@@ -717,37 +643,12 @@ Rectangle {
                             visible: barcodeGenScreen.currentGenMode === 1
 
                             Text { text: "เลือกหนังสือเดิมในระบบ *"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
-                            ComboBox {
+                            StyledComboBox {
                                 id: genExistingBookCombo
                                 objectName: "genExistingBookCombo"
                                 Layout.fillWidth: true
-                                implicitHeight: 36
                                 textRole: "display"
                                 model: ListModel { id: genExistingBooksModel; objectName: "genExistingBooksModel" }
-                                background: Rectangle {
-                                    implicitHeight: 36
-                                    color: "#ffffff"
-                                    border.color: genExistingBookCombo.activeFocus ? "#2563eb" : "#cbd5e1"
-                                    radius: 4
-                                    Text {
-                                        anchors.right: parent.right
-                                        anchors.rightMargin: 10
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: "▼"
-                                        font.pixelSize: 10
-                                        color: "#64748b"
-                                    }
-                                }
-                                contentItem: Text {
-                                    leftPadding: 12
-                                    rightPadding: 24
-                                    text: genExistingBookCombo.displayText
-                                    color: "#1e293b"
-                                    font.pixelSize: 13
-                                    horizontalAlignment: Text.AlignLeft
-                                    verticalAlignment: Text.AlignVCenter
-                                    elide: Text.ElideRight
-                                }
                                 onCurrentIndexChanged: {
                                     if (currentIndex >= 0 && currentIndex < genExistingBooksModel.count) {
                                         var sel = genExistingBooksModel.get(currentIndex)
@@ -773,32 +674,20 @@ Rectangle {
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 8
-                            TextField {
+                            StyledTextInput {
                                 id: genCopyCountInput
                                 objectName: "genCopyCountInput"
                                 text: "1"
                                 Layout.preferredWidth: 90
-                                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                                leftPadding: 12
-                                rightPadding: 12
-                                horizontalAlignment: TextInput.AlignLeft
-                                verticalAlignment: TextInput.AlignVCenter
-                                placeholderTextColor: "#64748b"
                                 validator: IntValidator { bottom: 1; top: 99 }
                                 selectByMouse: true
-                                background: Rectangle {
-                                    implicitHeight: parent.implicitHeight
-                                    color: "#ffffff"
-                                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                    border.width: parent.activeFocus ? 2 : 1
-                                    radius: 6
-                                }
                                 onTextChanged: barcodeGenScreen.updateGenPreview()
                             }
                             Item { Layout.fillWidth: true }
-                            Button { text: "-1"; Layout.preferredWidth: 44; implicitHeight: genCopyCountInput.implicitHeight; onClicked: { var c = Math.max(1, (parseInt(genCopyCountInput.text) || 1) - 1); genCopyCountInput.text = c.toString(); } }
-                            Button { text: "+1"; Layout.preferredWidth: 44; implicitHeight: genCopyCountInput.implicitHeight; onClicked: { var c = Math.min(99, (parseInt(genCopyCountInput.text) || 1) + 1); genCopyCountInput.text = c.toString(); } }
-                            Button {
+                            StyledButton { variant: StyledButton.Primary; text: "-1"; Layout.preferredWidth: 44; implicitHeight: genCopyCountInput.implicitHeight; onClicked: { var c = Math.max(1, (parseInt(genCopyCountInput.text) || 1) - 1); genCopyCountInput.text = c.toString(); } }
+                            StyledButton { variant: StyledButton.Primary; text: "+1"; Layout.preferredWidth: 44; implicitHeight: genCopyCountInput.implicitHeight; onClicked: { var c = Math.min(99, (parseInt(genCopyCountInput.text) || 1) + 1); genCopyCountInput.text = c.toString(); } }
+                            StyledButton {
+                                variant: StyledButton.Primary
                                 text: "+5"
                                 Layout.preferredWidth: 44
                                 implicitHeight: genCopyCountInput.implicitHeight
@@ -817,18 +706,19 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 10
 
-                            Button {
+                            StyledButton {
+                                variant: StyledButton.Primary
                                 id: btnRefreshPreview
                                 objectName: "btnRefreshPreview"
                                 text: "🔄 รีเฟรชข้อมูล"
                                 onClicked: barcodeGenScreen.initGeneratorPage()
                             }
 
-                            Button {
+                            StyledButton {
+                                variant: StyledButton.Primary
                                 id: btnExecuteGenerate
                                 objectName: "btnExecuteGenerate"
                                 text: "💾 บันทึกและสร้างบาร์โค้ด"
-                                highlighted: true
                                 Layout.fillWidth: true
                                 onClicked: barcodeGenScreen.executeGenerateAndSave()
                             }

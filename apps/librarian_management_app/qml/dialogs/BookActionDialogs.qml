@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Item {
     id: root
@@ -250,22 +251,20 @@ Item {
         ColumnLayout {
             anchors.fill: parent
             spacing: 8
-            TextField {
+            StyledTextInput {
                 id: newBookTitle
                 objectName: "newBookTitle"
                 placeholderText: "ชื่อหนังสือ"
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                TextField {
+                StyledTextInput {
                     id: newBookIsbn
                     objectName: "newBookIsbn"
                     placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)"
                     Layout.fillWidth: true
-                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     onAccepted: {
                         root.checkDialogIsbnDuplicate(text)
                         if (chkDialogAutoFetchIsbn.checked && root.dialogDuplicateBook === null) {
@@ -291,7 +290,8 @@ Item {
                         }
                     }
                 }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Neutral
                     id: btnDialogFetchIsbn
                     objectName: "btnDialogFetchIsbn"
                     text: "🔍 ดึงข้อมูล"
@@ -306,20 +306,18 @@ Item {
                 checked: true
                 font.pixelSize: 12
             }
-            TextField {
+            StyledTextInput {
                 id: newBookAuthor
                 objectName: "newBookAuthor"
                 placeholderText: "ผู้แต่ง"
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
-            TextField {
+            StyledTextInput {
                 id: newBookBarcodes
                 objectName: "newBookBarcodes"
                 placeholderText: "จำนวนเล่ม (เช่น 2) หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"
                 text: "1"
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Text {
                 id: addBookStatusText
@@ -425,27 +423,28 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
-                TextField {
+                StyledTextInput {
                     id: addCopiesCountInput
                     objectName: "addCopiesCountInput"
                     placeholderText: "เช่น 4 หรือระบุบาร์โค้ดคั่นด้วยจุลภาค"
                     text: "1"
                     Layout.fillWidth: true
-                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     selectByMouse: true
                     padding: 8
                     enabled: !addCopiesDialog.isSubmitting
                     background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
                     onAccepted: addCopiesDialog.executeAddCopies()
                 }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Neutral
                     text: "+1"
                     Layout.preferredWidth: 44
                     implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     enabled: !addCopiesDialog.isSubmitting
                     onClicked: { var c = Math.min(99, (parseInt(addCopiesCountInput.text) || 1) + 1); addCopiesCountInput.text = c.toString(); }
                 }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Neutral
                     text: "+4"
                     Layout.preferredWidth: 44
                     implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
@@ -461,12 +460,14 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Neutral
                     text: "ยกเลิก"
                     enabled: !addCopiesDialog.isSubmitting
                     onClicked: addCopiesDialog.close()
                 }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Primary
                     id: btnSubmitAddCopies
                     objectName: "btnSubmitAddCopies"
                     text: "💾 เพิ่มเล่มและสร้างบาร์โค้ด"
@@ -518,7 +519,8 @@ Item {
                     }
                 }
             }
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 text: "📄 ส่งออกสติกเกอร์บาร์โค้ด (PDF A4)"
                 highlighted: true
                 Layout.alignment: Qt.AlignRight
@@ -588,23 +590,12 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button { text: "ยกเลิก"; onClicked: deleteBookDialog.close() }
-                Button {
+                StyledButton { variant: StyledButton.Neutral; text: "ยกเลิก"; onClicked: deleteBookDialog.close() }
+                StyledButton {
+                    variant: StyledButton.Danger
                     id: btnConfirmDeleteBook
                     objectName: "btnConfirmDeleteBook"
                     text: "ยืนยันการลบ"
-                    contentItem: Text {
-                        text: btnConfirmDeleteBook.text
-                        color: "white"
-                        font.pixelSize: 12
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        color: btnConfirmDeleteBook.pressed ? "#be123c" : "#e11d48"
-                        radius: 4
-                    }
                     onClicked: executeDeleteBook()
                 }
             }

@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
@@ -7,8 +8,8 @@ Rectangle {
     Layout.fillWidth: true
     height: messageText.text !== "" ? 44 : 0
     implicitHeight: height
-    color: isError ? "#fee2e2" : "#dcfce7"
-    border.color: isError ? "#fca5a5" : "#86efac"
+    color: isError ? Theme.errorBackground : Theme.successBackground
+    border.color: isError ? Theme.errorBorder : Theme.successBorder
     border.width: messageText.text !== "" ? 1 : 0
     radius: 6
     visible: messageText.text !== ""
@@ -38,7 +39,7 @@ Rectangle {
         id: messageText
         anchors.centerIn: parent
         text: ""
-        color: root.isError ? "#991b1b" : "#166534"
+        color: root.isError ? Theme.errorText : Theme.successText
         font.pixelSize: 13
         font.bold: true
     }

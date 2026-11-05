@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Rectangle {
     id: root
@@ -29,9 +30,10 @@ Rectangle {
             Layout.fillWidth: true
         }
 
-        Button {
+        StyledButton {
             id: btnPromote
             objectName: "btnPromote"
+            variant: StyledButton.Primary
             text: "ยืนยันและดำเนินการเลื่อนชั้น"
             highlighted: true
             onClicked: {

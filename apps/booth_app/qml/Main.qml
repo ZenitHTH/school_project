@@ -93,8 +93,9 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         onAccepted: identifyStudent()
                     }
-                    Button {
+                    StyledButton {
                         objectName: "btnIdentify"
+                        variant: StyledButton.Primary
                         text: "ยืนยันตัวตน"
                         highlighted: true
                         implicitHeight: 44
@@ -145,16 +146,18 @@ ApplicationWindow {
                     spacing: 16
                     Layout.alignment: Qt.AlignHCenter
 
-                    Button {
+                    StyledButton {
                         objectName: "btnCheckout"
+                        variant: StyledButton.Primary
                         text: "✅ ยืมหนังสือ (Checkout)"
                         highlighted: true
                         enabled: boothWindow.identifiedStudent !== null
                         onClicked: doCheckout()
                     }
 
-                    Button {
+                    StyledButton {
                         objectName: "btnReturn"
+                        variant: StyledButton.Neutral
                         text: "📥 คืนหนังสือ (Return)"
                         onClicked: doReturn()
                     }
@@ -172,8 +175,9 @@ ApplicationWindow {
             text: "กรุณาระบุตัวตนเพื่อเริ่มทำรายการ"
         }
 
-        Button {
+        StyledButton {
             objectName: "btnLogout"
+            variant: StyledButton.Neutral
             text: "เสร็จสิ้น / ออกจากระบบ"
             Layout.alignment: Qt.AlignHCenter
             onClicked: {

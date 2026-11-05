@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Item {
     id: root
@@ -98,21 +99,19 @@ Item {
             anchors.fill: parent
             spacing: 10
             Label { text: "เลขห้องใหม่:" }
-            TextField {
+            StyledTextInput {
                 id: newRoomInput
                 objectName: "newRoomInput"
                 placeholderText: "เช่น 2 หรือ 3"
                 inputMethodHints: Qt.ImhDigitsOnly
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "เหตุผล:" }
-            TextField {
+            StyledTextInput {
                 id: roomReasonInput
                 objectName: "roomReasonInput"
                 placeholderText: "ปรับสมดุลชั้นเรียน..."
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
         }
 
@@ -149,19 +148,18 @@ Item {
             anchors.fill: parent
             spacing: 10
             Label { text: "สถานะใหม่:" }
-            ComboBox {
+            StyledComboBox {
                 id: statusCombo
                 objectName: "statusCombo"
                 Layout.fillWidth: true
                 model: ["active", "on_leave", "transferred_out"]
             }
             Label { text: "เหตุผล:" }
-            TextField {
+            StyledTextInput {
                 id: statusReasonInput
                 objectName: "statusReasonInput"
                 placeholderText: "เหตุผล"
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
         }
 
@@ -198,36 +196,32 @@ Item {
             anchors.fill: parent
             spacing: 10
             Label { text: "คำนำหน้า:" }
-            TextField {
+            StyledTextInput {
                 id: editPrefixInput
                 objectName: "editPrefixInput"
                 placeholderText: "เช่น เด็กชาย, นาย, นางสาว"
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "ชื่อ:*" }
-            TextField {
+            StyledTextInput {
                 id: editFirstNameInput
                 objectName: "editFirstNameInput"
                 placeholderText: "ชื่อ"
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "นามสกุล:*" }
-            TextField {
+            StyledTextInput {
                 id: editLastNameInput
                 objectName: "editLastNameInput"
                 placeholderText: "นามสกุล"
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "เหตุผล:" }
-            TextField {
+            StyledTextInput {
                 id: nameReasonInput
                 objectName: "nameReasonInput"
                 placeholderText: "แก้ไขการสะกด..."
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
         }
 
@@ -269,21 +263,19 @@ Item {
             anchors.fill: parent
             spacing: 10
             Label { text: "รหัสนักเรียนใหม่:*" }
-            TextField {
+            StyledTextInput {
                 id: newIdInput
                 objectName: "newIdInput"
                 placeholderText: "รหัสใหม่"
                 inputMethodHints: Qt.ImhDigitsOnly
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
             Label { text: "เหตุผล:" }
-            TextField {
+            StyledTextInput {
                 id: idReasonInput
                 objectName: "idReasonInput"
                 placeholderText: "แก้ไขข้อผิดพลาด..."
                 Layout.fillWidth: true
-                implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
             }
         }
 
@@ -348,9 +340,9 @@ Item {
             RowLayout {
                 spacing: 8
                 Text { text: "ปีการศึกษา:" }
-                TextField { id: diffYearInput; text: "2568"; Layout.preferredWidth: 80 }
+                StyledTextInput { id: diffYearInput; text: "2568"; Layout.preferredWidth: 80 }
                 Text { text: "ภาคเรียน:" }
-                TextField { id: diffSemInput; text: "1"; Layout.preferredWidth: 60 }
+                StyledTextInput { id: diffSemInput; text: "1"; Layout.preferredWidth: 60 }
             }
         }
 

@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Item {
     id: root
@@ -151,7 +152,7 @@ Item {
                 color: "#475569"
             }
 
-            TextField {
+            StyledTextInput {
                 id: renameCategoryInput
                 objectName: "renameCategoryInput"
                 Layout.fillWidth: true
@@ -172,11 +173,13 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Neutral
                     text: "ยกเลิก"
                     onClicked: renameCategoryDialog.close()
                 }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Primary
                     id: btnSubmitRename
                     objectName: "btnSubmitRename"
                     text: "บันทึก"
@@ -280,7 +283,7 @@ Item {
                     font.bold: true
                     color: "#334155"
                 }
-                ComboBox {
+                StyledComboBox {
                     id: targetCategoryCombo
                     objectName: "targetCategoryCombo"
                     Layout.fillWidth: true
@@ -292,26 +295,18 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Neutral
                     text: "ยกเลิก"
                     onClicked: reassignCategoryDialog.close()
                 }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Danger
                     id: btnConfirmReassignDelete
                     objectName: "btnConfirmReassignDelete"
                     text: "ย้ายหนังสือและยืนยันการลบ"
-                    contentItem: Text {
-                        text: btnConfirmReassignDelete.text
-                        color: "white"
-                        font.pixelSize: 12
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        color: btnConfirmReassignDelete.pressed ? "#be123c" : "#e11d48"
-                        radius: 4
-                    }
+                    font.pixelSize: 12
+                    font.bold: true
                     onClicked: executeReassignAndDelete()
                 }
             }
@@ -348,26 +343,18 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Neutral
                     text: "ยกเลิก"
                     onClicked: simpleDeleteCategoryDialog.close()
                 }
-                Button {
+                StyledButton {
+                    variant: StyledButton.Danger
                     id: btnConfirmSimpleDelete
                     objectName: "btnConfirmSimpleDelete"
                     text: "ยืนยันการลบ"
-                    contentItem: Text {
-                        text: btnConfirmSimpleDelete.text
-                        color: "white"
-                        font.pixelSize: 12
-                        font.bold: true
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                    }
-                    background: Rectangle {
-                        color: btnConfirmSimpleDelete.pressed ? "#be123c" : "#e11d48"
-                        radius: 4
-                    }
+                    font.pixelSize: 12
+                    font.bold: true
                     onClicked: executeDirectDelete()
                 }
             }

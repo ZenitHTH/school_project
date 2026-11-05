@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
@@ -35,43 +36,34 @@ Rectangle {
                 color: "#1e293b"
             }
             Item { Layout.fillWidth: true }
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: btnOpenGeneratorPage
                 objectName: "btnOpenGeneratorPage"
                 text: "📚 เพิ่มหนังสือ / หมวดหมู่"
                 onClicked: root.openGeneratorRequested()
             }
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: btnOpenPrintPage
                 objectName: "btnOpenPrintPage"
                 text: "🏷️ พิมพ์สติกเกอร์บาร์โค้ด"
-                highlighted: true
                 onClicked: root.openPrintPageRequested()
             }
         }
 
         RowLayout {
             Layout.fillWidth: true
-            TextField {
+            StyledTextInput {
                 id: catalogSearchInput
                 objectName: "catalogSearchInput"
                 placeholderText: "ค้นหาชื่อหนังสือ, ผู้แต่ง, ISBN..."
                 Layout.fillWidth: true
-                implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                leftPadding: 12
-                rightPadding: 12
-                verticalAlignment: TextInput.AlignVCenter
-                placeholderTextColor: "#64748b"
                 selectByMouse: true
-                background: Rectangle {
-                    implicitHeight: parent.implicitHeight
-                    color: "#ffffff"
-                    border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                    radius: 6
-                }
                 onAccepted: root.searchRequested()
             }
-            Button {
+            StyledButton {
+                variant: StyledButton.Primary
                 id: btnSearchBooks
                 objectName: "btnSearchBooks"
                 text: "ค้นหา"
@@ -139,19 +131,20 @@ Rectangle {
                         Layout.fillWidth: false
                         Layout.preferredWidth: Math.round(220 * (window.fontScale || 1.0))
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Primary
                         text: "+ เพิ่มเล่ม"
                         onClicked: root.addCopiesRequested(model.book_id, model.title)
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Ghost
                         text: "✏️ แก้ไข"
-                        flat: true
                         font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
                         onClicked: root.editBookRequested(model.book_id, model.title, model.author || "", model.isbn || "", model.category_id || 0, model.shelf_location || "", model.total_copies || 1)
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Ghost
                         text: "🗑️ ลบ"
-                        flat: true
                         font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
                         contentItem: Text {
                             text: "🗑️ ลบ"

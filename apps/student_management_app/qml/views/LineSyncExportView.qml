@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Rectangle {
     id: root
@@ -27,9 +28,10 @@ Rectangle {
             color: "#64748b"
         }
 
-        Button {
+        StyledButton {
             id: btnExportSnapshot
             objectName: "btnExportSnapshot"
+            variant: StyledButton.Primary
             text: "สร้างไฟล์ Snapshot ทันที"
             highlighted: true
             onClicked: {

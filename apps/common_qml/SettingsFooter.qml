@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
@@ -18,7 +19,7 @@ RowLayout {
         id: statusLabel
         objectName: "saveStatusText"
         text: ""
-        color: text.startsWith("✓") ? "#16a34a" : "#dc2626"
+        color: text.startsWith("✓") ? Theme.successDot : Theme.errorDot
         font.bold: true
         font.pixelSize: 13
     }

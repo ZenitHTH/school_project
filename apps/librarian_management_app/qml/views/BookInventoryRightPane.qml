@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
@@ -70,12 +71,12 @@ Rectangle {
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Ghost
                         id: btnGoToPrintPage
                         objectName: "btnGoToPrintPage"
                         text: "🏷️ ไปหน้าพิมพ์บาร์โค้ด →"
                         font.pixelSize: 11
-                        flat: true
                         Layout.alignment: Qt.AlignRight
                         onClicked: rightPaneRoot.goToPrintPageRequested()
                     }
@@ -238,32 +239,21 @@ Rectangle {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 6
-                        TextField {
+                        StyledTextInput {
                             id: inventorySearchInput
                             objectName: "inventorySearchInput"
                             placeholderText: "🔍 ค้นคลัง..."
                             Layout.fillWidth: true
                             font.pixelSize: 11
-                            implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 12)) * 2.2))
-                            leftPadding: 12
-                            rightPadding: 12
-                            verticalAlignment: TextInput.AlignVCenter
-                            placeholderTextColor: "#64748b"
                             selectByMouse: true
-                            background: Rectangle {
-                                implicitHeight: parent.implicitHeight
-                                color: "#ffffff"
-                                border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                                radius: 4
-                            }
                             onTextChanged: rightPaneRoot.refreshInventoryRequested()
                         }
-                        Button {
+                        StyledButton {
+                            variant: StyledButton.Ghost
                             text: "🔄"
                             font.pixelSize: 11
                             Layout.preferredWidth: 38
                             implicitHeight: inventorySearchInput.implicitHeight
-                            flat: true
                             onClicked: rightPaneRoot.refreshInventoryRequested()
                         }
                     }
@@ -390,22 +380,22 @@ Rectangle {
                             RowLayout {
                                 Layout.preferredWidth: Math.round(76 * (window.fontScale || 1.0))
                                 spacing: 2
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Ghost
                                     text: "+"
                                     font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
                                     Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
                                     implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
                                     Layout.preferredHeight: implicitHeight
-                                    flat: true
                                     onClicked: rightPaneRoot.addCopiesRequested(model.book_id, model.title)
                                 }
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Ghost
                                     text: "✏️"
                                     font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
                                     Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
                                     implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
                                     Layout.preferredHeight: implicitHeight
-                                    flat: true
                                     onClicked: rightPaneRoot.editBookRequested(
                                         model.book_id,
                                         model.title,
@@ -416,13 +406,13 @@ Rectangle {
                                         model.total_copies || 1
                                     )
                                 }
-                                Button {
+                                StyledButton {
+                                    variant: StyledButton.Ghost
                                     text: "🗑️"
                                     font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
                                     Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
                                     implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
                                     Layout.preferredHeight: implicitHeight
-                                    flat: true
                                     onClicked: rightPaneRoot.deleteBookRequested(model.book_id, model.title)
                                 }
                             }
@@ -450,32 +440,21 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 6
                     Text { text: "📁 หมวดหมู่หนังสือ:"; font.bold: true; font.pixelSize: 11; color: "#334155" }
-                    TextField {
+                    StyledTextInput {
                         id: categoryNameInput
                         objectName: "categoryNameInput"
                         placeholderText: "ชื่อหมวดหมู่ใหม่..."
                         Layout.fillWidth: true
                         font.pixelSize: 11
-                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 12)) * 2.2))
-                        leftPadding: 12
-                        rightPadding: 12
-                        verticalAlignment: TextInput.AlignVCenter
-                        placeholderTextColor: "#64748b"
                         selectByMouse: true
-                        background: Rectangle {
-                            implicitHeight: parent.implicitHeight
-                            color: "#ffffff"
-                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                            radius: 4
-                        }
                         onAccepted: rightPaneRoot.addNewCategoryRequested()
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Primary
                         id: btnAddCategory
                         objectName: "btnAddCategory"
                         text: "+ เพิ่มหมวด"
                         font.pixelSize: 11
-                        highlighted: true
                         onClicked: rightPaneRoot.addNewCategoryRequested()
                     }
                 }

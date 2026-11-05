@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml"
 
 Rectangle {
     id: root
@@ -48,26 +49,16 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    TextField {
+                    StyledTextInput {
                         id: studentLookupInput
                         objectName: "studentLookupInput"
                         placeholderText: "พิมพ์รหัสนักเรียน หรือชื่อ..."
                         Layout.preferredWidth: 260
-                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                        leftPadding: 12
-                        rightPadding: 12
-                        verticalAlignment: TextInput.AlignVCenter
-                        placeholderTextColor: "#64748b"
                         selectByMouse: true
-                        background: Rectangle {
-                            implicitHeight: parent.implicitHeight
-                            color: "#ffffff"
-                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                            radius: 6
-                        }
                         onAccepted: root.lookupStudentRequested()
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Primary
                         id: btnLookupStudent
                         objectName: "btnLookupStudent"
                         text: "ค้นหา"
@@ -101,34 +92,24 @@ Rectangle {
                 spacing: 8
                 Text { text: "2. สแกนบาร์โค้ดประจำเล่มหนังสือ (Tracking Barcode):"; font.bold: true; color: "#1e293b" }
                 RowLayout {
-                    TextField {
+                    StyledTextInput {
                         id: barcodeInput
                         objectName: "barcodeInput"
                         placeholderText: "สแกนบาร์โค้ด..."
                         Layout.preferredWidth: 260
-                        implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
-                        leftPadding: 12
-                        rightPadding: 12
-                        verticalAlignment: TextInput.AlignVCenter
-                        placeholderTextColor: "#64748b"
                         font.pixelSize: 16
                         selectByMouse: true
-                        background: Rectangle {
-                            implicitHeight: parent.implicitHeight
-                            color: "#ffffff"
-                            border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"
-                            radius: 6
-                        }
                         onAccepted: root.checkoutRequested()
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Primary
                         id: btnCheckout
                         objectName: "btnCheckout"
                         text: "ยืมหนังสือ (Checkout)"
-                        highlighted: true
                         onClicked: root.checkoutRequested()
                     }
-                    Button {
+                    StyledButton {
+                        variant: StyledButton.Primary
                         id: btnReturn
                         objectName: "btnReturn"
                         text: "คืนหนังสือ (Return)"

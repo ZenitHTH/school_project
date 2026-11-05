@@ -1,13 +1,14 @@
 import QtQuick 2.15
+import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
 Rectangle {
     id: controlsRoot
     Layout.fillWidth: true
-    color: "#ffffff"
+    color: Theme.surfaceWhite
     radius: 10
-    border.color: "#e2e8f0"
+    border.color: Theme.borderSubtle
     implicitHeight: ctrlLayout.implicitHeight + 32
 
     property alias fontFamilyCombo: fontFamilyCombo
@@ -31,7 +32,7 @@ Rectangle {
             Text {
                 text: "รูปแบบฟอนต์ (Font Family):"
                 font.bold: true
-                color: "#1e293b"
+                color: Theme.textStrong
                 Layout.minimumWidth: 160
                 Layout.preferredWidth: Math.max(180, implicitWidth)
                 wrapMode: Text.Wrap
@@ -49,7 +50,7 @@ Rectangle {
                     rightPadding: fontFamilyCombo.indicator ? fontFamilyCombo.indicator.width + 12 : 24
                     text: fontFamilyCombo.displayText
                     font: fontFamilyCombo.font
-                    color: "#0f172a"
+                    color: Theme.textPrimary
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignLeft
                     elide: Text.ElideRight
@@ -57,8 +58,8 @@ Rectangle {
 
                 background: Rectangle {
                     implicitHeight: fontFamilyCombo.implicitHeight
-                    color: "#ffffff"
-                    border.color: fontFamilyCombo.activeFocus ? "#2563eb" : "#cbd5e1"
+                    color: Theme.surfaceWhite
+                    border.color: fontFamilyCombo.activeFocus ? Theme.accentPrimary : Theme.borderDefault
                     border.width: fontFamilyCombo.activeFocus ? 2 : 1
                     radius: 6
                 }
@@ -69,7 +70,7 @@ Rectangle {
                         leftPadding: 12
                         text: modelData
                         font: fontFamilyCombo.font
-                        color: highlighted ? "#2563eb" : "#0f172a"
+                        color: highlighted ? Theme.accentPrimary : Theme.textPrimary
                         verticalAlignment: Text.AlignVCenter
                         horizontalAlignment: Text.AlignLeft
                         elide: Text.ElideRight
@@ -84,7 +85,7 @@ Rectangle {
             Text {
                 text: "ขนาดตัวอักษร (Font Size):"
                 font.bold: true
-                color: "#1e293b"
+                color: Theme.textStrong
                 Layout.minimumWidth: 160
                 Layout.preferredWidth: Math.max(180, implicitWidth)
                 wrapMode: Text.Wrap
@@ -117,12 +118,12 @@ Rectangle {
                 Layout.preferredWidth: 60
                 height: 32
                 radius: 6
-                color: "#f1f5f9"
+                color: Theme.surfaceHover
                 Text {
                     anchors.centerIn: parent
                     text: Math.round(fontSizeSlider.value) + " px"
                     font.bold: true
-                    color: "#0f172a"
+                    color: Theme.textPrimary
                     font.pixelSize: 12
                 }
             }
@@ -133,7 +134,7 @@ Rectangle {
             Text {
                 text: "มาตราส่วน (UI Scaling):"
                 font.bold: true
-                color: "#1e293b"
+                color: Theme.textStrong
                 Layout.minimumWidth: 160
                 Layout.preferredWidth: Math.max(180, implicitWidth)
                 wrapMode: Text.Wrap
@@ -152,12 +153,12 @@ Rectangle {
                 Layout.preferredWidth: 60
                 height: 32
                 radius: 6
-                color: "#eff6ff"
+                color: Theme.accentSurface
                 Text {
                     anchors.centerIn: parent
                     text: Math.round(scaleSlider.value) + "%"
                     font.bold: true
-                    color: "#1d4ed8"
+                    color: Theme.accentHover
                     font.pixelSize: 12
                 }
             }

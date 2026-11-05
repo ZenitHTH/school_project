@@ -187,7 +187,8 @@ ApplicationWindow {
                     Layout.bottomMargin: 10
                 }
 
-                component NavBtn: Button {
+                component NavBtn: StyledButton {
+                    variant: StyledButton.Ghost
                     id: navBtnRoot
                     property bool active: false
                     property int textElideMode: navText.elide
@@ -294,7 +295,8 @@ ApplicationWindow {
 
                 Item { Layout.fillHeight: true }
 
-                Button {
+                StyledButton {
+                    variant: StyledButton.Ghost
                     id: openWizardBtn
                     objectName: "openWizardBtn"
                     Layout.fillWidth: true

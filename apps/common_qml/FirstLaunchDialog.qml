@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
@@ -32,9 +33,9 @@ Dialog {
         Rectangle {
             Layout.fillWidth: true
             height: 70
-            color: "#eff6ff"
+            color: Theme.accentSurface
             radius: 8
-            border.color: "#bfdbfe"
+            border.color: Theme.borderLightBlue
 
             RowLayout {
                 anchors.fill: parent
@@ -53,13 +54,13 @@ Dialog {
                         text: firstLaunchDialog.bannerTitle
                         font.bold: true
                         font.pixelSize: 15
-                        color: "#1e3a8a"
+                        color: Theme.accentDeep
                     }
 
                     Text {
                         text: firstLaunchDialog.bannerSubtitle
                         font.pixelSize: 12
-                        color: "#3b82f6"
+                        color: Theme.accentMid
                     }
                 }
             }
@@ -69,13 +70,13 @@ Dialog {
             text: firstLaunchDialog.promptText
             font.bold: true
             font.pixelSize: 14
-            color: "#1e293b"
+            color: Theme.textStrong
         }
 
         Text {
             text: firstLaunchDialog.explanationText
             font.pixelSize: 12
-            color: "#64748b"
+            color: Theme.textMuted
             wrapMode: Text.Wrap
             Layout.fillWidth: true
         }
@@ -85,7 +86,7 @@ Dialog {
             objectName: "firstLaunchStatusText"
             text: ""
             font.pixelSize: 12
-            color: text.indexOf("✗") !== -1 ? "#ef4444" : "#10b981"
+            color: text.indexOf("✗") !== -1 ? Theme.errorBright : Theme.successBright
             wrapMode: Text.Wrap
             Layout.fillWidth: true
             visible: text !== ""

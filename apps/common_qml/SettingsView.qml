@@ -1,4 +1,5 @@
 import QtQuick 2.15
+import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.Window 2.15
@@ -7,7 +8,7 @@ import "Typography.js" as Typography
 Rectangle {
     id: settingsRoot
     objectName: "settingsRoot"
-    color: "#f8fafc"
+    color: Theme.surfaceSubtle
 
     property string currentFontFamily: "System Default"
     property string activeFontFamily: ""
