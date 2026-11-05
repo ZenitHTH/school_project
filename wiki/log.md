@@ -408,3 +408,8 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Migrated all app views/dialogs: 76 raw `Button` -> `StyledButton`, 35 raw `TextField` -> `StyledTextInput`, 6 raw `ComboBox` -> `StyledComboBox`; deleted the duplicated background/contentItem/popup styling blocks (net -318 lines) while preserving ids, objectNames, handlers, and non-standard custom backgrounds as pass-throughs.
 - 100% test pass across 336 tests.
 
+## [2026-11-05] feat | StyledDialog — global popup/window style component; full dialog migration
+- Added `apps/common_qml/StyledDialog.qml`: global dialog chrome (Theme-token background/border, themed header, themed OK/Cancel footer wired to accepted()/rejected(), modal/CloseOnEscape/centerIn defaults); registered in `qmldir`, smoke-tested (footer wiring incl. NoButton hiding) in `tests/test_qml_loads.py`.
+- Migrated all 13 app popups (StudentActionDialogs ×5, BookActionDialogs ×4, CategoryActionDialogs ×3, EditBookDialog ×1) and the `FirstLaunchDialog` shared component to `StyledDialog`; FileDialog (OS-native) excluded.
+- 100% test pass across 336 tests.
+

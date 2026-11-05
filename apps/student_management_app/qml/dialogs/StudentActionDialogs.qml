@@ -85,15 +85,12 @@ Item {
     }
 
     // 1. Room Dialog
-    Dialog {
+    StyledDialog {
         id: roomDialog
         objectName: "roomDialog"
         title: "เปลี่ยนห้องเรียน"
-        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
-        anchors.centerIn: parent
-        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             anchors.fill: parent
@@ -134,15 +131,12 @@ Item {
     }
 
     // 2. Status Dialog
-    Dialog {
+    StyledDialog {
         id: statusDialog
         objectName: "statusDialog"
         title: "เปลี่ยนสถานะนักเรียน"
-        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
-        anchors.centerIn: parent
-        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             anchors.fill: parent
@@ -182,15 +176,12 @@ Item {
     }
 
     // 3. Name Dialog
-    Dialog {
+    StyledDialog {
         id: nameDialog
         objectName: "nameDialog"
         title: "แก้ไขชื่อ-นามสกุล"
-        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: Math.min(460, rootWindow ? rootWindow.width - 40 : 420)
-        anchors.centerIn: parent
-        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             anchors.fill: parent
@@ -249,15 +240,12 @@ Item {
     }
 
     // 4. ID Dialog
-    Dialog {
+    StyledDialog {
         id: idDialog
         objectName: "idDialog"
         title: "เปลี่ยนรหัสนักเรียน (Renumber ID)"
-        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
-        anchors.centerIn: parent
-        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             anchors.fill: parent
@@ -299,15 +287,12 @@ Item {
     }
 
     // 5. Confirm Import Dialog
-    Dialog {
+    StyledDialog {
         id: confirmImportDialog
         objectName: "confirmImportDialog"
         title: "ตรวจสอบการเปรียบเทียบข้อมูลและการเลื่อนชั้น (Diff Preview)"
-        modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: Math.min(520, rootWindow ? rootWindow.width - 40 : 500)
-        anchors.centerIn: parent
-        closePolicy: Popup.CloseOnEscape
 
         ColumnLayout {
             anchors.fill: parent

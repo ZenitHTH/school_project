@@ -13,3 +13,4 @@ SettingsFooter 1.0 SettingsFooter.qml
 StyledTextInput 1.0 StyledTextInput.qml
 StyledComboBox 1.0 StyledComboBox.qml
 StyledButton 1.0 StyledButton.qml
+StyledDialog 1.0 StyledDialog.qml

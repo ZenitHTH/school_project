@@ -131,13 +131,10 @@ Item {
     }
 
     // 1. Rename Category Dialog
-    Dialog {
+    StyledDialog {
         id: renameCategoryDialog
         objectName: "renameCategoryDialog"
         title: "✏️ แก้ไขชื่อหมวดหมู่"
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-        anchors.centerIn: parent
         width: Math.min(400, rootWindow ? rootWindow.width - 40 : 380)
         standardButtons: Dialog.NoButton
         property int targetCatId: 0
@@ -191,13 +188,10 @@ Item {
     }
 
     // 2. Reassign Category Dialog
-    Dialog {
+    StyledDialog {
         id: reassignCategoryDialog
         objectName: "reassignCategoryDialog"
         title: "⚠️ จัดการหนังสือและลบหมวดหมู่"
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-        anchors.centerIn: parent
         width: Math.min(540, rootWindow ? rootWindow.width - 40 : 520)
         standardButtons: Dialog.NoButton
         property int targetCatId: 0
@@ -314,13 +308,10 @@ Item {
     }
 
     // 3. Simple Delete Category Dialog
-    Dialog {
+    StyledDialog {
         id: simpleDeleteCategoryDialog
         objectName: "simpleDeleteCategoryDialog"
         title: "🗑️ ยืนยันการลบหมวดหมู่"
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-        anchors.centerIn: parent
         width: Math.min(400, rootWindow ? rootWindow.width - 40 : 380)
         standardButtons: Dialog.NoButton
         property int targetCatId: 0

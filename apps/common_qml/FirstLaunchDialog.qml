@@ -3,15 +3,12 @@ import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-Dialog {
+StyledDialog {
     id: firstLaunchDialog
     objectName: "firstLaunchDialog"
     title: "🎉 เริ่มต้นใช้งานระบบ (First Launch Setup)"
-    modal: true
-    anchors.centerIn: parent
     width: 520
     standardButtons: Dialog.NoButton
-    closePolicy: Popup.CloseOnEscape
 
     property string bannerIcon: "🏫"
     property string bannerTitle: "ยินดีต้อนรับสู่ระบบ"
@@ -96,18 +93,19 @@ Dialog {
             Layout.fillWidth: true
             spacing: 12
 
-            Button {
+            StyledButton {
                 id: firstLaunchImportBtn
                 objectName: "firstLaunchImportBtn"
                 Layout.fillWidth: true
                 text: firstLaunchDialog.importButtonText
-                highlighted: true
+                variant: StyledButton.Primary
                 onClicked: firstLaunchDialog.importClicked()
             }
 
-            Button {
+            StyledButton {
                 id: firstLaunchBlankBtn
                 objectName: "firstLaunchBlankBtn"
+                variant: StyledButton.Neutral
                 Layout.fillWidth: true
                 text: firstLaunchDialog.blankButtonText
                 onClicked: firstLaunchDialog.blankClicked()

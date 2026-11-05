@@ -66,6 +66,12 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
 - Usage: `import "Theme.js" as Theme` (same-directory, or relative path from other directories, same as `Typography.js`).
 - Scope: shared components only; app view files (`apps/*/qml/`) may still hold local hex values pending a future sweep to `Theme.js` tokens.
 
+### 1.12 `StyledDialog.qml`
+- Shared `Dialog` root providing the global popup/window style: white rounded background + hairline border (Theme tokens), bold 16px `Theme.textPrimary` header bound to `title` (collapses when title is empty), themed OK/Cancel footer (`StyledButton` Primary/Neutral) wired to `accepted()`/`rejected()`.
+- Footer auto-hides when `standardButtons` has no Ok/Cancel bits (e.g. `Dialog.Close`, `Dialog.NoButton`); dialogs that need custom footer buttons use `standardButtons: Dialog.NoButton` and keep their own in-content footer RowLayout.
+- Defaults provided: `modal: true`, `closePolicy: Popup.CloseOnEscape`, `anchors.centerIn: parent`, `padding: 16`.
+- All app popups (13 dialogs across the four action-dialog files, plus `FirstLaunchDialog`) use `StyledDialog`; raw `Dialog {` no longer appears in `apps/*/qml/`. `FileDialog` (OS-native) is intentionally excluded.
+
 ### 1.11 `StyledButton.qml` & `StyledComboBox.qml`
 - `StyledButton`: shared `Button` root with `enum Variant { Primary, Neutral, Danger, Ghost }` (filled accent, white+slate-border, filled error-red, borderless). All colors come from `Theme.js`; dynamic variants are allowed (e.g. `variant: mode === 0 ? StyledButton.Primary : StyledButton.Neutral`).
 - `StyledComboBox`: shared `ComboBox` root with the AGENTS Rule-7 alignment (left-align / VCenter, 12px padding) baked into `contentItem` and the dropdown `ItemDelegate`, so ad-hoc alignment styling in views is no longer required. `model`/`textRole`/`displayedText` pass through as real ComboBox properties.

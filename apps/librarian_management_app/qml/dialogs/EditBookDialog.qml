@@ -3,13 +3,10 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../../common_qml"
 
-Dialog {
+StyledDialog {
     id: editDialog
     objectName: "editBookDialog"
     title: ""
-    modal: true
-    closePolicy: Popup.CloseOnEscape
-    anchors.centerIn: parent
     width: Math.min(620, parent ? parent.width - 32 : 600)
     standardButtons: Dialog.NoButton
     padding: 0

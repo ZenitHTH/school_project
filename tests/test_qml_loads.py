@@ -99,6 +99,7 @@ def test_common_qml_components_load(qapp):
         "StyledTextInput.qml",
         "StyledComboBox.qml",
         "StyledButton.qml",
+        "StyledDialog.qml",
     ]
 
     for comp_name in components:
@@ -119,9 +120,14 @@ def test_common_qml_module_import(qapp):
 
     qml_text = """
     import QtQuick 2.15
+    import QtQuick.Controls 2.15
     import common_qml 1.0
 
-    Item {
+    ApplicationWindow {
+        id: harnessWindow
+        visible: true
+        width: 600
+        height: 600
         StyledSearchField { id: search }
         PaginationBar { id: pager }
         ActionFeedbackBanner { id: banner }
@@ -136,11 +142,39 @@ def test_common_qml_module_import(qapp):
         StyledTextInput { id: textInput }
         StyledComboBox { id: comboBox }
         StyledButton { id: button }
+        StyledDialog { id: styledDialog; objectName: "styledDialog"; standardButtons: Dialog.Ok | Dialog.Cancel }
+        StyledDialog { id: styledDialogNoButtons; objectName: "styledDialogNoButtons"; standardButtons: Dialog.NoButton }
     }
     """
     comp = QQmlComponent(engine)
     comp.setData(qml_text.encode("utf-8"), "")
     assert not comp.isError(), f"common_qml module import errors: {[e.toString() for e in comp.errors()]}"
     obj = comp.create()
-    assert obj is not None, "Failed to instantiate root Item with common_qml components"
+    assert obj is not None, "Failed to instantiate root window with common_qml components"
+    qapp.processEvents()
+
+    from PySide6.QtQuick import QQuickItem
+    from PySide6.QtCore import QObject
+
+    styled = obj.findChild(QObject, "styledDialog")
+    styled.open()
+    qapp.processEvents()
+    ok_btn = styled.findChild(QQuickItem, "dialogOkButton")
+    cancel_btn = styled.findChild(QQuickItem, "dialogCancelButton")
+    assert ok_btn is not None, "StyledDialog footer OK button (accepted wiring) missing"
+    assert cancel_btn is not None, "StyledDialog footer Cancel button (rejected wiring) missing"
+    assert bool(ok_btn.property("visible")) and bool(cancel_btn.property("visible")), \
+        "Footer buttons should be visible for Ok|Cancel standardButtons"
+    styled.close()
+    qapp.processEvents()
+
+    no_btn_dlg = obj.findChild(QObject, "styledDialogNoButtons")
+    no_btn_dlg.open()
+    qapp.processEvents()
+    no_btn_ok = no_btn_dlg.findChild(QQuickItem, "dialogOkButton")
+    assert not bool(no_btn_ok.property("visible")), "Footer must be hidden for NoButton standardButtons"
+    no_btn_dlg.close()
+    qapp.processEvents()
+    obj.close()
+    qapp.processEvents()
 

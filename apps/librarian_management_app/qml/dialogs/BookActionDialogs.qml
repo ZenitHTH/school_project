@@ -227,14 +227,11 @@ Item {
     }
 
     // 1. Add Book Dialog
-    Dialog {
+    StyledDialog {
         id: addBookDialog
         objectName: "addBookDialog"
         title: "เพิ่มหนังสือใหม่และสร้างบาร์โค้ด"
-        modal: true
-        closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.Ok | Dialog.Cancel
-        anchors.centerIn: parent
         width: Math.min(480, rootWindow ? rootWindow.width - 40 : 450)
         onAboutToShow: {
             dialogDuplicateBook = null
@@ -364,14 +361,11 @@ Item {
     }
 
     // 2. Add Copies Dialog
-    Dialog {
+    StyledDialog {
         id: addCopiesDialog
         objectName: "addCopiesDialog"
         title: "➕ เพิ่มเล่มหนังสือ: " + (rootWindow ? rootWindow.selectedBookTitle : "")
-        modal: true
-        closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.NoButton
-        anchors.centerIn: parent
         width: Math.min(460, rootWindow ? rootWindow.width - 40 : 430)
 
         property bool isSubmitting: false
@@ -480,15 +474,12 @@ Item {
     }
 
     // 3. Barcode Confirm Dialog
-    Dialog {
+    StyledDialog {
         id: barcodeConfirmDialog
         objectName: "barcodeConfirmDialog"
         title: "สร้างบาร์โค้ดประจำเล่มสำเร็จ"
-        modal: true
-        closePolicy: Popup.CloseOnEscape
         standardButtons: Dialog.Close
         width: Math.min(460, rootWindow ? rootWindow.width - 40 : 440)
-        anchors.centerIn: parent
 
         ColumnLayout {
             anchors.fill: parent
@@ -553,13 +544,10 @@ Item {
     }
 
     // 5. Delete Book Confirm Dialog
-    Dialog {
+    StyledDialog {
         id: deleteBookDialog
         objectName: "deleteBookDialog"
         title: "🗑️ ยืนยันการลบหนังสือ"
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-        anchors.centerIn: parent
         width: Math.min(420, rootWindow ? rootWindow.width - 40 : 400)
         standardButtons: Dialog.NoButton
         property int targetBookId: 0
