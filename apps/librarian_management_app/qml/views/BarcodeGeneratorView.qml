@@ -89,7 +89,7 @@ Rectangle {
         inventoryBooksModel.clear()
         try {
             var q = (typeof query === "string") ? query : (inventorySearchInput ? inventorySearchInput.text : "")
-            var raw = librarianAdmin.searchBooks(q)
+            var raw = librarianAdmin.searchBooks(q, 0)
             var books = JSON.parse(raw)
             for (var i = 0; i < books.length; i++) {
                 inventoryBooksModel.append(books[i])
@@ -144,7 +144,7 @@ Rectangle {
         genExistingBooksModel.clear()
         var selIdx = 0
         try {
-            var books = JSON.parse(librarianAdmin.searchBooks(""))
+            var books = JSON.parse(librarianAdmin.searchBooks("", 0))
             for (var i = 0; i < books.length; i++) {
                 var b = books[i]
                 genExistingBooksModel.append({
@@ -338,7 +338,7 @@ Rectangle {
         if (duplicateBook) return duplicateBook
         try {
             var q = isbn ? isbn : title
-            var found = JSON.parse(librarianAdmin.searchBooks(q))
+            var found = JSON.parse(librarianAdmin.searchBooks(q, 0))
             var norm = isbn ? isbn.replace(/[-\s]/g, "").toUpperCase() : ""
             for (var i = 0; i < found.length; i++) {
                 var cIsbn = (found[i].isbn || "").replace(/[-\s]/g, "").toUpperCase()

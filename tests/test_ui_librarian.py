@@ -147,6 +147,43 @@ def test_catalog_search_filtering(lib_ui):
     assert model.property("count") == 0
 
 
+def test_catalog_barcode_and_category_filter(lib_ui):
+    window, app = lib_ui["window"], lib_ui["app"]
+    adapter = lib_ui["adapter"]
+
+    cat_a = json.loads(adapter.addCategory("หมวดฟิสกส"))["data"]["category_id"]
+    adapter.addBook("ฟิสกส 101", "", "ผุ้แต่ง", "", str(cat_a), "", "FIS-01")
+    cat_b = json.loads(adapter.addCategory("หมวดคณิศาสตร"))["data"]["category_id"]
+    adapter.addBook("คณิศาสตร 101", "", "ผุ้แต่ง 2", "", str(cat_b), "", "MATH-01")
+
+    # Refresh the category combo now that categories exist
+    view = find(window, "bookCatalogView")
+    assert view is not None
+    QMetaObject.invokeMethod(view, "loadCategories", Qt.DirectConnection)
+    process(app)
+
+    combo = find(window, "catalogCategoryCombo")
+    model = find(window, "catalogModel")
+
+    # --- barcode sticker into the existing search field (all categories) ---
+    find(window, "catalogSearchInput").setProperty("text", "SCI-01")
+    invoke(window, "searchBooks")
+    process(app)
+    assert model.property("count") >= 1
+
+    # --- category filter narrows to the single book in cat_a ---
+    cat_model = find(window, "catalogCategoryModel")
+    for i in range(cat_model.property("count")):
+        combo.setProperty("currentIndex", i)
+        process(app)
+        if combo.property("displayText") == "หมวดฟิสกส":
+            break
+    find(window, "catalogSearchInput").setProperty("text", "")
+    invoke(window, "searchBooks")
+    process(app)
+    assert model.property("count") == 1
+
+
 def test_add_book_dialog_execution(lib_ui):
     window = lib_ui["window"]
     dialog = find(window, "addBookDialog")
@@ -354,6 +391,9 @@ def test_librarian_all_objectnames_present(lib_ui):
         "catalogSearchInput",
         "catalogList",
         "catalogModel",
+        "catalogCategoryCombo",
+        "catalogCategoryModel",
+        "bookCatalogView",
         "btnOpenGeneratorPage",
         "addBookDialog",
         "newBookTitle",

@@ -122,10 +122,10 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
         data = _sanitize_for_qml(res.data) if res.ok else []
         return json.dumps(data)
 
-    @Slot(str, result=str)
-    def searchBooks(self, query: str) -> str:
-        """FTS search for catalog."""
-        res = self.catalog_svc.search(query=query)
+    @Slot(str, "int", result=str)
+    def searchBooks(self, query: str = "", category_id: int = 0) -> str:
+        """FTS search for catalog. Also matches barcode stickers; optional category filter."""
+        res = self.catalog_svc.search(query=query, category_id=category_id or None)
         data = _sanitize_for_qml(res.data) if res.ok else []
         return json.dumps(data)
 

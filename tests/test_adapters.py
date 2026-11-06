@@ -207,6 +207,29 @@ def test_librarian_add_and_search_book(librarian_adapter):
     books = json.loads(adapter.searchBooks("ฟิสิกส์"))
     assert any(b["book_id"] == res["data"]["book_id"] for b in books)
 
+def test_librarian_search_books_barcode_and_category(librarian_adapter):
+    adapter, conn = librarian_adapter
+    res = json.loads(adapter.addBook("ฟิสิกส์ ม.ปลาย", "", "ผุ้แต่ง", "", "", "", "PHYS-01"))
+    book_id = res["data"]["book_id"]
+    cat_a = json.loads(adapter.addCategory("หมวดฟิสกส"))["data"]["category_id"]
+    cat_b = json.loads(adapter.addCategory("หมวดคณิตศาสตร์"))["data"]["category_id"]
+    conn.execute("UPDATE books SET category_id = ? WHERE book_id = ?", (cat_a, book_id))
+    conn.commit()
+    adapter.addBook("คณิตศาสตร์", "", "ผุ้แต่ง 2", "", str(cat_b), "", "MATH-01")
+
+    # barcode search (default category_id=0 -> no filter)
+    books = json.loads(adapter.searchBooks("PHYS-01"))
+    assert any(b["book_id"] == book_id for b in books)
+
+    # category filter only (empty query)
+    books = json.loads(adapter.searchBooks("", cat_a))
+    assert [b["book_id"] for b in books] == [book_id]
+
+    # barcode + non-matching category -> empty
+    books = json.loads(adapter.searchBooks("PHYS-01", cat_b))
+    assert books == []
+
+
 
 def test_librarian_checkout_and_return(librarian_adapter):
     adapter, _ = librarian_adapter

@@ -12,6 +12,8 @@ Rectangle {
     property alias btnSearchBooks: btnSearchBooks
     property alias catalogList: catalogList
     property alias catalogModel: catalogModel
+    property alias catalogCategoryCombo: catalogCategoryCombo
+    property alias catalogCategoryModel: catalogCategoryModel
     property alias btnOpenGeneratorPage: btnOpenGeneratorPage
     property alias btnOpenPrintPage: btnOpenPrintPage
 
@@ -21,6 +23,20 @@ Rectangle {
     signal addCopiesRequested(int bookId, string title)
     signal editBookRequested(int bookId, string title, string author, string isbn, int categoryId, string shelfLocation, int totalCopies)
     signal deleteBookRequested(int bookId, string title)
+
+    function loadCategories() {
+        catalogCategoryModel.clear()
+        catalogCategoryModel.append({ "category_id": 0, "name": "-- ทุกหมวดหมู่ --" })
+        try {
+            var cats = JSON.parse(librarianAdmin.listCategories())
+            for (var i = 0; i < cats.length; i++) {
+                catalogCategoryModel.append(cats[i])
+            }
+        } catch (e) {}
+        catalogCategoryCombo.currentIndex = 0
+    }
+
+    Component.onCompleted: loadCategories()
 
     ColumnLayout {
         anchors.fill: parent
@@ -57,10 +73,18 @@ Rectangle {
             StyledTextInput {
                 id: catalogSearchInput
                 objectName: "catalogSearchInput"
-                placeholderText: "ค้นหาชื่อหนังสือ, ผู้แต่ง, ISBN..."
+                placeholderText: "ค้นหาชื่อหนังสือ, ผู้แต่ง, ISBN หรือ บาร์โค้ด"
                 Layout.fillWidth: true
                 selectByMouse: true
                 onAccepted: root.searchRequested()
+            }
+            StyledComboBox {
+                id: catalogCategoryCombo
+                objectName: "catalogCategoryCombo"
+                textRole: "name"
+                model: ListModel { id: catalogCategoryModel; objectName: "catalogCategoryModel" }
+                Layout.preferredWidth: 180
+                Layout.minimumWidth: 140
             }
             StyledButton {
                 variant: StyledButton.Primary

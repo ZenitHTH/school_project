@@ -43,6 +43,8 @@ ApplicationWindow {
     property alias btnSearchBooks: catalogView.btnSearchBooks
     property alias catalogList: catalogView.catalogList
     property alias catalogModel: catalogView.catalogModel
+    property alias catalogCategoryCombo: catalogView.catalogCategoryCombo
+    property alias catalogCategoryModel: catalogView.catalogCategoryModel
     property alias btnOpenGeneratorPage: catalogView.btnOpenGeneratorPage
     property alias btnOpenPrintPage: catalogView.btnOpenPrintPage
 
@@ -333,6 +335,7 @@ ApplicationWindow {
             // 0. Book Catalog View
             BookCatalogView {
                 id: catalogView
+                objectName: "bookCatalogView"
                 onSearchRequested: window.searchBooks()
                 onOpenGeneratorRequested: {
                     window.initGeneratorPage()
@@ -503,7 +506,12 @@ ApplicationWindow {
 
     function searchBooks() {
         catalogModel.clear()
-        var results = JSON.parse(librarianAdmin.searchBooks(catalogSearchInput.text))
+        var catId = 0
+        if (catalogCategoryCombo && catalogCategoryCombo.currentIndex > 0
+                && catalogCategoryCombo.currentIndex < catalogCategoryModel.count) {
+            catId = catalogCategoryModel.get(catalogCategoryCombo.currentIndex).category_id
+        }
+        var results = JSON.parse(librarianAdmin.searchBooks(catalogSearchInput.text, catId))
         for (var i = 0; i < results.length; i++) catalogModel.append(results[i])
     }
 
