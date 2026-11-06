@@ -242,7 +242,7 @@ Rectangle {
                         StyledTextInput {
                             id: inventorySearchInput
                             objectName: "inventorySearchInput"
-                            placeholderText: "🔍 ค้นคลัง..."
+                            placeholderText: "🔍 ค้นคลัง, ISBN..."
                             Layout.fillWidth: true
                             font.pixelSize: 11
                             selectByMouse: true

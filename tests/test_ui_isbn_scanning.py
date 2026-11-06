@@ -181,3 +181,17 @@ def test_ui_dialog_add_book_error_surfaced(lib_ui):
     # Error must be surfaced in dialog status text
     assert "✗" in status_text.property("text")
     assert "Active book with this ISBN already exists" in status_text.property("text")
+
+def test_ui_inventory_search_by_dashless_isbn(lib_ui):
+    window = lib_ui["window"]
+    find_child(window, "navBtnGenerator").clicked.emit()
+    process_events(lib_ui["app"])
+
+    # type the raw (dash-less) ISBN into the right-pane inventory search bar;
+    # onTextChanged drives loadInventoryGrid(input.text)
+    find_child(window, "inventorySearchInput").setProperty("text", "9786160100011")
+    process_events(lib_ui["app"])
+
+    model = find_child(window, "inventoryBooksModel")
+    assert model.property("count") == 1
+

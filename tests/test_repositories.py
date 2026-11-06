@@ -229,3 +229,27 @@ def test_book_barcode_search(repo_db):
     # row multiplicity: title match on a book with 2 copies appears exactly once
     rows = book_repo.search_books(repo_db, "ฟิสิกส")
     assert len(rows) == 1 and rows[0]["book_id"] == book_a
+
+
+def test_book_isbn_dashless_search(repo_db):
+    book_a = book_repo.add_book(repo_db, title="ฟิสกส", isbn="978-616-01-0001-1")
+    book_repo.add_copies(repo_db, book_a, barcodes=["PHYS-01"])
+    book_b = book_repo.add_book(repo_db, title="คณิศาสตร", isbn="978-0-13-468599-1")
+    book_repo.add_copies(repo_db, book_b, barcodes=["MATH-01"])
+    repo_db.commit()
+
+    # dash-less ISBN (scanned / pasted raw digits) finds the book
+    rows = book_repo.search_books(repo_db, "9786160100011")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_a
+
+    # dashed ISBN still works (FTS regression)
+    rows = book_repo.search_books(repo_db, "978-616-01-0001-1")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_a
+
+    # dash-less prefix
+    rows = book_repo.search_books(repo_db, "9780134685991")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_b
+
+    # dashed prefix still works
+    rows = book_repo.search_books(repo_db, "978-0")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_b

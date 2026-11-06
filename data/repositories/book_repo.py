@@ -281,8 +281,9 @@ def search_books(
 ) -> List[sqlite3.Row]:
     """Search active books using FTS5 with optional category filter.
 
-    The query also matches barcode stickers: a normalized (lowercase,
-    dash-insensitive) exact match against book_copies.barcode.
+    The query also matches barcode stickers (normalized exact match against
+    book_copies.barcode) and dash-less ISBN input (normalized substring
+    against books.isbn).
     """
     conditions = ["b.active = 1"]
     params: List[Any] = []
@@ -300,15 +301,18 @@ def search_books(
             params.append(fts_query)
         # Barcode sticker match: query also matches normalized (lowercase,
         # dash-insensitive) book_copies.barcode, OR'd with the text query.
-        # shortcut: full scan of book_copies per search (no index); upgrade to
-        # a trigram index if the catalog grows to ~10k+ copies.
+        # Dash-less ISBN: same normalization against books.isbn so raw scanned
+        # or pasted ISBN digits (no dashes) hit via substring.
+        # shortcut: full scan of book_copies / normalized isbn per search
+        # (no index); upgrade to a trigram index if ~10k+ copies.
         norm_barcode = clean_query.lower().replace("-", "")
         query_cond = (
             f"({query_cond} OR EXISTS (SELECT 1 FROM book_copies bc "
             "WHERE bc.book_id = b.book_id "
-            f"AND REPLACE(LOWER(bc.barcode), '-', '') = ?))"
+            "AND REPLACE(LOWER(bc.barcode), '-', '') = ? "
+            "OR REPLACE(LOWER(b.isbn), '-', '') LIKE ?))"
         )
-        params.append(norm_barcode)
+        params.extend([norm_barcode, f"%{norm_barcode}%"])
         conditions.append(query_cond)
 
     if category_id is not None:

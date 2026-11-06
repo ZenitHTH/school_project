@@ -421,4 +421,9 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Spec + plan: `docs/superpowers/specs/2026-11-06-catalog-barcode-search-design.md`, `docs/superpowers/plans/2026-11-06-catalog-barcode-search-plan.md`.
 - 100% test pass across 339 tests.
 
+## [2026-11-06] feat | Dash-less ISBN search in catalog & inventory search bars
+- `book_repo.search_books` now also matches dash-less ISBN input (raw scanned/pasted digits) via normalized substring `REPLACE(LOWER(b.isbn), '-', '') LIKE ?` in the same OR group as the barcode clause (`# shortcut` full scan).
+- Add-book page right-pane inventory search bar (`BookInventoryRightPane.inventorySearchInput`) placeholder now mentions ISBN; it already routes through `searchBooks`, so the new matching applies with no QML logic change.
+- 100% test pass across 341 tests.
+
 
