@@ -426,4 +426,10 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Add-book page right-pane inventory search bar (`BookInventoryRightPane.inventorySearchInput`) placeholder now mentions ISBN; it already routes through `searchBooks`, so the new matching applies with no QML logic change.
 - 100% test pass across 341 tests.
 
+## [2026-11-06] fix | Category dropdown (StyledComboBox) renders no options
+- Root cause: `apps/common_qml/StyledComboBox.qml` overrode the `ComboBox` `popup` with a bare `Popup` that had no `contentItem: ListView`. In Qt Quick Controls 2 the options list belongs to the style's popup, so the override silently dropped every option row — the dropdown opened as an empty 0px box (affects every `StyledComboBox` in all apps, e.g. the category dropdown on the add-book page).
+- Fix: the popup now declares its own options `ListView` (`model: control.delegateModel`, `implicitHeight: contentHeight`, `clip: true`, vertical `ScrollBar`), mirroring the Fusion/Basic style internals, and sizes via `implicitHeight: Math.min(implicitContentHeight + padding * 2, 240)` (240px cap, scrolls beyond).
+- Regression test: `tests/test_ui_librarian.py::test_category_dropdown_renders_options` (real click opens the dropdown, the options `ListView` renders rows, a real row click selects the option). Verified end-to-end in the librarian app (Fusion) including selection.
+- 100% test pass across 342 tests.
+
 

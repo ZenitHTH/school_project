@@ -25,7 +25,9 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
-from PySide6.QtCore import QMetaObject, Qt, QObject, Q_ARG
+from PySide6.QtCore import QMetaObject, Qt, QObject, Q_ARG, QPoint
+from PySide6.QtQuick import QQuickItem
+from PySide6.QtTest import QTest
 from data.db import get_connection
 from data.migrate import apply_migrations
 from apps.librarian_management_app.adapters.librarian_admin_adapter import LibrarianAdminAdapter
@@ -182,6 +184,52 @@ def test_catalog_barcode_and_category_filter(lib_ui):
     invoke(window, "searchBooks")
     process(app)
     assert model.property("count") == 1
+
+
+def test_category_dropdown_renders_options(lib_ui):
+    window, app = lib_ui["window"], lib_ui["app"]
+    adapter = lib_ui["adapter"]
+
+    json.loads(adapter.addCategory("หมวดทดสอบ"))
+
+    # Go to the add-book page and refresh the category combo
+    QMetaObject.invokeMethod(find(window, "navBtnGenerator"), "clicked", Qt.DirectConnection)
+    process(app)
+    QMetaObject.invokeMethod(find(window, "barcodeGenScreen"), "loadCategoriesList", Qt.DirectConnection)
+    process(app)
+
+    combo = find(window, "genCategoryCombo")
+    assert combo is not None
+
+    # Open the dropdown with a real click on the combo
+    itempos = combo.mapToGlobal(combo.width() * 0.9, combo.height() / 2)
+    QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(int(itempos.x()), int(itempos.y())))
+    process(app)
+    process(app)
+
+    # The dropdown popup must render its option rows (regression: empty 0px popup
+    # caused by the StyledComboBox popup override dropping the options ListView).
+    # Locate the options ListView: one row per model entry, hosted by the open popup.
+    model = find(window, "genCategoryModel")
+    lvs = [i for i in window.findChildren(QQuickItem)
+          if i.metaObject().className() == "QQuickListView"
+          and i.property("count") == model.property("count")
+          and i.property("count") >= 2
+          and i.parentItem() is not None
+          and i.parentItem().metaObject().className() == "QQuickPopupItem"
+          and i.parentItem().property("visible")]
+    assert lvs, "options ListView not open in a visible popup"
+    lv = lvs[0]
+    popup = lv.parentItem()
+    assert lv.height() > 50, "options ListView has no height (rows not rendered)"
+
+    # Select the second option via a real click on its row
+    row_y = 4 + 36 + 18  # popup padding + one row + half a row
+    rowpos = popup.mapToGlobal(10, row_y)
+    QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(int(rowpos.x()), int(rowpos.y())))
+    process(app)
+    process(app)
+    assert combo.property("currentIndex") == 1  # index 0 is the default row
 
 
 def test_add_book_dialog_execution(lib_ui):

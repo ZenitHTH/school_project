@@ -1,5 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import QtQuick.Templates as T
 import "Theme.js" as Theme
 
 ComboBox {
@@ -46,12 +47,20 @@ ComboBox {
     popup: Popup {
         y: control.height + 4
         width: control.width
-        implicitHeight: Math.min(implicitContentHeight, 240)
+        implicitHeight: Math.min(implicitContentHeight + padding * 2, 240)
         padding: 4
         background: Rectangle {
             color: Theme.surfaceWhite
             border.color: Theme.borderDefault
             radius: 6
+        }
+        contentItem: ListView {
+            clip: true
+            implicitHeight: contentHeight
+            model: control.delegateModel
+            currentIndex: control.highlightedIndex
+            highlightMoveDuration: 0
+            T.ScrollBar.vertical: ScrollBar { }
         }
     }
 }
