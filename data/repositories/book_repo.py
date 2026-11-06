@@ -279,21 +279,37 @@ def search_books(
     limit: int = 50,
     offset: int = 0,
 ) -> List[sqlite3.Row]:
-    """Search active books using FTS5 with optional category filter."""
+    """Search active books using FTS5 with optional category filter.
+
+    The query also matches barcode stickers: a normalized (lowercase,
+    dash-insensitive) exact match against book_copies.barcode.
+    """
     conditions = ["b.active = 1"]
     params: List[Any] = []
 
     clean_query = query.strip()
     if clean_query:
         if len(clean_query) < 3:
-            conditions.append("(b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ?)")
+            query_cond = "(b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ?)"
             like_param = f"%{clean_query}%"
             params.extend([like_param, like_param, like_param])
         else:
             escaped = clean_query.replace('"', '""')
             fts_query = f'"{escaped}"*' if " " not in escaped else f'"{escaped}"'
-            conditions.append("b.book_id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)")
+            query_cond = "b.book_id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)"
             params.append(fts_query)
+        # Barcode sticker match: query also matches normalized (lowercase,
+        # dash-insensitive) book_copies.barcode, OR'd with the text query.
+        # shortcut: full scan of book_copies per search (no index); upgrade to
+        # a trigram index if the catalog grows to ~10k+ copies.
+        norm_barcode = clean_query.lower().replace("-", "")
+        query_cond = (
+            f"({query_cond} OR EXISTS (SELECT 1 FROM book_copies bc "
+            "WHERE bc.book_id = b.book_id "
+            f"AND REPLACE(LOWER(bc.barcode), '-', '') = ?))"
+        )
+        params.append(norm_barcode)
+        conditions.append(query_cond)
 
     if category_id is not None:
         conditions.append("b.category_id = ?")

@@ -198,3 +198,34 @@ def test_book_copy_breakdown_and_remove_excess_copies(repo_db):
     with pytest.raises(ValueError):
         book_repo.remove_excess_copies(repo_db, book_id, 3)
 
+
+
+
+def test_book_barcode_search(repo_db):
+    cat_a = book_repo.add_category(repo_db, "หมวด A")
+    cat_b = book_repo.add_category(repo_db, "หมวด B")
+    book_a = book_repo.add_book(repo_db, title="ฟิสิกส์", author="จอห์น ดี้", category_id=cat_a)
+    book_repo.add_copies(repo_db, book_a, barcodes=["SCI-100", "SCI-101"])
+    book_b = book_repo.add_book(repo_db, title="เคมีย์", category_id=cat_b)
+    book_repo.add_copies(repo_db, book_b, barcodes=["SCI-102"])
+    repo_db.commit()
+
+    # exact barcode
+    rows = book_repo.search_books(repo_db, "SCI-100")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_a
+
+    # normalization: lowercase + dash-insensitive
+    rows = book_repo.search_books(repo_db, "sci100")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_a
+
+    # barcode + category filter compose (book_a is in cat A; filter cat B -> empty)
+    rows = book_repo.search_books(repo_db, "SCI-100", category_id=cat_b)
+    assert len(rows) == 0
+
+    # FTS branch regression: normal title search still works
+    rows = book_repo.search_books(repo_db, "ฟิสิกส์")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_a
+
+    # row multiplicity: title match on a book with 2 copies appears exactly once
+    rows = book_repo.search_books(repo_db, "ฟิสิกส")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_a
