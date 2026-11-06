@@ -28,6 +28,7 @@ apps/librarian_management_app/
 
 ### 2.1 Book Catalog & Copies (`BookCatalogView.qml` & `EditBookDialog.qml`)
 - Books are classified under categories. Each book can have multiple copies (`SMTE-00001-01`, `SMTE-00001-02`).
+- **Catalog Search (Tab 0)**: The single search field (`catalogSearchInput`) matches title/author/ISBN (FTS5 trigram, LIKE fallback <3 chars) **and** barcode stickers — the query is also compared against normalized `book_copies.barcode` (lowercase, dash-insensitive, via `EXISTS` subquery in `book_repo.search_books`; full scan, `# shortcut` — upgrade to trigram index at ~10k+ copies). The category `StyledComboBox` (`catalogCategoryCombo`, first option `-- ทุกหมวดหมู่ --`) filters results via `LibrarianAdminAdapter.searchBooks(query, category_id)` (Qt slot `@Slot(str, int)`; `0` = all categories). All QML call sites pass both args (strict Qt arity).
 - **Book Metadata & Copy Correction Studio (`EditBookDialog.qml`)**:
   - Modal card supporting simultaneous metadata updates (Title, Author, ISBN, Category, Shelf) and copy adjustments.
   - **Copy Count Corrections ("เมื่อกรอกผิด")**:

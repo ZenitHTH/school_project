@@ -413,3 +413,12 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Migrated all 13 app popups (StudentActionDialogs ×5, BookActionDialogs ×4, CategoryActionDialogs ×3, EditBookDialog ×1) and the `FirstLaunchDialog` shared component to `StyledDialog`; FileDialog (OS-native) excluded.
 - 100% test pass across 336 tests.
 
+
+## [2026-11-06] feat | Catalog barcode-sticker search + category filter combo
+- `book_repo.search_books` now also matches the query against normalized `book_copies.barcode` (lowercase, dash-insensitive `EXISTS` subquery — no row fan-out; `# shortcut` full-scan, trigram index at ~10k+ copies).
+- `LibrarianAdminAdapter.searchBooks` slot is now `@Slot(str, int)` with `category_id=0` (all); all QML call sites updated to pass both args (strict Qt arity).
+- Tab 0 of Librarian Management gains a shared `StyledComboBox` (`catalogCategoryCombo`, `-- ทุกหมวดหมู่ --` first) between the search field and the search button; search placeholder mentions barcode; `loadCategories()` refresh hook added.
+- Spec + plan: `docs/superpowers/specs/2026-11-06-catalog-barcode-search-design.md`, `docs/superpowers/plans/2026-11-06-catalog-barcode-search-plan.md`.
+- 100% test pass across 339 tests.
+
+
