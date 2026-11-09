@@ -444,4 +444,11 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Debugging note: offscreen property dumps reproduce this exactly — the bug is in QML binding resolution, not in GPU rendering.
 - 100% test pass across 342 tests.
 
+## [2026-11-09] refactor | Clean-code pass on library services (behavior-preserving)
+- Readability refactor of the two least-readable production functions (Uncle Bob / Clean Code: small single-purpose functions, descriptive names, orchestration methods that read top-to-bottom).
+- `core/library/services/label_service.py`: the 148-line `export_label_sheet_pdf` is now a ~50-line orchestrator over three private helpers — `_prepare_barcode_items`, `_render_label_cell`, `_assemble_pdf_document`. **Proof**: generated PDFs are SHA-256-identical to the pre-refactor output (single-page and multi-page samples).
+- `core/library/services/loan_service.py`: `checkout` (was 82 lines) is now a thin pipeline over `_check_student_eligibility` (steps 1–3) and `_resolve_checkout_copy` (step 4); `return_book` delegates fine assessment to `_assess_overdue_fine` (same internal error-swallow + `[WARN]` stderr); `import sys` moved to module top. All `Result` shapes and error messages unchanged.
+- Deliberately left alone: `book_repo.py` (already cleanly decomposed despite its size) and the `data/sync` trio (ordering-critical air-gapped sync pipeline — high refactor risk, not worth the readability gain this round).
+- 100% test pass across 342 tests.
+
 

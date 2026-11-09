@@ -58,6 +58,7 @@ Handles circulation desk borrowing rules and validation pipeline.
 - **Renew (`renew_loan`)**:
   - Validates remaining renewals < `max_renewals`.
   - Extends due date by `loan_duration_days`.
+- **Internal structure** (clean-code refactor, 2026-11-09): `checkout` is a thin orchestration calling `_check_student_eligibility` (steps 1–3; returns a failure `Result` or `None`) and `_resolve_checkout_copy` (step 4; `Result.success(copy)` or a failure `Result`). `return_book` delegates overdue-fine assessment to `_assess_overdue_fine` (keeps the same internal error-swallow + `[WARN]` stderr behavior). Public behavior, `Result` shapes, and error messages are unchanged.
 
 ---
 
@@ -77,6 +78,7 @@ Generates printable A4 PDF sheets with barcode labels and dashed cut lines.
 - **Pure-Stdlib Vector Engine**: Zero external dependencies (no `python-barcode`, `Pillow`, or `reportlab`). Emits direct vector PDF 1.4 rectangles (`re f`) and dashed cut guides (`[3 3] 0 d`).
 - **Grid Layout**: Configurable 3 columns × 8 rows (24 labels per A4 page).
 - **Format**: ISO/IEC 15417 Code128-B barcodes with human-readable text labels and PDF delimiter escaping.
+- **Structure** (clean-code refactor, 2026-11-09): `export_label_sheet_pdf` is the orchestrator; `_prepare_barcode_items` (input normalization), `_render_label_cell` (per-cell drawing: dashed guide + Code128 bars + readable text), `_assemble_pdf_document` (PDF 1.4 objects / xref / trailer). Output PDFs are byte-identical to the pre-refactor versions for identical inputs (verified by SHA-256).
 
 ---
 

@@ -90,106 +90,79 @@ def _escape_pdf_literal(text: str) -> Tuple[str, float]:
     return "".join(escaped_chars), width_pt
 
 
-def export_label_sheet_pdf(
-    copies: List[Union[Tuple[int, str], str]],
-    output_path: str,
-    cols: int = 3,
-    rows: int = 8,
-) -> None:
-    """
-    Export a printable A4 PDF containing barcode labels arranged in a grid with dashed cut guides.
-    copies: list of tuples (copy_id, barcode_str) or list of barcode strings.
-    """
-    if not copies:
-        raise ValueError("No copies provided to export")
-
-    barcode_items: List[str] = []
+def _prepare_barcode_items(copies: List[Union[Tuple[int, str], str]]) -> List[str]:
+    """Normalize mixed (copy_id, barcode) tuples / bare barcode strings to clean barcode strings."""
+    items: List[str] = []
     for item in copies:
-        if isinstance(item, tuple):
-            barcode_items.append(str(item[1]).strip())
+        barcode = item[1] if isinstance(item, tuple) else item
+        items.append(str(barcode).strip())
+    return items
+
+
+def _render_label_cell(
+    stream_lines: List[str],
+    barcode_str: str,
+    cell_x: float,
+    cell_y: float,
+    cell_width: float,
+    cell_height: float,
+    cell_padding: float,
+) -> None:
+    """Append one label cell to the page content stream: dashed cut guide, Code128 bars, readable text."""
+    # 1. Dashed cut guide box
+    gx = cell_x + cell_padding
+    gy = cell_y + cell_padding
+    gw = cell_width - (2.0 * cell_padding)
+    gh = cell_height - (2.0 * cell_padding)
+    stream_lines.append(
+        f"q 0.7 0.7 0.7 RG 0.5 w [3 3] 0 d {gx:.2f} {gy:.2f} {gw:.2f} {gh:.2f} re S Q"
+    )
+
+    # 2. Vector barcode rectangles
+    bits = _encode_code128_b_bits(barcode_str)
+    total_modules = len(bits)
+
+    inner_w = cell_width - (4.0 * cell_padding)
+    inner_h = cell_height - (4.0 * cell_padding)
+
+    bc_img_w = inner_w * 0.88
+    bc_img_h = inner_h * 0.55
+    bc_x = cell_x + (cell_width - bc_img_w) / 2.0
+    bc_y = cell_y + cell_padding + (inner_h * 0.35)
+
+    module_w = bc_img_w / total_modules
+
+    stream_lines.append("q 0 0 0 rg")
+    m = 0
+    while m < total_modules:
+        if bits[m] == "1":
+            run_start = m
+            while m < total_modules and bits[m] == "1":
+                m += 1
+            run_len = m - run_start
+            bx = bc_x + (run_start * module_w)
+            bw = run_len * module_w
+            stream_lines.append(f"{bx:.2f} {bc_y:.2f} {bw:.2f} {bc_img_h:.2f} re f")
         else:
-            barcode_items.append(str(item).strip())
+            m += 1
+    stream_lines.append("Q")
 
-    page_width = 595.28  # A4 width in pt
-    page_height = 841.89  # A4 height in pt
-    margin_x = 24.0
-    margin_y = 24.0
+    # 3. Human-readable barcode text
+    escaped_text, text_width = _escape_pdf_literal(barcode_str)
+    text_x = cell_x + (cell_width - text_width) / 2.0
+    text_y = cell_y + cell_padding + 6.0
+    stream_lines.append(
+        f"BT /F1 9 Tf {text_x:.2f} {text_y:.2f} Td ({escaped_text}) Tj ET"
+    )
 
-    usable_width = page_width - (2.0 * margin_x)
-    usable_height = page_height - (2.0 * margin_y)
 
-    cell_width = usable_width / cols
-    cell_height = usable_height / rows
-    cell_padding = 4.0
-
-    items_per_page = cols * rows
-    total_pages = math.ceil(len(barcode_items) / items_per_page)
-
-    page_streams: List[bytes] = []
-
-    for page_idx in range(total_pages):
-        stream_lines: List[str] = []
-        start_item_idx = page_idx * items_per_page
-        end_item_idx = min(start_item_idx + items_per_page, len(barcode_items))
-
-        for idx in range(start_item_idx, end_item_idx):
-            barcode_str = barcode_items[idx]
-            pos_on_page = idx % items_per_page
-            col = pos_on_page % cols
-            row = pos_on_page // cols
-
-            cell_x = margin_x + (col * cell_width)
-            cell_y = page_height - margin_y - ((row + 1) * cell_height)
-
-            # 1. Dashed cut guide box
-            gx = cell_x + cell_padding
-            gy = cell_y + cell_padding
-            gw = cell_width - (2.0 * cell_padding)
-            gh = cell_height - (2.0 * cell_padding)
-            stream_lines.append(
-                f"q 0.7 0.7 0.7 RG 0.5 w [3 3] 0 d {gx:.2f} {gy:.2f} {gw:.2f} {gh:.2f} re S Q"
-            )
-
-            # 2. Vector barcode rectangles
-            bits = _encode_code128_b_bits(barcode_str)
-            total_modules = len(bits)
-
-            inner_w = cell_width - (4.0 * cell_padding)
-            inner_h = cell_height - (4.0 * cell_padding)
-
-            bc_img_w = inner_w * 0.88
-            bc_img_h = inner_h * 0.55
-            bc_x = cell_x + (cell_width - bc_img_w) / 2.0
-            bc_y = cell_y + cell_padding + (inner_h * 0.35)
-
-            module_w = bc_img_w / total_modules
-
-            stream_lines.append("q 0 0 0 rg")
-            m = 0
-            while m < total_modules:
-                if bits[m] == "1":
-                    run_start = m
-                    while m < total_modules and bits[m] == "1":
-                        m += 1
-                    run_len = m - run_start
-                    bx = bc_x + (run_start * module_w)
-                    bw = run_len * module_w
-                    stream_lines.append(f"{bx:.2f} {bc_y:.2f} {bw:.2f} {bc_img_h:.2f} re f")
-                else:
-                    m += 1
-            stream_lines.append("Q")
-
-            # 3. Human-readable barcode text
-            escaped_text, text_width = _escape_pdf_literal(barcode_str)
-            text_x = cell_x + (cell_width - text_width) / 2.0
-            text_y = cell_y + cell_padding + 6.0
-            stream_lines.append(
-                f"BT /F1 9 Tf {text_x:.2f} {text_y:.2f} Td ({escaped_text}) Tj ET"
-            )
-
-        page_streams.append("\n".join(stream_lines).encode("latin1"))
-
-    # Assemble PDF 1.4 document
+def _assemble_pdf_document(
+    page_streams: List[bytes],
+    page_width: float,
+    page_height: float,
+    output_path: str,
+) -> None:
+    """Assemble the PDF 1.4 document: catalog, pages, content streams, font, xref, trailer."""
     num_pages = len(page_streams)
     font_id = 3 + 2 * num_pages
     total_objs = font_id
@@ -238,3 +211,58 @@ def export_label_sheet_pdf(
 
     with open(output_path, "wb") as f:
         f.write(out)
+
+
+def export_label_sheet_pdf(
+    copies: List[Union[Tuple[int, str], str]],
+    output_path: str,
+    cols: int = 3,
+    rows: int = 8,
+) -> None:
+    """
+    Export a printable A4 PDF containing barcode labels arranged in a grid with dashed cut guides.
+    copies: list of tuples (copy_id, barcode_str) or list of barcode strings.
+    """
+    if not copies:
+        raise ValueError("No copies provided to export")
+
+    barcode_items = _prepare_barcode_items(copies)
+
+    page_width = 595.28  # A4 width in pt
+    page_height = 841.89  # A4 height in pt
+    margin_x = 24.0
+    margin_y = 24.0
+
+    usable_width = page_width - (2.0 * margin_x)
+    usable_height = page_height - (2.0 * margin_y)
+
+    cell_width = usable_width / cols
+    cell_height = usable_height / rows
+    cell_padding = 4.0
+
+    items_per_page = cols * rows
+    total_pages = math.ceil(len(barcode_items) / items_per_page)
+
+    page_streams: List[bytes] = []
+
+    for page_idx in range(total_pages):
+        stream_lines: List[str] = []
+        start_item_idx = page_idx * items_per_page
+        end_item_idx = min(start_item_idx + items_per_page, len(barcode_items))
+
+        for idx in range(start_item_idx, end_item_idx):
+            pos_on_page = idx % items_per_page
+            col = pos_on_page % cols
+            row = pos_on_page // cols
+
+            cell_x = margin_x + (col * cell_width)
+            cell_y = page_height - margin_y - ((row + 1) * cell_height)
+
+            _render_label_cell(
+                stream_lines, barcode_items[idx],
+                cell_x, cell_y, cell_width, cell_height, cell_padding,
+            )
+
+        page_streams.append("\n".join(stream_lines).encode("latin1"))
+
+    _assemble_pdf_document(page_streams, page_width, page_height, output_path)
