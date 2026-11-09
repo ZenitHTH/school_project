@@ -437,4 +437,11 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Regression test extended: `test_category_dropdown_renders_options` now also asserts a row item's bound text via `QQmlExpression(..., "itemAt(x, y)")` (delegates are not reachable through `findChildren` — QML scene-graph parents differ from the QObject child tree).
 - 100% test pass across 342 tests.
 
+## [2026-11-06] fix | StyledComboBox option rows still blank — contentItem text binding
+- Third layer of the dropdown bug, found after the row-text fix: rows still rendered blank in the live app while the delegate's `text` property held the correct value. Root cause: the delegate's `contentItem: Text { text: text }` — the bare `text` on the right-hand side does **not** resolve to the delegate's `text` property (verified live via debug logging: delegate text correct, contentItem text `""`, `parent.text` correct). No binding-loop or reference error is emitted, so the failure is silent.
+- Fix: delegate now has `id: comboRow` and the contentItem binds `text: comboRow.text` — the same id-reference pattern Qt's Basic style uses (`text: control.text`).
+- The earlier regression test was green because it asserted the **delegate's** `text` (the layer that worked), not the contentItem's rendered `text` (the broken layer). Test now also asserts `contentItem.property("text") == cat_name`.
+- Debugging note: offscreen property dumps reproduce this exactly — the bug is in QML binding resolution, not in GPU rendering.
+- 100% test pass across 342 tests.
+
 

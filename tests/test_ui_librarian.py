@@ -231,6 +231,13 @@ def test_category_dropdown_renders_options(lib_ui):
     d = QQmlExpression(engine.rootContext(), lv, "itemAt(10, 54)").evaluate()
     d = d[0] if isinstance(d, tuple) and isinstance(d[0], QObject) else d
     assert d.property("text") == cat_name, "option text not bound to the delegate row"
+    # The actually rendered Text (the delegate's contentItem) must carry the
+    # value too — bare `text: text` inside contentItem does NOT resolve to the
+    # delegate's text; it must reference the delegate through its id.
+    ci = QQmlExpression(engine.rootContext(), d, "contentItem").evaluate()
+    ci = ci[0] if isinstance(ci, tuple) and isinstance(ci[0], QObject) else ci
+    assert ci is not None, "delegate has no contentItem"
+    assert ci.property("text") == cat_name, "option text not rendered (contentItem text empty)"
     # Select the second option via a real click on its row
     row_y = 4 + 36 + 18  # popup padding + one row + half a row
     rowpos = popup.mapToGlobal(10, row_y)

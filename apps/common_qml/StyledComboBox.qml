@@ -27,6 +27,7 @@ ComboBox {
     }
 
     delegate: ItemDelegate {
+        id: comboRow
         required property var model
         required property int index
         width: control.width
@@ -34,7 +35,7 @@ ComboBox {
         padding: 12
         text: model[control.textRole]
         contentItem: Text {
-            text: text
+            text: comboRow.text
             color: highlighted ? Theme.accentDeep : Theme.textPrimary
             font.pixelSize: 13
             horizontalAlignment: Text.AlignLeft
