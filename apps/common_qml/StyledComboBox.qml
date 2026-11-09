@@ -27,9 +27,12 @@ ComboBox {
     }
 
     delegate: ItemDelegate {
+        required property var model
+        required property int index
         width: control.width
         height: Math.max(36, Math.round(13 * 2.6))
         padding: 12
+        text: model[control.textRole]
         contentItem: Text {
             text: text
             color: highlighted ? Theme.accentDeep : Theme.textPrimary

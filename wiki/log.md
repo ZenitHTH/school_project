@@ -430,6 +430,11 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Root cause: `apps/common_qml/StyledComboBox.qml` overrode the `ComboBox` `popup` with a bare `Popup` that had no `contentItem: ListView`. In Qt Quick Controls 2 the options list belongs to the style's popup, so the override silently dropped every option row — the dropdown opened as an empty 0px box (affects every `StyledComboBox` in all apps, e.g. the category dropdown on the add-book page).
 - Fix: the popup now declares its own options `ListView` (`model: control.delegateModel`, `implicitHeight: contentHeight`, `clip: true`, vertical `ScrollBar`), mirroring the Fusion/Basic style internals, and sizes via `implicitHeight: Math.min(implicitContentHeight + padding * 2, 240)` (240px cap, scrolls beyond).
 - Regression test: `tests/test_ui_librarian.py::test_category_dropdown_renders_options` (real click opens the dropdown, the options `ListView` renders rows, a real row click selects the option). Verified end-to-end in the librarian app (Fusion) including selection.
+
+## [2026-11-06] fix | StyledComboBox option rows render with empty text
+- Follow-up to the popup/ListView fix: rows now appear but their text is empty. Root cause: the `StyledComboBox` `delegate` never declared `required property var model`/`required property int index` nor bound `text: model[control.textRole]` — the ComboBox/ListView machinery injects row data into the delegate's declared `model` property, so with no declaration nothing was injected and `text` stayed empty (verified: `typeof model === 'undefined'` on the delegate).
+- Fix: `apps/common_qml/StyledComboBox.qml` delegate now mirrors the Basic-style delegate contract (`required property var model`, `required property int index`, `text: model[control.textRole]`). Verified for both object models (role via `textRole`) and plain string models (rows arrive wrapped as `QQmlDM*AccessorData` objects).
+- Regression test extended: `test_category_dropdown_renders_options` now also asserts a row item's bound text via `QQmlExpression(..., "itemAt(x, y)")` (delegates are not reachable through `findChildren` — QML scene-graph parents differ from the QObject child tree).
 - 100% test pass across 342 tests.
 
 

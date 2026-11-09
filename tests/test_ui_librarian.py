@@ -24,7 +24,7 @@ import pytest
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression
 from PySide6.QtCore import QMetaObject, Qt, QObject, Q_ARG, QPoint
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
@@ -188,9 +188,11 @@ def test_catalog_barcode_and_category_filter(lib_ui):
 
 def test_category_dropdown_renders_options(lib_ui):
     window, app = lib_ui["window"], lib_ui["app"]
+    engine = lib_ui["engine"]
     adapter = lib_ui["adapter"]
 
-    json.loads(adapter.addCategory("หมวดทดสอบ"))
+    cat_name = "หมวดทดสอบ"
+    json.loads(adapter.addCategory(cat_name))
 
     # Go to the add-book page and refresh the category combo
     QMetaObject.invokeMethod(find(window, "navBtnGenerator"), "clicked", Qt.DirectConnection)
@@ -222,7 +224,13 @@ def test_category_dropdown_renders_options(lib_ui):
     lv = lvs[0]
     popup = lv.parentItem()
     assert lv.height() > 50, "options ListView has no height (rows not rendered)"
-
+    # Option rows must carry their text (regression: empty rows because the delegate
+    # never bound model[control.textRole]). Delegates are not reachable via
+    # findChildren (QML scene-graph parents differ from the QObject child tree),
+    # so ask the options ListView for a row item directly.
+    d = QQmlExpression(engine.rootContext(), lv, "itemAt(10, 54)").evaluate()
+    d = d[0] if isinstance(d, tuple) and isinstance(d[0], QObject) else d
+    assert d.property("text") == cat_name, "option text not bound to the delegate row"
     # Select the second option via a real click on its row
     row_y = 4 + 36 + 18  # popup padding + one row + half a row
     rowpos = popup.mapToGlobal(10, row_y)
