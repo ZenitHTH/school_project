@@ -452,3 +452,10 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - 100% test pass across 342 tests.
 
 
+## [2026-11-10] feat | Chulabook 4th ISBN provider + catalog detection + Librarian UI
+- `isbn_providers.py`: Chulabook store API (`api.chulabook.com/products?search=`, `/products/<id>`) added as the LAST provider in the fetch chain; `_fetch_json` gained `extra_headers` (Origin/Referer); exact normalized-barcode matching only. Existing `[🔍 ดึงข้อมูล]` autofill now resolves Chulabook-only ISBNs with no UI change.
+- `chulabook_service.py` (new): `detect_chulabook_books` flags books found in Chulabook but in no standard ISBN database (NLT/SE-ED/OpenLibrary/isbn_cache), 8-thread, `Result`-typed.
+- `librarian_admin_adapter.py`: `detectChulabookBooks()` slot + `chulabookCheckStarted/Completed` signals (sanitized JSON).
+- QML: `📕 ตรวจ Chulabook` button + status line + results dialog in `BookCatalogView.qml`, wired in `Main.qml` (`window.detectChulabook()`).
+- Python 3.15 compatibility: explicit `ThreadPoolExecutor` import in `isbn_service.py` (lazy module attr not callable on 3.15) + builtin `TimeoutError` raises in tests.
+- Tests: `test_chulabook_provider.py`, `test_chulabook_service.py`, `test_ui_chulabook_detection.py`, adapter payload tests; real API fixtures in `tests/fixtures/chulabook/`.

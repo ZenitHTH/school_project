@@ -103,3 +103,15 @@ Provides ISBN validation and metadata retrieval for book registration.
   - In QML views (`BarcodeGeneratorView.qml` and `BookActionDialogs.qml`), `onTextChanged` and fetch handlers display `"✗ ลืมเปลี่ยนภาษา"` to immediately guide librarians to toggle their keyboard layout without triggering remote fetch timeouts.
 - **Error Handling**: Network timeouts, non-book tables, redirects, or malformed inputs return `Err("cannot fetch data")` (or `Err("ลืมเปลี่ยนภาษา")` for non-Arabic characters) safely trapped in a Rust-style `Result[Dict[str, str], str]`.
 
+---
+
+## 8. Chulabook Detection & Fetching (`core.library.services.chulabook_service`)
+Detects catalog books that exist only in the Chulabook store (ศูนย์หนังสือจุฬาฯ) and auto-fills their metadata from the Chulabook API during registration.
+- **Chulabook Store API (4th provider, `isbn_providers.py`)**: `api.chulabook.com` is the store's public REST API — no auth, no cookies, **not** behind the Sucuri JS challenge that blocks `www.chulabook.com` HTML pages.
+  - Search: `GET /products?search=<isbn>&limit=5` → `{count, rows[]}`; match requires **exact normalized-barcode equality** (no fuzzy fallback).
+  - Detail: `GET /products/<id>` → full record (`isbn`, `name`, `author`, `pub_year`, `edition`, `translator`, `price`, `cover_price`, `detail_th`, …). The API has **no publisher-name field** (only `pbls_code`), so `publisher` is reported as `""` — never fabricated.
+  - Request headers: browser `User-Agent` + `Origin`/`Referer: https://www.chulabook.com` (sent via `_fetch_json(..., extra_headers=CHULABOOK_HEADERS)`).
+  - Chain position: **last** — `NLT Primo → SE-ED → Open Library → Chulabook`. The existing `fetchIsbnMetadata` autofill therefore resolves Chulabook-only ISBNs with no UI change, and successful lookups persist to `isbn_cache`.
+- **Detection rule (`detect_chulabook_books(conn, timeout=5.0, workers=8) -> Result[list[dict], str]`)**: a book row is flagged iff `_fetch_chulabook(isbn)` hits **and** the normalized ISBN is absent from `isbn_cache` **and** all three standard providers miss. Invalid/Thai-digit ISBNs are skipped silently; per-row exceptions skip that row; `Err` only when the `books` table is missing. Rows: `{book_id, isbn (normalized), title, author}`.
+- **Librarian UI**: `LibrarianAdminAdapter.detectChulabookBooks()` slot (`chulabookCheckStarted`/`chulabookCheckCompleted` signals, `_sanitize_for_qml` on `books[]`) drives the `📕 ตรวจ Chulabook` button in `BookCatalogView.qml` (Tab 0) — status line `chulabookStatusText` + results `Dialog` (`chulabookResultsModel`) listing flagged books. Wired via `window.detectChulabook()` in `Main.qml`. Synchronous slot (house pattern); ~30–60 s for a 200-book catalog.
+
