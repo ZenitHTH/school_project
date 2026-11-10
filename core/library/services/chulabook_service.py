@@ -4,9 +4,13 @@ A book is flagged when its (normalized) ISBN resolves in the Chulabook API
 but in no standard ISBN database (NLT Primo / SE-ED / Open Library) and is
 not already known-good via the local isbn_cache.
 """
+import logging
 import sqlite3
+import time
 from concurrent.futures import ThreadPoolExecutor  # explicit import: 3.15 lazy module attr is not callable
 from typing import Dict, List
+
+logger = logging.getLogger("smte.isbn")
 
 from core.library.services.isbn_providers import (
     _fetch_chulabook,
@@ -29,14 +33,19 @@ def _classify(row, cache, timeout: float):
         return None
     try:
         if not _fetch_chulabook(isbn, timeout):
+            logger.debug("book %s (%s): skip — not found in chulabook", book_id, isbn)
             return None
         if isbn in cache:
+            logger.debug("book %s (%s): skip — already in isbn_cache", book_id, isbn)
             return None
         step = min(timeout, 2.0)
         if _fetch_primo(isbn, step) or _fetch_seed(isbn, step) or _fetch_openlibrary(isbn, timeout):
+            logger.debug("book %s (%s): skip — found in standard providers", book_id, isbn)
             return None
+        logger.info("book %s (%s): FLAGGED chulabook-only — title=%r", book_id, isbn, title)
         return {"book_id": book_id, "isbn": isbn, "title": title or "", "author": author or ""}
-    except Exception:
+    except Exception as exc:
+        logger.warning("book %s (%s): classify error: %s: %s", book_id, isbn, type(exc).__name__, exc)
         return None
 
 
@@ -55,6 +64,10 @@ def detect_chulabook_books(
         cache = {r[0] for r in conn.execute("SELECT isbn FROM isbn_cache")}
     except sqlite3.OperationalError:
         cache = set()
+    t0 = time.monotonic()
+    logger.info("detect start: %d books with ISBN, workers=%d", len(rows), workers)
     with ThreadPoolExecutor(max_workers=workers) as ex:
         results = list(ex.map(lambda r: _classify(r, cache, timeout), rows))
-    return Ok([r for r in results if r is not None])
+    flagged = [r for r in results if r is not None]
+    logger.info("detect done: %d flagged of %d books in %.1fs", len(flagged), len(rows), time.monotonic() - t0)
+    return Ok(flagged)

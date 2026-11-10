@@ -1,10 +1,13 @@
 """ISBN metadata lookup service using local SQLite cache and chained remote JSON providers."""
 
 import concurrent.futures
+import logging
 import sqlite3
 import time
 from concurrent.futures import ThreadPoolExecutor  # explicit import: 3.15 lazy module attr is not callable
 from typing import Dict, Optional
+
+logger = logging.getLogger("smte.isbn")
 
 from core.library.services.isbn_providers import (
     _fetch_json,
@@ -114,17 +117,23 @@ class IsbnLookupService:
 
     def lookup(self, raw_isbn: Optional[str]) -> Result[Dict[str, str], str]:
         """Lookup book metadata by ISBN from books, cache, or remote providers."""
+        t0 = time.monotonic()
         clean_raw = (raw_isbn or "").strip()
         if clean_raw and not is_arabic_isbn(clean_raw):
+            logger.warning("lookup rejected: input %r is not Western digits (Thai/Arabic keyboard layout?)", clean_raw)
             return Err("ลืมเปลี่ยนภาษา")
         isbn = normalize_isbn(clean_raw)
         if not is_valid_isbn(isbn):
+            logger.warning("lookup rejected: invalid ISBN %r (normalized=%s)", clean_raw, isbn)
             return Err("cannot fetch data")
         local_data = self._lookup_local(isbn)
         if local_data:
+            logger.info("lookup %s: local hit (books/isbn_cache) in %.2fs — title=%r", isbn, time.monotonic() - t0, local_data.get("title", ""))
             return Ok(local_data)
         remote = self._fetch_remote(isbn)
         if not remote:
+            logger.warning("lookup %s: no remote provider hit in %.2fs", isbn, time.monotonic() - t0)
             return Err("cannot fetch data")
         self._save_metadata(remote)
+        logger.info("lookup %s: remote hit saved to isbn_cache in %.2fs — title=%r", isbn, time.monotonic() - t0, remote.get("title", ""))
         return Ok(remote)

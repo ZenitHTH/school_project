@@ -54,8 +54,11 @@ def run_cli_first_launch(adapter: LibrarianAdminAdapter) -> None:
 
 
 from data.paths import get_default_db_path
+from core.shared.app_logging import setup_app_logging
+
 
 def main():
+    setup_app_logging("SMTE-LibrarianManagement")
     default_path = str(get_default_db_path("SMTE-LibrarianManagement", "library.sqlite"))
     db_path = os.environ.get("LIBRARY_DB_PATH", default_path)
     pin = os.environ.get("LIBRARY_DB_PIN", "123456")
