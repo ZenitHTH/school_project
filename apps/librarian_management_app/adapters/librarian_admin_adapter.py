@@ -15,6 +15,7 @@ from core.shared.settings_adapter_mixin import SettingsAdapterMixin
 from core.library.services.catalog_service import CatalogService
 from core.library.services.fine_service import FineService
 from core.library.services.isbn_service import IsbnLookupService
+from core.library.services.chulabook_service import detect_chulabook_books
 from core.library.services.loan_service import LoanService
 from core.library.services.reservation_service import ReservationService
 from core.student.services.student_service import StudentService
@@ -28,6 +29,8 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
 
     isbnLookupStarted = Signal()
     isbnLookupCompleted = Signal(str)
+    chulabookCheckStarted = Signal()
+    chulabookCheckCompleted = Signal(str)
 
     def __init__(self, conn: sqlite3.Connection, settings_service: Optional[SettingsService] = None):
         super().__init__()
@@ -433,6 +436,20 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
         data = _sanitize_for_qml(res.data) if res.ok else None
         payload = json.dumps({"ok": res.ok, "error": res.error, "data": data})
         self.isbnLookupCompleted.emit(payload)
+        return payload
+
+    @Slot(result=str)
+    def detectChulabookBooks(self) -> str:
+        """Flag catalog books found in Chulabook but in no standard ISBN database."""
+        self.chulabookCheckStarted.emit()
+        res = detect_chulabook_books(self.conn, timeout=5.0)
+        payload = json.dumps({
+            "ok": res.ok,
+            "error": res.error,
+            "count": len(res.data) if res.ok else 0,
+            "books": _sanitize_for_qml(res.data) if res.ok else [],
+        })
+        self.chulabookCheckCompleted.emit(payload)
         return payload
 
     @Slot(str, int)
