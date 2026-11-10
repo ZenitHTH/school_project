@@ -47,6 +47,7 @@ ApplicationWindow {
     property alias catalogCategoryModel: catalogView.catalogCategoryModel
     property alias btnOpenGeneratorPage: catalogView.btnOpenGeneratorPage
     property alias btnOpenPrintPage: catalogView.btnOpenPrintPage
+    property alias chulabookResultsModel: catalogView.chulabookResultsModel
 
     property alias studentLookupInput: deskView.studentLookupInput
     property alias btnLookupStudent: deskView.btnLookupStudent
@@ -337,6 +338,7 @@ ApplicationWindow {
                 id: catalogView
                 objectName: "bookCatalogView"
                 onSearchRequested: window.searchBooks()
+                onDetectChulabookRequested: window.detectChulabook()
                 onOpenGeneratorRequested: {
                     window.initGeneratorPage()
                     stackLayout.currentIndex = 6
@@ -513,6 +515,24 @@ ApplicationWindow {
         }
         var results = JSON.parse(librarianAdmin.searchBooks(catalogSearchInput.text, catId))
         for (var i = 0; i < results.length; i++) catalogModel.append(results[i])
+    }
+
+    function detectChulabook() {
+        catalogView.chulabookStatus = "กำลังตรวจสอบ..."
+        var res = JSON.parse(librarianAdmin.detectChulabookBooks())
+        if (!res.ok) {
+            catalogView.chulabookStatus = "✗ " + (res.error || "cannot detect")
+            return
+        }
+        catalogView.chulabookBooks = res.books
+        catalogView.chulabookStatus = res.count
+            ? "พบ " + res.count + " เล่มที่พบเฉพาะใน Chulabook"
+            : "ไม่พบหนังสือที่พบเฉพาะใน Chulabook"
+        if (res.count > 0) {
+            chulabookResultsModel.clear()
+            for (var i = 0; i < res.books.length; i++) chulabookResultsModel.append(res.books[i])
+            catalogView.chulabookDialogOpen = true
+        }
     }
 
     function lookupStudent() {

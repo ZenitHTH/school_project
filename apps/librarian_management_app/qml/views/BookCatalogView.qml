@@ -16,6 +16,7 @@ Rectangle {
     property alias catalogCategoryModel: catalogCategoryModel
     property alias btnOpenGeneratorPage: btnOpenGeneratorPage
     property alias btnOpenPrintPage: btnOpenPrintPage
+    property alias chulabookResultsModel: chulabookResultsModel
 
     signal searchRequested()
     signal openGeneratorRequested()
@@ -23,6 +24,11 @@ Rectangle {
     signal addCopiesRequested(int bookId, string title)
     signal editBookRequested(int bookId, string title, string author, string isbn, int categoryId, string shelfLocation, int totalCopies)
     signal deleteBookRequested(int bookId, string title)
+    signal detectChulabookRequested()
+
+    property string chulabookStatus: ""
+    property bool chulabookDialogOpen: false
+    property var chulabookBooks: []
 
     function loadCategories() {
         catalogCategoryModel.clear()
@@ -52,6 +58,13 @@ Rectangle {
                 color: "#1e293b"
             }
             Item { Layout.fillWidth: true }
+            StyledButton {
+                variant: StyledButton.Primary
+                id: btnDetectChulabook
+                objectName: "btnDetectChulabook"
+                text: "📕 ตรวจ Chulabook"
+                onClicked: root.detectChulabookRequested()
+            }
             StyledButton {
                 variant: StyledButton.Primary
                 id: btnOpenGeneratorPage
@@ -93,6 +106,16 @@ Rectangle {
                 text: "ค้นหา"
                 onClicked: root.searchRequested()
             }
+        }
+
+        Text {
+            id: chulabookStatusText
+            objectName: "chulabookStatusText"
+            text: root.chulabookStatus
+            visible: root.chulabookStatus !== ""
+            color: text.startsWith("✗") ? "#dc2626" : "#0f766e"
+            font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
+            Component.onCompleted: Typography.applyToItem(this)
         }
 
         ListView {
@@ -180,6 +203,76 @@ Rectangle {
                         onClicked: root.deleteBookRequested(model.book_id, model.title)
                     }
                 }
+            }
+        }
+    }
+
+    Dialog {
+        id: chulabookDialog
+        objectName: "chulabookDialog"
+        visible: root.chulabookDialogOpen
+        modal: true
+        implicitWidth: 560
+        implicitHeight: 440
+        title: "พบ " + root.chulabookBooks.length + " เล่มที่พบเฉพาะใน Chulabook"
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 10
+            Text {
+                text: "ISBN ของหนังสือเหล่านี้ไม่พบในฐานข้อมูลมาตรฐาน (NLT / SE-ED / Open Library)"
+                color: "#64748b"
+                font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+                Component.onCompleted: Typography.applyToItem(this)
+            }
+            ListView {
+                id: chulabookResultsList
+                objectName: "chulabookResultsList"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                model: ListModel { id: chulabookResultsModel; objectName: "chulabookResultsModel" }
+                delegate: Rectangle {
+                    width: chulabookResultsList.width
+                    implicitHeight: Math.max(34, Math.round(cbTitleText.implicitHeight + 14))
+                    height: implicitHeight
+                    color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
+                    border.color: "#e2e8f0"
+                    Component.onCompleted: Typography.applyToItem(this)
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        Layout.minimumWidth: 200
+                        Text {
+                            id: cbTitleText
+                            text: model.title || "-"
+                            font.bold: true
+                            font.pixelSize: Math.max(12, Math.round(14 * (window.fontScale || 1.0)))
+                            color: "#0f172a"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
+                        Text {
+                            text: "ISBN: " + (model.isbn || "-")
+                            font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
+                            color: "#64748b"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            maximumLineCount: 1
+                        }
+                    }
+                }
+            }
+            StyledButton {
+                variant: StyledButton.Ghost
+                id: btnCloseChulabookDialog
+                objectName: "btnCloseChulabookDialog"
+                text: "ปิด"
+                Layout.alignment: Qt.AlignRight
+                onClicked: root.chulabookDialogOpen = false
             }
         }
     }
