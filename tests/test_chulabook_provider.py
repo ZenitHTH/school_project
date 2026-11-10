@@ -30,6 +30,7 @@ def _load(name: str):
 
 SEARCH_FIXTURE = _load("products_search_9786169444541.json")
 DETAIL_FIXTURE = _load("product_258216.json")
+SEARCH_URL = "https://api.chulabook.com/products?search=9786169444541&limit=5"
 
 
 def test_parse_chulabook_products_exact_match():
@@ -89,11 +90,48 @@ def test_fetch_chulabook_no_match_returns_none(monkeypatch):
 
 
 def test_fetch_chulabook_network_error(monkeypatch):
+    calls = []
+
     def boom(url, timeout=5.0, extra_headers=None):
+        calls.append(1)
         raise urllib.error.URLError("offline")
 
     monkeypatch.setattr(isbn_providers, "_fetch_json", boom)
     assert _fetch_chulabook("9786169444541", timeout=5.0) is None
+    assert len(calls) == 2  # one retry, then give up
+
+
+def test_fetch_chulabook_retries_once_then_succeeds(monkeypatch):
+    calls = []
+
+    def flaky(url, timeout=5.0, extra_headers=None):
+        calls.append((url, timeout))
+        if len(calls) == 1:
+            raise urllib.error.URLError(TimeoutError("timed out"))
+        if "/products?" in url:
+            return SEARCH_FIXTURE
+        return DETAIL_FIXTURE
+
+    monkeypatch.setattr(isbn_providers, "_fetch_json", flaky)
+    meta = _fetch_chulabook("9786169444541", timeout=5.0)
+    assert meta is not None and meta["title"] == DETAIL_FIXTURE["name"]
+    # first search attempt timed out -> exactly one retry of the search, then detail
+    assert [c[0] for c in calls].count(SEARCH_URL) == 2
+    assert all(t == 5.0 for _, t in calls)  # 5 s per request (spec §4.6)
+
+
+def test_fetch_chulabook_timeout_capped_at_5s(monkeypatch):
+    timeouts = []
+
+    def fake_fetch_json(url, timeout=5.0, extra_headers=None):
+        timeouts.append(timeout)
+        if "/products?" in url:
+            return SEARCH_FIXTURE
+        return DETAIL_FIXTURE
+
+    monkeypatch.setattr(isbn_providers, "_fetch_json", fake_fetch_json)
+    assert _fetch_chulabook("9786169444541", timeout=10.0) is not None
+    assert all(t == 5.0 for t in timeouts)  # never >5 s per request
 
 
 def test_fetch_json_extra_headers(monkeypatch):

@@ -3,6 +3,7 @@
 import json
 import re
 import ssl
+import time
 import urllib.request
 from typing import Dict, Optional
 
@@ -184,14 +185,33 @@ def parse_chulabook_detail(data: dict, isbn: str) -> Optional[Dict[str, str]]:
 
 
 def _fetch_chulabook(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
-    """Chulabook store API: exact-barcode search then product detail."""
+    """Chulabook store API: exact-barcode search then product detail.
+
+    5 s timeout per request (spec §4.6) with one retry per request —
+    slow school networks made the old 2.5 s step time out on the first
+    cold TLS handshake, which looked like "chulabook cannot fetch".
+    """
+    step = min(timeout, 5.0)
+
+    def _get(url: str) -> Optional[dict]:
+        for attempt in range(2):
+            try:
+                return _fetch_json(url, timeout=step, extra_headers=CHULABOOK_HEADERS)
+            except Exception:
+                if attempt == 0:
+                    time.sleep(0.5)
+        return None
+
     try:
-        step = min(timeout, 2.5)
-        data = _fetch_json(f"{CHULABOOK_API}/products?search={isbn}&limit=5", timeout=step, extra_headers=CHULABOOK_HEADERS)
+        data = _get(f"{CHULABOOK_API}/products?search={isbn}&limit=5")
+        if not data:
+            return None
         pid = parse_chulabook_products(data, isbn)
         if not pid:
             return None
-        detail = _fetch_json(f"{CHULABOOK_API}/products/{pid}", timeout=step, extra_headers=CHULABOOK_HEADERS)
+        detail = _get(f"{CHULABOOK_API}/products/{pid}")
+        if not detail:
+            return None
         return parse_chulabook_detail(detail, isbn)
     except Exception:
         return None

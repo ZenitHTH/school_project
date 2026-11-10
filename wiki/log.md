@@ -459,3 +459,7 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - QML: `📕 ตรวจ Chulabook` button + status line + results dialog in `BookCatalogView.qml`, wired in `Main.qml` (`window.detectChulabook()`).
 - Python 3.15 compatibility: explicit `ThreadPoolExecutor` import in `isbn_service.py` (lazy module attr not callable on 3.15) + builtin `TimeoutError` raises in tests.
 - Tests: `test_chulabook_provider.py`, `test_chulabook_service.py`, `test_ui_chulabook_detection.py`, adapter payload tests; real API fixtures in `tests/fixtures/chulabook/`.
+## [2026-11-10] fix | Chulabook fetch timeout/retry for slow networks + Mint diagnostic
+- `isbn_providers.py`: Chulabook per-request timeout raised 2.5 s → 5 s (spec §4.6) + one automatic retry per request (0.5 s backoff) — fixes "chulabook still cannot fetch on Linux Mint" (cold TLS handshake on slow school links exceeded the old step).
+- `scripts/diagnose_chulabook.py` (new, stdlib-only): per-machine layer-by-layer diagnostic (proxy env → DNS → TLS/CA → HTTP with app headers) with interpretation hints; verified green on macOS.
+- Tests: retry-then-succeed, give-up-after-retry (exactly 2 attempts), 5 s cap assertion.
