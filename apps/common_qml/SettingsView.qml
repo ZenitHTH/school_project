@@ -145,16 +145,16 @@ Rectangle {
 
             SettingsControlsCard {
                 id: controlsCard
-                onFontChanged: {
+                onFontChanged: (family) => {
                     settingsRoot.currentFontFamily = family
                     settingsRoot.activeFontFamily = (family === "System Default") ? "" : family
                     settingsRoot.settingsChanged()
                 }
-                onFontSizeChanged: {
+                onFontSizeChanged: (size) => {
                     settingsRoot.currentFontSize = size
                     settingsRoot.settingsChanged()
                 }
-                onUiScaleChanged: {
+                onUiScaleChanged: (scale) => {
                     settingsRoot.currentUiScale = scale
                     settingsRoot.settingsChanged()
                 }
