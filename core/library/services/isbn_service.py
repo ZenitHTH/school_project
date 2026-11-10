@@ -3,6 +3,7 @@
 import concurrent.futures
 import sqlite3
 import time
+from concurrent.futures import ThreadPoolExecutor  # explicit import: 3.15 lazy module attr is not callable
 from typing import Dict, Optional
 
 from core.library.services.isbn_providers import (
@@ -82,7 +83,7 @@ class IsbnLookupService:
         return None
 
     def _fetch_remote(self, isbn: str) -> Optional[Dict[str, str]]:
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        executor = ThreadPoolExecutor(max_workers=1)
         future = executor.submit(fetch_remote_providers, isbn, timeout=self.timeout)
         try:
             return self._wait_for_future(future)

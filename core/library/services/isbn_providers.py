@@ -24,6 +24,8 @@ NLT_PRIMO_URL = "https://nlt.primo.exlibrisgroup.com/primaws/rest/pub/pnxs"
 SEED_SEARCH_URL = "https://mp-api.se-ed.com/web-bff/search-product"
 SEED_DETAIL_URL = "https://mp-api.se-ed.com/web-bff/physical-product"
 OPENLIBRARY_URL = "https://openlibrary.org/api/books"
+CHULABOOK_API = "https://api.chulabook.com"
+CHULABOOK_HEADERS = {"Origin": "https://www.chulabook.com", "Referer": "https://www.chulabook.com/"}
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 UNKNOWN_PUBS = ("-ไม่ปรากฏสำนักพิมพ์", "ไม่ปรากฏสำนักพิมพ์", "ม.ป.พ.", "ม.ป.ท.")
 
@@ -31,6 +33,11 @@ __all__ = [
     "normalize_isbn",
     "is_valid_isbn",
     "is_arabic_isbn",
+    "CHULABOOK_API",
+    "CHULABOOK_HEADERS",
+    "parse_chulabook_products",
+    "parse_chulabook_detail",
+    "_fetch_chulabook",
     "parse_nlt_primo_json",
     "parse_seed_product",
     "parse_openlibrary_json",
@@ -82,9 +89,12 @@ def is_arabic_isbn(raw: str) -> bool:
     return len(clean) == 10 and all(c in "0123456789" for c in clean[:9]) and clean[9] in "Xx"
 
 
-def _fetch_json(url: str, timeout: float = 5.0) -> dict:
+def _fetch_json(url: str, timeout: float = 5.0, extra_headers: Optional[dict] = None) -> dict:
     """Fetch JSON from URL with User-Agent header and default SSL context."""
-    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    headers = {"User-Agent": USER_AGENT}
+    if extra_headers:
+        headers.update(extra_headers)
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout, context=ssl.create_default_context()) as resp:
         charset = resp.headers.get_content_charset() or "utf-8"
         return json.loads(resp.read().decode(charset, errors="replace"))
@@ -151,6 +161,42 @@ def parse_openlibrary_json(data: dict, isbn: str) -> Optional[Dict[str, str]]:
     return {"isbn": isbn, "title": title, "author": authors or pubs, "publisher": pubs}
 
 
+def parse_chulabook_products(data: dict, isbn: str) -> Optional[str]:
+    """Return the product id of the first row whose barcode exactly matches the ISBN (normalized)."""
+    target = normalize_isbn(isbn)
+    for row in data.get("rows") or []:
+        if isinstance(row, dict) and normalize_isbn(str(row.get("barcode") or "")) == target:
+            return str(row.get("id"))
+    return None
+
+
+def parse_chulabook_detail(data: dict, isbn: str) -> Optional[Dict[str, str]]:
+    """Map a Chulabook product detail record to the standard metadata dict (no publisher-name field exists in the API)."""
+    name = data.get("name")
+    if not name:
+        return None
+    return {
+        "isbn": isbn,
+        "title": str(name).strip(),
+        "author": str(data.get("author") or data.get("translator") or "").strip(),
+        "publisher": "",
+    }
+
+
+def _fetch_chulabook(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
+    """Chulabook store API: exact-barcode search then product detail."""
+    try:
+        step = min(timeout, 2.5)
+        data = _fetch_json(f"{CHULABOOK_API}/products?search={isbn}&limit=5", timeout=step, extra_headers=CHULABOOK_HEADERS)
+        pid = parse_chulabook_products(data, isbn)
+        if not pid:
+            return None
+        detail = _fetch_json(f"{CHULABOOK_API}/products/{pid}", timeout=step, extra_headers=CHULABOOK_HEADERS)
+        return parse_chulabook_detail(detail, isbn)
+    except Exception:
+        return None
+
+
 def _fetch_primo(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
     try:
         url = f"{NLT_PRIMO_URL}?vid=66NLT_INST:66NLT&q=isbn,exact,{isbn}&offset=0&limit=1&lang=th"
@@ -188,6 +234,11 @@ def _fetch_openlibrary(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
 
 
 def fetch_remote_providers(isbn: str, timeout: float = 5.0) -> Optional[Dict[str, str]]:
-    """Chain remote JSON providers: NLT Primo VE -> SE-ED BFF -> Open Library."""
+    """Chain remote JSON providers: NLT Primo VE -> SE-ED BFF -> Open Library -> Chulabook."""
     step = min(timeout, 2.5)
-    return _fetch_primo(isbn, step) or _fetch_seed(isbn, step) or _fetch_openlibrary(isbn, timeout)
+    return (
+        _fetch_primo(isbn, step)
+        or _fetch_seed(isbn, step)
+        or _fetch_openlibrary(isbn, timeout)
+        or _fetch_chulabook(isbn, timeout)
+    )

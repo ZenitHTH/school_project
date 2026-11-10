@@ -303,9 +303,18 @@ def test_fetch_remote_providers_chain(monkeypatch):
     res_ol = fetch_remote_providers("9780132350884")
     assert res_ol["title"] == "OL Book"
 
-    # All miss
+    # All miss (including Chulabook)
     monkeypatch.setattr("core.library.services.isbn_providers._fetch_openlibrary", lambda isbn, timeout: None)
+    monkeypatch.setattr("core.library.services.isbn_providers._fetch_chulabook", lambda isbn, timeout: None)
     assert fetch_remote_providers("9780000000000") is None
+
+    # Provider 4: all standard providers miss, Chulabook hit (last fallback)
+    monkeypatch.setattr(
+        "core.library.services.isbn_providers._fetch_chulabook",
+        lambda isbn, timeout: {"isbn": isbn, "title": "Chulabook Book", "author": "A4", "publisher": ""}
+    )
+    res_cb = fetch_remote_providers("9786169444541")
+    assert res_cb["title"] == "Chulabook Book"
 
 
 def test_provider_fetch_exceptions(monkeypatch):
@@ -444,7 +453,7 @@ def test_service_operational_error_and_timeout(monkeypatch):
             nonlocal attempts
             attempts += 1
             if attempts == 1:
-                raise concurrent.futures.TimeoutError()
+                raise TimeoutError()  # builtin: concurrent.futures.TimeoutError is the same class since 3.8; lazy proxy not raiseable on 3.15
             return {"isbn": "9786167706955", "title": "Step Book", "author": "A", "publisher": "P"}
 
     res_step = svc._wait_for_future(SteppingFuture())
@@ -461,7 +470,7 @@ def test_service_operational_error_and_timeout(monkeypatch):
 
     class HangingFuture:
         def result(self, timeout=None):
-            raise concurrent.futures.TimeoutError()
+            raise TimeoutError()  # builtin (see above)
 
     assert svc._wait_for_future(HangingFuture()) is None
     conn.close()
