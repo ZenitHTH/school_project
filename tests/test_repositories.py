@@ -253,3 +253,37 @@ def test_book_isbn_dashless_search(repo_db):
     # dashed prefix still works
     rows = book_repo.search_books(repo_db, "978-0")
     assert len(rows) == 1 and rows[0]["book_id"] == book_b
+
+
+def test_search_books_dashless_isbn_when_book_copies_empty(repo_db):
+    cat_a = book_repo.add_category(repo_db, "หมวด A")
+    cat_b = book_repo.add_category(repo_db, "หมวด B")
+    book_a = book_repo.add_book(repo_db, title="Alpha", isbn="978-0-11-000001-1", category_id=cat_a)
+    repo_db.commit()
+
+    rows = book_repo.search_books(repo_db, "9780110000011")
+    assert len(rows) == 1 and rows[0]["book_id"] == book_a
+
+    assert len(book_repo.search_books(repo_db, "9780110000011", category_id=cat_a)) == 1
+    assert book_repo.search_books(repo_db, "9780110000011", category_id=cat_b) == []
+
+
+def test_search_books_barcode_isbn_precedence_with_category(repo_db):
+    cat_a = book_repo.add_category(repo_db, "หมวด A")
+    cat_b = book_repo.add_category(repo_db, "หมวด B")
+    book_a = book_repo.add_book(repo_db, title="Alpha", isbn="978-0-11-000001-1", category_id=cat_a)
+    book_repo.add_copies(repo_db, book_a, barcodes=["BAR-100"])
+    book_b = book_repo.add_book(repo_db, title="Beta", isbn="978-0-22-000002-2", category_id=cat_b)
+    book_repo.add_copies(repo_db, book_b, barcodes=["BAR-200"])
+    repo_db.commit()
+
+    assert book_repo.search_books(repo_db, "9780220000022", category_id=cat_a) == []
+    assert book_repo.search_books(repo_db, "BAR-200", category_id=cat_a) == []
+
+
+def test_rewind_sequence_rejects_unwhitelisted_table(repo_db):
+    with pytest.raises(ValueError, match="Unsupported sequence target"):
+        book_repo._rewind_sequence(repo_db, "students; DROP TABLE books;--", "student_id")
+    with pytest.raises(ValueError, match="Unsupported sequence target"):
+        book_repo._rewind_sequence(repo_db, "books", "copy_id")
+

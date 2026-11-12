@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from core.shared.log_service import record_activity
 
 
@@ -59,19 +59,6 @@ def _normalize_isbn(isbn: Optional[str]) -> Optional[str]:
     if not isbn or not str(isbn).strip():
         return None
     return str(isbn).strip().replace("-", "").replace(" ", "").upper()
-
-
-def get_book_by_isbn(conn: sqlite3.Connection, isbn: Optional[str]) -> Optional[sqlite3.Row]:
-    """Retrieve any book matching normalized ISBN."""
-    clean = _normalize_isbn(isbn)
-    if not clean:
-        return None
-    sql = """
-        SELECT * FROM books
-        WHERE UPPER(REPLACE(REPLACE(isbn, '-', ''), ' ', '')) = ?
-        LIMIT 1
-    """
-    return conn.execute(sql, (clean,)).fetchone()
 
 
 def get_active_book_by_isbn(conn: sqlite3.Connection, isbn: Optional[str]) -> Optional[sqlite3.Row]:
@@ -172,8 +159,13 @@ def update_book(
         )
 
 
+_ALLOWED_SEQUENCE_TARGETS = {"books": "book_id", "book_copies": "copy_id"}
+
+
 def _rewind_sequence(conn: sqlite3.Connection, table_name: str, pk_col: str) -> None:
     """Rewind sqlite_sequence for table if seq exceeds current maximum PK."""
+    if _ALLOWED_SEQUENCE_TARGETS.get(table_name) != pk_col:
+        raise ValueError(f"Unsupported sequence target: {table_name}.{pk_col}")
     sql = f"""
         UPDATE sqlite_sequence
         SET seq = (SELECT COALESCE(MAX({pk_col}), 0) FROM {table_name})
@@ -272,6 +264,43 @@ def get_book(conn: sqlite3.Connection, book_id: int) -> Optional[sqlite3.Row]:
     return conn.execute(sql, (book_id,)).fetchone()
 
 
+def _build_book_query_clause(clean_query: str) -> Tuple[str, List[Any]]:
+    """Build FTS5/LIKE text, dash-less ISBN, and barcode match clause."""
+    if len(clean_query) < 3:
+        like_param = f"%{clean_query}%"
+        base_cond = "(b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ?)"
+        params: List[Any] = [like_param, like_param, like_param]
+    else:
+        escaped = clean_query.replace('"', '""')
+        fts_query = f'"{escaped}"*' if " " not in escaped else f'"{escaped}"'
+        base_cond = "b.book_id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)"
+        params = [fts_query]
+    norm_query = clean_query.lower().replace("-", "")
+    cond = (
+        f"({base_cond} "
+        "OR REPLACE(LOWER(b.isbn), '-', '') LIKE ? "
+        "OR EXISTS (SELECT 1 FROM book_copies bc "
+        "WHERE bc.book_id = b.book_id AND REPLACE(LOWER(bc.barcode), '-', '') = ?))"
+    )
+    params.extend([f"%{norm_query}%", norm_query])
+    return cond, params
+
+
+def _build_book_search_where(query: str, category_id: Optional[int]) -> Tuple[str, List[Any]]:
+    """Assemble WHERE clause and parameters for active book search."""
+    conditions = ["b.active = 1"]
+    params: List[Any] = []
+    clean_query = query.strip()
+    if clean_query:
+        query_cond, query_params = _build_book_query_clause(clean_query)
+        conditions.append(query_cond)
+        params.extend(query_params)
+    if category_id is not None:
+        conditions.append("b.category_id = ?")
+        params.append(category_id)
+    return " WHERE " + " AND ".join(conditions), params
+
+
 def search_books(
     conn: sqlite3.Connection,
     query: str,
@@ -279,57 +308,15 @@ def search_books(
     limit: int = 50,
     offset: int = 0,
 ) -> List[sqlite3.Row]:
-    """Search active books using FTS5 with optional category filter.
-
-    The query also matches barcode stickers (normalized exact match against
-    book_copies.barcode) and dash-less ISBN input (normalized substring
-    against books.isbn).
-    """
-    conditions = ["b.active = 1"]
-    params: List[Any] = []
-
-    clean_query = query.strip()
-    if clean_query:
-        if len(clean_query) < 3:
-            query_cond = "(b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ?)"
-            like_param = f"%{clean_query}%"
-            params.extend([like_param, like_param, like_param])
-        else:
-            escaped = clean_query.replace('"', '""')
-            fts_query = f'"{escaped}"*' if " " not in escaped else f'"{escaped}"'
-            query_cond = "b.book_id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)"
-            params.append(fts_query)
-        # Barcode sticker match: query also matches normalized (lowercase,
-        # dash-insensitive) book_copies.barcode, OR'd with the text query.
-        # Dash-less ISBN: same normalization against books.isbn so raw scanned
-        # or pasted ISBN digits (no dashes) hit via substring.
-        # shortcut: full scan of book_copies / normalized isbn per search
-        # (no index); upgrade to a trigram index if ~10k+ copies.
-        norm_barcode = clean_query.lower().replace("-", "")
-        query_cond = (
-            f"({query_cond} OR EXISTS (SELECT 1 FROM book_copies bc "
-            "WHERE bc.book_id = b.book_id "
-            "AND REPLACE(LOWER(bc.barcode), '-', '') = ? "
-            "OR REPLACE(LOWER(b.isbn), '-', '') LIKE ?))"
-        )
-        params.extend([norm_barcode, f"%{norm_barcode}%"])
-        conditions.append(query_cond)
-
-    if category_id is not None:
-        conditions.append("b.category_id = ?")
-        params.append(category_id)
-
-    where_clause = " WHERE " + " AND ".join(conditions)
-
-    sql = f"""
-        SELECT b.*, c.name as category_name,
-               (SELECT count(*) FROM book_copies bc WHERE bc.book_id = b.book_id AND bc.status = 'available') as available_copies
-        FROM books b
-        LEFT JOIN categories c ON c.category_id = b.category_id
-        {where_clause}
-        ORDER BY b.book_id DESC
-        LIMIT ? OFFSET ?
-    """
+    """Search active books using FTS5, barcode stickers, and dash-less ISBN."""
+    where_clause, params = _build_book_search_where(query, category_id)
+    sql = (
+        "SELECT b.*, c.name as category_name, "
+        "(SELECT count(*) FROM book_copies bc "
+        "WHERE bc.book_id = b.book_id AND bc.status = 'available') as available_copies "
+        "FROM books b LEFT JOIN categories c ON c.category_id = b.category_id "
+        f"{where_clause} ORDER BY b.book_id DESC LIMIT ? OFFSET ?"
+    )
     params.extend([limit, offset])
     return conn.execute(sql, params).fetchall()
 
