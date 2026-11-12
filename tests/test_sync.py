@@ -103,3 +103,28 @@ def test_sync_lifecycle_with_id_renumbering_and_loans(sync_env):
     # Verify sync_state
     cur.execute("SELECT value FROM sync_state WHERE key = 'last_synced_at'")
     assert cur.fetchone() is not None
+
+
+def test_apply_sync_opens_snapshot_once(sync_env, monkeypatch):
+    import sqlite3
+    s_conn = sync_env["s_conn"]
+    l_conn = sync_env["l_conn"]
+    snap_path = sync_env["snapshot_path"]
+
+    s_conn.execute("INSERT INTO students (student_id, full_name, status) VALUES (2001, 'ทดสอบ ซิงค์', 'active')")
+    s_conn.commit()
+    assert export_snapshot(s_conn, snap_path).ok is True
+
+    connect_calls = []
+    real_connect = sqlite3.connect
+
+    def spy_connect(target, *args, **kwargs):
+        if str(target) == snap_path:
+            connect_calls.append(str(target))
+        return real_connect(target, *args, **kwargs)
+
+    monkeypatch.setattr(sqlite3, "connect", spy_connect)
+    res = apply_sync(snap_path, l_conn)
+    assert res.ok is True
+    assert len(connect_calls) == 1
+
