@@ -45,3 +45,16 @@ All modal action dialogs are isolated into `StudentActionDialogs.qml` with expli
 ## 4. UI Adapter Safeguards (`StudentAdminAdapter`)
 - All database payloads sent to QML are passed through `_sanitize_for_qml` to convert `None` values into typed defaults (e.g. `""` for strings, `0` for numeric IDs) to prevent QML engine type errors.
 - Method returns use `Result.to_dict()` or `json.dumps({"ok": bool, "data": ..., "error": ..., "warnings": [...]})`.
+
+---
+
+## 5. Typography & Responsive Layout (2026-11-12 modernization)
+Aligned with the Librarian Management reference patterns (invariants #6/#7):
+- `Main.qml` forces a light `palette.*` block (dark-mode guard for `StyledTextInput`/`StyledComboBox`) and exposes `fontScale`/`appFontFamily`/`appFontSize` bound to `SettingsView`.
+- Sidebar nav delegates: dynamic `implicitHeight: Math.max(38, text.implicitHeight + 12)` (replaces fixed 42px) + scale-based fonts. Static sidebar controls (`sidebarTitleText`, `openWizardBtn`, status line) scale via `window.fontScale`.
+- `StudentDetailView.qml`: empty-state / info cards use `implicitHeight: Math.max(min, content.implicitHeight + pad)`; status badge, feedback bar, and the three colored action-button backgrounds are dynamic (no fixed 140/26/44/42px). Fonts scale via `window.fontScale`; the info card gets a `Typography.applyToItem` pass (idempotent — baseline extraction divides out the current factor).
+- `BulkPromotionView.qml` / `LineSyncExportView.qml` / `ExcelImportView.qml`: titles/body/badges scale with `window.fontScale`; the file-selection card and the four diff-summary badges use dynamic heights.
+- `main.py` wires `setup_app_logging("SMTE-StudentManagement")` (rotating `app.log`, same as the librarian app).
+- New objectNames for test discovery: `sidebarTitleText`, `sidebarNavRepeater`, `infoCard`, `detailStatusBadge`, `newBadgeBox`, `promoBadgeBox`, `missingBadgeBox`, `conflictBadgeBox`.
+- Tests: `tests/test_ui_student_modernization.py` (6 tests: logging wiring, light-palette contract, dynamic nav-delegate height via standalone `QQmlComponent` instance, sidebar typography scaling, detail card/badge heights, import badges + font scaling).
+

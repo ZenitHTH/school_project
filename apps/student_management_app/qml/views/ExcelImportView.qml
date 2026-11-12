@@ -42,18 +42,21 @@ Rectangle {
         Text {
             text: "คลิกปุ่มเพื่อเลือกไฟล์ Excel บัญชีรายชื่อนักเรียนจากเครื่องคอมพิวเตอร์ (ต้องมีชีต ม.1 - ม.6 ตามโครงสร้างมาตรฐาน)"
             color: "#64748b"
+            font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
         }
 
         // File selection component
         Rectangle {
             Layout.fillWidth: true
-            height: 100
+            implicitHeight: Math.max(88, Math.round(fileCardContent.implicitHeight + 32))
+            height: implicitHeight
             color: "#f8fafc"
             border.color: root.selectedXlsxPath ? "#3b82f6" : "#cbd5e1"
             border.width: root.selectedXlsxPath ? 2 : 1
             radius: 8
 
             RowLayout {
+                id: fileCardContent
                 anchors.fill: parent
                 anchors.margins: 16
                 spacing: 16
@@ -82,7 +85,7 @@ Rectangle {
                         objectName: "selectedFilePath"
                         text: root.selectedXlsxPath ? root.selectedXlsxPath : "กรุณากดปุ่ม 'เลือกไฟล์ Excel' เพื่อเปิดหน้าต่างเลือกไฟล์"
                         color: "#1e293b"
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
                         elide: Text.ElideMiddle
                         Layout.fillWidth: true
                     }
@@ -129,7 +132,7 @@ Rectangle {
                         objectName: "importStatusText"
                         text: "ยังไม่มีการนำเข้า"
                         font.bold: true
-                        font.pixelSize: 15
+                        font.pixelSize: Math.max(13, Math.round(15 * (window.fontScale || 1.0)))
                         color: "#1e293b"
                         Layout.fillWidth: true
                     }
@@ -142,7 +145,9 @@ Rectangle {
                     visible: diffModel.count > 0
 
                     Rectangle {
-                        height: 34
+                        objectName: "newBadgeBox"
+                        implicitHeight: Math.max(30, Math.round(newBadgeText.implicitHeight + 12))
+                        height: implicitHeight
                         radius: 6
                         color: "#ecfdf5"
                         border.color: "#a7f3d0"
@@ -157,13 +162,15 @@ Rectangle {
                                 text: "• นักเรียนใหม่: 0 คน"
                                 color: "#059669"
                                 font.bold: true
-                                font.pixelSize: 13
+                                font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
                             }
                         }
                     }
 
                     Rectangle {
-                        height: 34
+                        objectName: "promoBadgeBox"
+                        implicitHeight: Math.max(30, Math.round(promoBadgeText.implicitHeight + 12))
+                        height: implicitHeight
                         radius: 6
                         color: "#f0f9ff"
                         border.color: "#bae6fd"
@@ -178,13 +185,15 @@ Rectangle {
                                 text: "• เลื่อนชั้น/เปลี่ยนห้อง: 0 คน"
                                 color: "#0284c7"
                                 font.bold: true
-                                font.pixelSize: 13
+                                font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
                             }
                         }
                     }
 
                     Rectangle {
-                        height: 34
+                        objectName: "missingBadgeBox"
+                        implicitHeight: Math.max(30, Math.round(missingBadgeText.implicitHeight + 12))
+                        height: implicitHeight
                         radius: 6
                         color: "#f8fafc"
                         border.color: "#cbd5e1"
@@ -199,13 +208,15 @@ Rectangle {
                                 text: "• ไม่มีในไฟล์: 0 คน (คงเดิม)"
                                 color: "#64748b"
                                 font.bold: true
-                                font.pixelSize: 13
+                                font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
                             }
                         }
                     }
 
                     Rectangle {
-                        height: 34
+                        objectName: "conflictBadgeBox"
+                        implicitHeight: Math.max(30, Math.round(conflictBadgeText.implicitHeight + 12))
+                        height: implicitHeight
                         radius: 6
                         color: "#fffbeb"
                         border.color: "#fde68a"
@@ -220,7 +231,7 @@ Rectangle {
                                 text: "• สะกดต่างจากเดิม: 0 คน"
                                 color: "#d97706"
                                 font.bold: true
-                                font.pixelSize: 13
+                                font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
                             }
                         }
                     }

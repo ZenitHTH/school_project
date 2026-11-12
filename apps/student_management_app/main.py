@@ -54,8 +54,11 @@ def run_cli_first_launch(adapter: StudentAdminAdapter) -> None:
 
 
 from data.paths import get_default_db_path
+from core.shared.app_logging import setup_app_logging
+
 
 def main():
+    setup_app_logging("SMTE-StudentManagement")
     default_path = str(get_default_db_path("SMTE-StudentManagement", "student.sqlite"))
     db_path = os.environ.get("STUDENT_DB_PATH", default_path)
     pin = os.environ.get("STUDENT_DB_PIN", "123456")

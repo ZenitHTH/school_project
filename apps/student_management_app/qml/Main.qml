@@ -14,7 +14,19 @@ ApplicationWindow {
     minimumWidth: 900
     minimumHeight: 600
     title: "ระบบจัดการข้อมูลนักเรียน (Student Management)"
-    color: "#f5f6f8"
+    color: "#f8fafc"
+
+    // Force light palette so TextFields/ComboBoxes always show dark text
+    // regardless of system dark mode (Fusion style inherits system palette)
+    palette.window: "#f8fafc"
+    palette.windowText: "#1e293b"
+    palette.base: "#ffffff"
+    palette.text: "#1e293b"
+    palette.button: "#e2e8f0"
+    palette.buttonText: "#1e293b"
+    palette.highlight: "#2563eb"
+    palette.highlightedText: "#ffffff"
+    palette.placeholderText: "#94a3b8"
 
     property var selectedStudent: null
     property string selectedXlsxPath: ""
@@ -85,10 +97,12 @@ ApplicationWindow {
                 spacing: 12
 
                 Text {
+                    id: sidebarTitleText
+                    objectName: "sidebarTitleText"
                     text: "🎓 งานทะเบียนนักเรียน"
                     color: "#ffffff"
                     font.bold: true
-                    font.pixelSize: 18
+                    font.pixelSize: Math.max(16, Math.round(18 * (window.fontScale || 1.0)))
                     Layout.alignment: Qt.AlignHCenter
                     Layout.topMargin: 10
                 }
@@ -101,6 +115,8 @@ ApplicationWindow {
                 }
 
                 Repeater {
+                    id: sidebarNavRepeater
+                    objectName: "sidebarNavRepeater"
                     model: [
                         { text: "🔍 ค้นหานักเรียน", index: 0 },
                         { text: "👤 ข้อมูลนักเรียน / แก้ไข", index: 1 },
@@ -111,8 +127,11 @@ ApplicationWindow {
                         { text: "⚙️ การตั้งค่าระบบ (Settings)", index: 6 }
                     ]
                     delegate: Rectangle {
+                        id: navDelegate
+                        objectName: "sidebarNavDelegate"
                         Layout.fillWidth: true
-                        height: 42
+                        implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 12))
+                        height: implicitHeight
                         radius: 8
                         color: stackLayout.currentIndex === modelData.index ? "#2563eb" : (sideMouse.containsMouse ? "#1e293b" : "transparent")
 
@@ -121,9 +140,10 @@ ApplicationWindow {
                             anchors.leftMargin: 14
                             anchors.rightMargin: 14
                             Text {
+                                id: navText
                                 text: modelData.text
                                 color: stackLayout.currentIndex === modelData.index ? "#ffffff" : "#cbd5e1"
-                                font.pixelSize: Math.max(13, baseFontSize)
+                                font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
                                 font.bold: stackLayout.currentIndex === modelData.index
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
@@ -152,7 +172,7 @@ ApplicationWindow {
                     variant: StyledButton.Ghost
                     Layout.fillWidth: true
                     text: "⚙️ ตัวช่วยสร้างฐานข้อมูล"
-                    font.pixelSize: 11
+                    font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                     flat: true
                     onClicked: firstLaunchDialog.open()
                 }
@@ -160,7 +180,7 @@ ApplicationWindow {
                 Text {
                     text: "สถานะ: เชื่อมต่อฐานข้อมูลแล้ว"
                     color: "#94a3b8"
-                    font.pixelSize: 12
+                    font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0)))
                     Layout.alignment: Qt.AlignHCenter
                 }
             }

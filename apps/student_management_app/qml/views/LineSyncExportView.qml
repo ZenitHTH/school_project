@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml/Typography.js" as Typography
 import "../../../common_qml"
 
 Rectangle {
@@ -19,13 +20,14 @@ Rectangle {
         Text {
             text: "ส่งออกข้อมูลนักเรียนเพื่อ Sync กับห้องสมุด (LINE)"
             font.bold: true
-            font.pixelSize: 22
+            font.pixelSize: Math.max(20, Math.round(22 * (window.fontScale || 1.0)))
             color: "#0f172a"
         }
 
         Text {
             text: "สร้างไฟล์ snapshot.sqlite เพื่อส่งต่อให้ผู้ดูแลห้องสมุดนำเข้าสู่ระบบ"
             color: "#64748b"
+            font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
         }
 
         StyledButton {

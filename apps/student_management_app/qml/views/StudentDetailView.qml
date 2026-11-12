@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml/Typography.js" as Typography
 import "../../../common_qml"
 
 Rectangle {
@@ -33,7 +34,7 @@ Rectangle {
             Text {
                 text: "ข้อมูลนักเรียนรายบุคคลและการจัดการ"
                 font.bold: true
-                font.pixelSize: 22
+                font.pixelSize: Math.max(20, Math.round(22 * (window.fontScale || 1.0)))
                 color: "#0f172a"
             }
             Item { Layout.fillWidth: true }
@@ -41,7 +42,7 @@ Rectangle {
                 variant: StyledButton.Neutral
                 id: btnBackToSearch
                 text: "← กลับไปค้นหานักเรียน"
-                font.pixelSize: 13
+                font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
                 implicitWidth: 160
                 onClicked: root.backToSearchRequested()
             }
@@ -50,20 +51,22 @@ Rectangle {
         // Empty state — shown when no student is selected
         Rectangle {
             Layout.fillWidth: true
-            height: 180
+            implicitHeight: Math.max(160, Math.round(emptyStateContent.implicitHeight + 48))
+            height: implicitHeight
             color: "#f8fafc"
             border.color: "#cbd5e1"
             radius: 10
             visible: root.selectedStudent === null
 
             ColumnLayout {
+                id: emptyStateContent
                 anchors.centerIn: parent
                 spacing: 14
 
                 Text {
                     text: "🔍 ยังไม่ได้เลือกข้อมูลนักเรียน"
                     font.bold: true
-                    font.pixelSize: 18
+                    font.pixelSize: Math.max(16, Math.round(18 * (window.fontScale || 1.0)))
                     color: "#1e293b"
                     Layout.alignment: Qt.AlignHCenter
                 }
@@ -116,12 +119,16 @@ Rectangle {
 
         // Student info card — shown when a student is selected
         Rectangle {
+            id: infoCard
+            objectName: "infoCard"
             Layout.fillWidth: true
-            height: 140
+            implicitHeight: Math.max(140, Math.round(infoCardContent.implicitHeight + 32))
+            height: implicitHeight
             color: "#ffffff"
             border.color: "#e2e8f0"
             radius: 10
             visible: root.selectedStudent !== null
+            Component.onCompleted: Typography.applyToItem(this)
 
             Rectangle {
                 width: 6
@@ -132,6 +139,7 @@ Rectangle {
             }
 
             ColumnLayout {
+                id: infoCardContent
                 anchors.fill: parent
                 anchors.leftMargin: 24
                 anchors.rightMargin: 20
@@ -145,19 +153,23 @@ Rectangle {
                         id: detailName
                         text: root.selectedStudent ? root.selectedStudent.full_name : ""
                         font.bold: true
-                        font.pixelSize: 22
+                        font.pixelSize: Math.max(20, Math.round(22 * (window.fontScale || 1.0)))
                         color: "#0f172a"
                     }
                     Rectangle {
-                        height: 26
+                        id: detailStatusBadge
+                        objectName: "detailStatusBadge"
+                        implicitHeight: Math.max(26, Math.round(detailStatusTxt.implicitHeight + 6))
+                        height: implicitHeight
                         radius: 13
-                        Layout.preferredWidth: 80
+                        Layout.preferredWidth: Math.max(80, Math.round(80 * (window.fontScale || 1.0)))
                         color: (root.selectedStudent && (!root.selectedStudent.status || root.selectedStudent.status === "active")) ? "#dcfce7" : (root.selectedStudent && root.selectedStudent.status === "on_leave" ? "#fef9c3" : (root.selectedStudent && root.selectedStudent.status === "transferred_out" ? "#fee2e2" : "#f1f5f9"))
                         Text {
+                            id: detailStatusTxt
                             anchors.centerIn: parent
                             text: root.selectedStudent ? ((!root.selectedStudent.status || root.selectedStudent.status === "active") ? "ปกติ" : (root.selectedStudent.status === "on_leave" ? "พักการเรียน" : (root.selectedStudent.status === "transferred_out" ? "จำหน่าย" : root.selectedStudent.status))) : ""
                             color: (root.selectedStudent && (!root.selectedStudent.status || root.selectedStudent.status === "active")) ? "#166534" : (root.selectedStudent && root.selectedStudent.status === "on_leave" ? "#854d0e" : (root.selectedStudent && root.selectedStudent.status === "transferred_out" ? "#991b1b" : "#475569"))
-                            font.pixelSize: Math.max(10, root.baseFontSize)
+                            font.pixelSize: Math.max(9, Math.round(11 * (window.fontScale || 1.0)))
                             font.bold: true
                         }
                     }
@@ -173,7 +185,7 @@ Rectangle {
                                + "   |   แผนการเรียน: " + (root.selectedStudent.track || "-"))
                             : ""
                         color: "#475569"
-                        font.pixelSize: Math.max(13, root.baseFontSize)
+                        font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
                     }
                 }
 
@@ -182,7 +194,7 @@ Rectangle {
                         ? ("เลขประจำตัวประชาชน: " + (root.selectedStudent.national_id || "ไม่มีข้อมูล"))
                         : ""
                     color: "#94a3b8"
-                    font.pixelSize: 13
+                    font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
                 }
             }
         }
@@ -190,7 +202,7 @@ Rectangle {
         Text {
             text: "การดำเนินการทางทะเบียน (คลิกปุ่มเพื่อดำเนินการ):"
             font.bold: true
-            font.pixelSize: 16
+            font.pixelSize: Math.max(14, Math.round(16 * (window.fontScale || 1.0)))
             color: "#334155"
             visible: root.selectedStudent !== null
         }
@@ -223,7 +235,7 @@ Rectangle {
                 enabled: root.selectedStudent !== null
                 background: Rectangle {
                     implicitWidth: 150
-                    implicitHeight: 42
+                    implicitHeight: Math.max(40, Math.round(btnStatus.contentItem.implicitHeight + 14))
                     color: btnStatus.down ? "#b45309" : (btnStatus.hovered ? "#d97706" : "#f59e0b")
                     radius: 8
                 }
@@ -240,7 +252,7 @@ Rectangle {
                 enabled: root.selectedStudent !== null
                 background: Rectangle {
                     implicitWidth: 170
-                    implicitHeight: 42
+                    implicitHeight: Math.max(40, Math.round(btnName.contentItem.implicitHeight + 14))
                     color: btnName.down ? "#047857" : (btnName.hovered ? "#059669" : "#10b981")
                     radius: 8
                 }
@@ -257,7 +269,7 @@ Rectangle {
                 enabled: root.selectedStudent !== null
                 background: Rectangle {
                     implicitWidth: 175
-                    implicitHeight: 42
+                    implicitHeight: Math.max(40, Math.round(btnId.contentItem.implicitHeight + 14))
                     color: btnId.down ? "#6d28d9" : (btnId.hovered ? "#7c3aed" : "#8b5cf6")
                     radius: 8
                 }
@@ -268,7 +280,8 @@ Rectangle {
         // Action result feedback
         Rectangle {
             Layout.fillWidth: true
-            height: actionFeedback.text ? 44 : 0
+            implicitHeight: actionFeedback.text ? Math.max(36, Math.round(actionFeedback.implicitHeight + 14)) : 0
+            height: implicitHeight
             color: actionFeedback.isError ? "#fee2e2" : "#dcfce7"
             radius: 6
             visible: actionFeedback.text !== ""

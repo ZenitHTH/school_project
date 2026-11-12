@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
+import "../../../common_qml/Typography.js" as Typography
 import "../../../common_qml"
 
 Rectangle {
@@ -19,13 +20,14 @@ Rectangle {
         Text {
             text: "การเลื่อนชั้นเรียนประจำปีการศึกษา (Bulk Promotion)"
             font.bold: true
-            font.pixelSize: 22
+            font.pixelSize: Math.max(20, Math.round(22 * (window.fontScale || 1.0)))
             color: "#0f172a"
         }
 
         Text {
             text: "ระบบจะทำการเลื่อนชั้นนักเรียนที่สถานะ 'ปกติ' ทั้งหมดจาก ม.1 -> ม.2, ม.2 -> ม.3 ... ม.5 -> ม.6 และจบการศึกษา ม.6"
             color: "#475569"
+            font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
             wrapMode: Text.Wrap
             Layout.fillWidth: true
         }
