@@ -321,6 +321,7 @@ Rectangle {
         genBookTitle.text = ""
         genBookAuthor.text = ""
         genBookIsbn.text = ""
+        chkNoIsbnGen.checked = false
         genShelfLocation.text = ""
         genCopyCountInput.text = "1"
         genCategoryCombo.currentIndex = 0
@@ -388,7 +389,7 @@ Rectangle {
             return
         }
         var title = genBookTitle.text.trim()
-        var isbn = genBookIsbn.text.trim()
+        var isbn = chkNoIsbnGen.checked ? "" : genBookIsbn.text.trim()
         var existingBook = findExistingBookCandidate(isbn, title)
         if (existingBook) {
             saveExistingBookCopies(existingBook, count)
@@ -547,6 +548,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     placeholderText: "เช่น 978-616-00-1234-5"
                                     selectByMouse: true
+                                    enabled: !chkNoIsbnGen.checked
                                     onAccepted: {
                                         barcodeGenScreen.checkIsbnDuplicate(text.trim())
                                         if (chkAutoFetchIsbn.checked && barcodeGenScreen.duplicateBook === null) {
@@ -604,6 +606,19 @@ Rectangle {
                                 text: "ค้นหาอัตโนมัติเมื่อสแกน (Auto-fetch on scan)"
                                 checked: true
                                 font.pixelSize: 12
+                            }
+
+                            CheckBox {
+                                id: chkNoIsbnGen
+                                objectName: "chkNoIsbnGen"
+                                text: "ไม่มี ISBN (No ISBN)"
+                                font.pixelSize: 12
+                                onCheckedChanged: {
+                                    if (checked)
+                                        genBookIsbn.text = "-"
+                                    else if (genBookIsbn.text === "-")
+                                        genBookIsbn.text = ""
+                                }
                             }
 
                             RowLayout {

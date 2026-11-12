@@ -58,6 +58,7 @@ Item {
         editBookTitleInput.text = title
         editBookAuthorInput.text = author
         editBookIsbnInput.text = isbn
+        editBookDialog.chkNoIsbnEdit.checked = (isbn === "")
         editBookShelfInput.text = shelf
         editBookStatusText.text = ""
         var copies = (typeof totalCopies === "number" && totalCopies > 0) ? totalCopies : (parseInt(totalCopies) || 1)
@@ -92,7 +93,7 @@ Item {
         var res = JSON.parse(librarianAdmin.updateBook(
             editBookDialog.targetBookId,
             title,
-            editBookIsbnInput.text.trim(),
+            editBookDialog.chkNoIsbnEdit.checked ? "" : editBookIsbnInput.text.trim(),
             editBookAuthorInput.text.trim(),
             catId,
             editBookShelfInput.text.trim()
@@ -243,6 +244,7 @@ Item {
             newBookAuthor.text = ""
             newBookIsbn.text = ""
             newBookBarcodes.text = "1"
+            chkNoIsbn.checked = false
         }
 
         ColumnLayout {
@@ -261,6 +263,7 @@ Item {
                     id: newBookIsbn
                     objectName: "newBookIsbn"
                     placeholderText: "ISBN (บาร์โค้ดจากสำนักพิมพ์)"
+                    enabled: !chkNoIsbn.checked
                     Layout.fillWidth: true
                     onAccepted: {
                         root.checkDialogIsbnDuplicate(text)
@@ -294,6 +297,18 @@ Item {
                     text: "🔍 ดึงข้อมูล"
                     implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
                     onClicked: root.fetchDialogIsbnAndAutofill()
+                }
+                CheckBox {
+                    id: chkNoIsbn
+                    objectName: "chkNoIsbnAdd"
+                    text: "ไม่มี ISBN (No ISBN)"
+                    font.pixelSize: 12
+                    onCheckedChanged: {
+                        if (checked)
+                            newBookIsbn.text = "-"
+                        else if (newBookIsbn.text === "-")
+                            newBookIsbn.text = ""
+                    }
                 }
             }
             CheckBox {
@@ -329,7 +344,7 @@ Item {
 
         onAccepted: {
             if (!newBookTitle.text.trim()) return
-            var res = JSON.parse(librarianAdmin.addBook(newBookTitle.text, newBookIsbn.text, newBookAuthor.text, "", "", "", newBookBarcodes.text))
+            var res = JSON.parse(librarianAdmin.addBook(newBookTitle.text, chkNoIsbn.checked ? "" : newBookIsbn.text, newBookAuthor.text, "", "", "", newBookBarcodes.text))
             if (res.ok) {
                 if (res.data && res.data.barcodes && res.data.barcodes.length > 0) {
                     barcodeConfirmModel.clear()

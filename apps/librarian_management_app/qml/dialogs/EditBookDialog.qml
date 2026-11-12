@@ -26,6 +26,7 @@ StyledDialog {
     property alias editBookShelfInput: shelfInput
     property alias editBookCopiesInput: copiesInput
     property alias editBookStatusText: statusText
+    property alias chkNoIsbnEdit: chkNoIsbn
 
     signal saved()
 
@@ -231,6 +232,19 @@ StyledDialog {
                                     Layout.fillWidth: true
                                     selectByMouse: true
                                     font.pixelSize: 12
+                                    enabled: !chkNoIsbn.checked
+                                }
+                                CheckBox {
+                                    id: chkNoIsbn
+                                    objectName: "chkNoIsbnEdit"
+                                    text: "ไม่มี ISBN (No ISBN)"
+                                    font.pixelSize: 12
+                                    onCheckedChanged: {
+                                        if (checked)
+                                            isbnInput.text = "-"
+                                        else if (isbnInput.text === "-")
+                                            isbnInput.text = ""
+                                    }
                                 }
                             }
                         }

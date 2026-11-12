@@ -163,3 +163,29 @@ def test_styled_text_input_component(qapp):
     assert val in (4, 128)
     bg = item.property("background")
     assert bg is not None and bg.property("implicitHeight") >= 38
+
+
+def test_no_isbn_checkbox_locks_field(qapp):
+    """No-ISBN checkboxes lock the ISBN field and show '-' in all three dialogs."""
+    pairs = [
+        ("apps/librarian_management_app/qml/dialogs/BookActionDialogs.qml",
+         "chkNoIsbnAdd", "newBookIsbn"),
+        ("apps/librarian_management_app/qml/dialogs/EditBookDialog.qml",
+         "chkNoIsbnEdit", "editBookIsbnInput"),
+        ("apps/librarian_management_app/qml/views/BarcodeGeneratorView.qml",
+         "chkNoIsbnGen", "genBookIsbn"),
+    ]
+    for rel, chk_name, field_name in pairs:
+        _engine, root = _load_view(rel)
+        chk = root.findChild(object, chk_name)
+        field = root.findChild(object, field_name)
+        assert chk is not None, f"{chk_name} not found in {rel}"
+        assert field is not None, f"{field_name} not found in {rel}"
+        chk.setProperty("checked", True)
+        qapp.processEvents()
+        assert field.property("enabled") is False, f"{field_name} not locked"
+        assert field.property("text") == "-", f"{field_name} should show '-'"
+        chk.setProperty("checked", False)
+        qapp.processEvents()
+        assert field.property("enabled") is True, f"{field_name} not re-enabled"
+        assert field.property("text") == "", f"{field_name} not cleared"
