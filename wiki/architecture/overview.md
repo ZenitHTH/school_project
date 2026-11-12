@@ -48,12 +48,12 @@ graph TD
 │                    Core Services Layer                   │
 │  - StudentService, EnrollmentService                     │
 │  - CatalogService, LoanService, FineService              │
-│  - xlsx_diff_importer, build_db                          │
+│  - xlsx_diff_importer, build_db, roster_parser           │
 └────────────────────────────┬─────────────────────────────┘
                              │ SQL Queries / Transactions
 ┌────────────────────────────▼─────────────────────────────┐
 │                   Data & Persistence Layer               │
-│  - student_repo, catalog_repo, loan_repo, log_repo       │
+│  - student_repo, book_repo, loan_repo, log_repo          │
 │  - SQLite with FTS5 trigram + PRAGMA encryption          │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -64,4 +64,4 @@ graph TD
 1. **Single Source of Truth**: Student master data originates in Student Management and syncs to Library via snapshot diffs.
 2. **Crash-Proof QML**: Adapters sanitize all database rows with `_sanitize_for_qml` to prevent null-role crashes and undefined type mismatches in QML bindings.
 3. **Rust-Style `Result[T, E]`**: Business logic never throws unhandled exceptions; operations return `Ok(data)` or `Err(error)` with optional warnings.
-4. **Air-Gapped & Resilient**: Works 100% offline without cloud or network dependencies.
+4. **Offline-First & Air-Gapped**: Core registry, circulation, and student sync work 100% offline with zero cloud dependencies; optional remote ISBN metadata providers fail softly when offline.

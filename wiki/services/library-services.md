@@ -55,10 +55,10 @@ Handles circulation desk borrowing rules and validation pipeline.
   - Calculates overdue days if returned after `due_date`.
   - Automatically assesses fine via `FineService` if overdue.
   - Updates copy status back to `available` (or `reserved` if pending reservations exist).
-- **Renew (`renew_loan`)**:
-  - Validates remaining renewals < `max_renewals`.
+- **Renew (`renew`)**:
+  - Validates remaining renewals < `max_renewals` via `loan_repo.get_renewal_count` (counted from `activity_log` `loan.renew` entries; preserves schema v9).
   - Extends due date by `loan_duration_days`.
-- **Internal structure** (clean-code refactor, 2026-11-09): `checkout` is a thin orchestration calling `_check_student_eligibility` (steps 1–3; returns a failure `Result` or `None`) and `_resolve_checkout_copy` (step 4; `Result.success(copy)` or a failure `Result`). `return_book` delegates overdue-fine assessment to `_assess_overdue_fine` (keeps the same internal error-swallow + `[WARN]` stderr behavior). Public behavior, `Result` shapes, and error messages are unchanged.
+- **Internal structure** (clean-code refactors, 2026-11-09 & 2026-11-12): `checkout` orchestrates `_check_student_eligibility`, `_resolve_checkout_copy`, `ReservationService.fulfill_ready_for_student`, and `_issue_loan` (zero raw `reservations` SQL in `LoanService`). `return_book` delegates overdue-fine assessment to `_assess_overdue_fine` (keeps the same internal error-swallow + `[WARN]` stderr behavior). Public behavior, `Result` shapes, and error messages are unchanged.
 
 ---
 
@@ -101,7 +101,7 @@ Provides ISBN validation and metadata retrieval for book registration.
   - **Match Found**: When matching metadata is retrieved from local cache or remote providers, QML autofill overwrites any existing `Title` and `Author` fields to ensure newly scanned books receive authoritative catalog metadata.
   - **Error Preservation**: When lookup fails (`cannot fetch data`), user-entered text is preserved intact without deletion or corruption.
   - **Auto-Fetch on Scan Option**: Supported via toggle checkbox (`chkAutoFetchIsbn` in `BarcodeGeneratorView`, `chkDialogAutoFetchIsbn` in `BookActionDialogs`, checked by default). Triggers autofill automatically on scanner enter (`onAccepted`) or when 13 digits are scanned (300ms debounce), while keeping manual `[🔍 ดึงข้อมูล]` buttons accessible.
-  - Input and generation actions are disabled during event-loop pump (`ExcludeUserInputEvents`) to prevent re-entrant submissions.
+  - **Qt-Free Service Wait**: `IsbnLookupService._wait_for_future` uses pure-Python bounded polling (`future.result(timeout=...)` + `time.sleep(0.005)`) with zero `PySide6`/`QCoreApplication.processEvents()` calls, avoiding QML binding re-entrancy.
 - **Arabic Digit Validation & "ลืมเปลี่ยนภาษา" Layout Protection**:
   - Barcode scanners or manual entry when typing under Thai keyboard layout (Kedmanee: `'1'` -> `'ๅ'`, `'7'` -> `'ึ'`, `'8'` -> `'ค'`, `'9'` -> `'ต'`, etc.) or Thai numerals (`๑-๙`) are detected by `is_arabic_isbn` in `isbn_providers.py`.
   - Non-Arabic characters immediately fail validation with `Err("ลืมเปลี่ยนภาษา")` before any local database or remote network requests are dispatched.

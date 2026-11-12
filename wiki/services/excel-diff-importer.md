@@ -7,8 +7,9 @@ The Excel Diff Importer handles recurring annual roster imports (e.g. at the sta
 
 ## 2. Key Phases
 
-### 2.1 Fast Read-Only Streaming (`parse_roster_sheets`)
-- Opens `.xlsx` using `openpyxl.load_workbook(file_path, read_only=True, data_only=True)`.
+### 2.1 Fast Read-Only Streaming (`roster_parser` & `parse_roster_sheets`)
+- Shared parsing helpers live in `core/importers/roster_parser.py` (`GRADE_SHEETS`, `TITLE_RE`, `YEAR_RE`, `SEM_RE`, `clean`, `split_name`, `normalize_date`, `to_int`, `iter_grade_rows`, `parse_grade_workbook`), consumed by both `xlsx_diff_importer.py` and `build_db.py`.
+- Both importers open `.xlsx` using `openpyxl.load_workbook(file_path, read_only=True, data_only=True)` and stream via `iter_rows(values_only=True)` with guaranteed `wb.close()`.
 - Scans grade sheets (`ม.1` through `ม.6`).
 - Extracts header title metadata using regex (`TITLE_RE`, `YEAR_RE`, `SEM_RE`).
 - Cleans and splits full names into prefix, first name, last name, and gender via `split_name(c)`.
