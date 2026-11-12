@@ -120,6 +120,19 @@ def has_waiting_reservation(conn: sqlite3.Connection, book_id: int) -> bool:
     return cur.fetchone() is not None
 
 
+def get_ready_reservation_id(
+    conn: sqlite3.Connection,
+    book_id: int,
+    student_id: int,
+) -> Optional[int]:
+    """Return ready reservation ID for a student and book, if any."""
+    row = conn.execute(
+        "SELECT reservation_id FROM reservations WHERE book_id = ? AND student_id = ? AND status = 'ready' LIMIT 1",
+        (book_id, student_id),
+    ).fetchone()
+    return row["reservation_id"] if row else None
+
+
 def list_reservations(conn: sqlite3.Connection, status: Optional[str] = None) -> List[sqlite3.Row]:
     """List reservations with book and student names."""
     conditions = []

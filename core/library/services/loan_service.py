@@ -1,13 +1,13 @@
 import datetime
 import sqlite3
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from core.shared.result import Result
 from core.library.policy import DEFAULT_POLICY, LibraryPolicy
 from core.library.services.fine_service import FineService
 from core.library.services.reservation_service import ReservationService
 from core.student.services.student_service import StudentService
-from data.repositories import book_repo, loan_repo, reservation_repo, student_repo
+from data.repositories import book_repo, loan_repo
 
 
 class LoanService:
@@ -97,6 +97,27 @@ class LoanService:
             )
         return fine_info
 
+    def _issue_loan(
+        self, student_id: int, copy: sqlite3.Row, actor: Optional[str]
+    ) -> Result:
+        """Fulfill any ready reservation and persist the new loan record."""
+        self.reservation_service.fulfill_ready_for_student(
+            copy["book_id"], student_id, actor=actor
+        )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        borrowed_at = now.isoformat()
+        due_at = (now + datetime.timedelta(days=self.policy.loan_duration_days)).isoformat()
+        try:
+            loan_id = loan_repo.create_loan(
+                self.conn, copy["copy_id"], student_id, borrowed_at, due_at, actor=actor
+            )
+            return Result.success({
+                "loan_id": loan_id, "copy_id": copy["copy_id"],
+                "student_id": student_id, "due_at": due_at,
+            })
+        except Exception as e:
+            return Result.fail(f"Failed to complete checkout: {e}")
+
     def checkout(
         self,
         student_id: int,
@@ -104,50 +125,14 @@ class LoanService:
         barcode: Optional[str] = None,
         actor: Optional[str] = None,
     ) -> Result:
-        """
-        Process book checkout with all policy and student status validations.
-        """
+        """Process book checkout with all policy and student status validations."""
         ineligible = self._check_student_eligibility(student_id)
         if ineligible is not None:
             return ineligible
-
         copy_res = self._resolve_checkout_copy(book_id, barcode)
         if not copy_res.ok:
             return copy_res
-        copy = copy_res.data
-
-        # Fulfill the student's ready reservation for this book, if any
-        cur = self.conn.cursor()
-        cur.execute(
-            "SELECT reservation_id FROM reservations WHERE book_id = ? AND student_id = ? AND status = 'ready' LIMIT 1",
-            (copy["book_id"], student_id),
-        )
-        res_row = cur.fetchone()
-        if res_row:
-            self.reservation_service.fulfill(res_row["reservation_id"], actor=actor)
-
-        # Issue the loan
-        now = datetime.datetime.now(datetime.timezone.utc)
-        borrowed_at = now.isoformat()
-        due_at = (now + datetime.timedelta(days=self.policy.loan_duration_days)).isoformat()
-
-        try:
-            loan_id = loan_repo.create_loan(
-                self.conn,
-                copy_id=copy["copy_id"],
-                student_id=student_id,
-                borrowed_at=borrowed_at,
-                due_at=due_at,
-                actor=actor,
-            )
-            return Result.success({
-                "loan_id": loan_id,
-                "copy_id": copy["copy_id"],
-                "student_id": student_id,
-                "due_at": due_at,
-            })
-        except Exception as e:
-            return Result.fail(f"Failed to complete checkout: {e}")
+        return self._issue_loan(student_id, copy_res.data, actor)
 
     def return_book(
         self,
@@ -186,17 +171,16 @@ class LoanService:
             return Result.fail(f"Failed to return book: {e}")
 
     def renew(self, loan_id: int, actor: Optional[str] = None) -> Result:
-        """Extend due date if loan is active and not reserved by others."""
+        """Extend due date if loan is active, within renewal limit, and unreserved."""
         loan = loan_repo.get_loan(self.conn, loan_id)
         if not loan:
             return Result.fail(f"Loan {loan_id} not found")
         if loan["status"] != "active":
             return Result.fail(f"Cannot renew loan in '{loan['status']}' status")
-
+        if loan_repo.get_renewal_count(self.conn, loan_id) >= self.policy.max_renewals:
+            return Result.fail(f"Renewal limit reached: maximum {self.policy.max_renewals} renewal(s) allowed")
         if self.reservation_service.has_waiting(loan["book_id"]):
             return Result.fail("Cannot renew: another student has an active reservation for this book")
-
-        now = datetime.datetime.now(datetime.timezone.utc)
         try:
             due_dt = datetime.datetime.fromisoformat(loan["due_at"])
             new_due = (due_dt + datetime.timedelta(days=self.policy.loan_duration_days)).isoformat()

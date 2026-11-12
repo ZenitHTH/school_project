@@ -174,3 +174,23 @@ def test_return_book_with_naive_iso_timestamp_calculates_overdue_fine(library_en
     unpaid = fine_svc.get_unpaid_total(501)
     assert unpaid > 0
 
+
+def test_renew_enforces_max_renewals(library_env):
+    loan_svc = library_env["loan"]
+    cat_svc = library_env["catalog"]
+    conn = library_env["conn"]
+
+    conn.execute("INSERT INTO students (student_id, full_name, status) VALUES (60, 'ผู้ยืม ต่ออายุ', 'active')")
+    conn.commit()
+    cat_svc.add_book(title="หนังสือต่ออายุ", barcodes=["REN-01"])
+
+    loan_id = loan_svc.checkout(student_id=60, barcode="REN-01").data["loan_id"]
+
+    first = loan_svc.renew(loan_id, actor="Librarian")
+    assert first.ok is True
+
+    second = loan_svc.renew(loan_id, actor="Librarian")
+    assert second.ok is False
+    assert "renewal limit" in second.error.lower()
+
+

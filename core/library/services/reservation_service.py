@@ -1,6 +1,6 @@
 import datetime
 import sqlite3
-from typing import List, Optional
+from typing import Optional
 from core.shared.result import Result
 from data.repositories import book_repo, reservation_repo
 
@@ -58,6 +58,18 @@ class ReservationService:
             return Result.success({"reservation_id": reservation_id})
         except Exception as e:
             return Result.fail(f"Failed to fulfill reservation: {e}")
+
+    def fulfill_ready_for_student(
+        self,
+        book_id: int,
+        student_id: int,
+        actor: Optional[str] = None,
+    ) -> bool:
+        """Fulfill a student's ready reservation for a book if one exists."""
+        res_id = reservation_repo.get_ready_reservation_id(self.conn, book_id, student_id)
+        if res_id is None:
+            return False
+        return self.fulfill(res_id, actor=actor).ok
 
     def has_waiting(self, book_id: int) -> bool:
         """Check if any active reservation is queued for this book."""

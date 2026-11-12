@@ -93,6 +93,16 @@ def renew_loan(
         )
 
 
+def get_renewal_count(conn: sqlite3.Connection, loan_id: int) -> int:
+    """Return number of times a loan has been renewed."""
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT COUNT(*) FROM activity_log WHERE action = 'loan.renew' AND entity_type = 'loan' AND entity_id = ?",
+        (loan_id,),
+    )
+    return cur.fetchone()[0]
+
+
 def get_loan(conn: sqlite3.Connection, loan_id: int) -> Optional[sqlite3.Row]:
     """Retrieve loan details joined with book and student info."""
     sql = """
