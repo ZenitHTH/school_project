@@ -84,10 +84,15 @@ Generates printable A4 PDF sheets with barcode labels and dashed cut lines.
 
 ## 7. ISBN Lookup Service (`core.library.services.isbn_service` & `isbn_providers`)
 Provides ISBN validation and metadata retrieval for book registration.
-- **3-Provider JSON Pipeline (`isbn_providers.py`)**:
+- **5-Provider JSON Pipeline (`isbn_providers.py`)**:
   1. **NLT Primo VE REST API** (`nlt.primo.exlibrisgroup.com`): Primary authoritative endpoint for books deposited with the National Library of Thailand. Extracts `title`, `author` (stripped of MARC `$$` subfields and trailing `.`), and `publisher`.
   2. **SE-ED Web-BFF REST API** (`mp-api.se-ed.com/web-bff`): Secondary endpoint for commercial Thai exam-prep, tutor, and publisher books. Verifies SKU in `physicalProduct.variants`, extracts title, and parses the Lexical JSON AST to extract author and publisher.
   3. **Open Library Books API** (`openlibrary.org`): Tertiary endpoint for international and English literature/textbooks.
+  4. **Chulabook Store API** (`api.chulabook.com`): 4th provider — exact-barcode search on `GET /products?search=<isbn>&limit=5`, then `GET /products/<id>` detail. See §8.
+  5. **Nain Book Store (นายอินทร์, `www.naiin.com`)**: 5th provider (2026-11-12). The Vue SPA serves SSR pages (not blocked by Cloudflare for browser-like `User-Agent` + `Accept` + `Referer` headers):
+     - Step 1: `GET /search-result?title=<isbn>` — the page embeds a product JSON array in `<product-list :items='[...]' :default-error='null'>` (HTML-entity-escaped; parsed by `parse_nain_search_items` after `html.unescape`). Rows carry `ProductID`/`ProductName`/`AuthorName`/`PublisherName`/prices — **no ISBN field**.
+     - Step 2: `GET /product/detail/<ProductID>` for up to 3 candidates — the page carries a schema.org `Product`/`Book` JSON-LD block (`parse_nain_product_ld`) with `name`/`isbn`/`gtin13`/`sku`/`author`/`publisher`/`offers`; a hit requires the block's normalized ISBN to exactly match the queried ISBN.
+     - Same timeout policy as Chulabook: 5 s per request (capped) + one automatic retry per request; fetches go through `_fetch_text` (HTML variant of `_fetch_json`, same logging trail).
 - **Two-Tier Authoritative Local Lookup**:
   1. Authoritative local `books` table checked first (`ORDER BY active DESC, book_id DESC`), ensuring active copies take precedence and edits in the catalog are never shadowed by stale cache entries.
   2. Persistent SQLite `isbn_cache` table queried on local catalog miss.
@@ -113,7 +118,7 @@ Detects catalog books that exist only in the Chulabook store (ศูนย์ห
   - Request headers: browser `User-Agent` + `Origin`/`Referer: https://www.chulabook.com` (sent via `_fetch_json(..., extra_headers=CHULABOOK_HEADERS)`).
   - Timeout policy: **5 s per request (capped) + one automatic retry per request**. The original 2.5 s step timed out on slow school networks (cold TLS handshake) and looked like "chulabook cannot fetch on Linux Mint". Persistent per-machine failures: run `scripts/diagnose_chulabook.py <ISBN>` there (stdlib-only) — it checks proxy env vars → DNS → TLS/CA store → HTTP, step by step.
 - **Fetch logging**: every lookup/detection is traced to a rotating `app.log` (1 MB × 3) in the OS log dir — `~/Library/Logs/SMTE-LibrarianManagement/app.log` (macOS), `~/.local/state/SMTE-LibrarianManagement/logs/app.log` (Linux Mint), `%LOCALAPPDATA%\SMTE-LibrarianManagement\logs\app.log` (Windows). The file shows per-provider `miss`/`HIT` with elapsed times, every HTTP request (URL/status/elapsed), retry warnings with exception types, per-book detection skip reasons, and lookup rejections. Setup: `core/shared/app_logging.py` (`setup_app_logging`, called from Librarian `main.py`); module loggers use the `smte.isbn` namespace.
-  - Chain position: **last** — `NLT Primo → SE-ED → Open Library → Chulabook`. The existing `fetchIsbnMetadata` autofill therefore resolves Chulabook-only ISBNs with no UI change, and successful lookups persist to `isbn_cache`.
+  - Chain position: **last two** — `NLT Primo → SE-ED → Open Library → Chulabook → Nain Book`. The existing `fetchIsbnMetadata` autofill therefore resolves Chulabook-only and Nain-only ISBNs with no UI change, and successful lookups persist to `isbn_cache`.
 - **Detection rule (`detect_chulabook_books(conn, timeout=5.0, workers=8) -> Result[list[dict], str]`)**: a book row is flagged iff `_fetch_chulabook(isbn)` hits **and** the normalized ISBN is absent from `isbn_cache` **and** all three standard providers miss. Invalid/Thai-digit ISBNs are skipped silently; per-row exceptions skip that row; `Err` only when the `books` table is missing. Rows: `{book_id, isbn (normalized), title, author}`.
 - **Librarian UI**: `LibrarianAdminAdapter.detectChulabookBooks()` slot (`chulabookCheckStarted`/`chulabookCheckCompleted` signals, `_sanitize_for_qml` on `books[]`) drives the `📕 ตรวจ Chulabook` button in `BookCatalogView.qml` (Tab 0) — status line `chulabookStatusText` + results `Dialog` (`chulabookResultsModel`) listing flagged books. Wired via `window.detectChulabook()` in `Main.qml`. Synchronous slot (house pattern); ~30–60 s for a 200-book catalog.
 

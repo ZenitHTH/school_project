@@ -1,12 +1,14 @@
-"""Remote ISBN metadata providers: NLT Primo VE, SE-ED BFF, and Open Library."""
+"""Remote ISBN metadata providers: NLT Primo VE, SE-ED BFF, Open Library, Chulabook, and Nain Book."""
 
+import html
 import json
 import logging
 import re
 import ssl
 import time
+import urllib.parse
 import urllib.request
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 logger = logging.getLogger("smte.isbn")
 
@@ -30,6 +32,11 @@ SEED_DETAIL_URL = "https://mp-api.se-ed.com/web-bff/physical-product"
 OPENLIBRARY_URL = "https://openlibrary.org/api/books"
 CHULABOOK_API = "https://api.chulabook.com"
 CHULABOOK_HEADERS = {"Origin": "https://www.chulabook.com", "Referer": "https://www.chulabook.com/"}
+NAIIN_BASE = "https://www.naiin.com"
+NAIIN_HEADERS = {
+    "Referer": "https://www.naiin.com/",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+}
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 UNKNOWN_PUBS = ("-ไม่ปรากฏสำนักพิมพ์", "ไม่ปรากฏสำนักพิมพ์", "ม.ป.พ.", "ม.ป.ท.")
 
@@ -42,6 +49,12 @@ __all__ = [
     "parse_chulabook_products",
     "parse_chulabook_detail",
     "_fetch_chulabook",
+    "NAIIN_BASE",
+    "NAIIN_HEADERS",
+    "parse_nain_search_items",
+    "parse_nain_product_ld",
+    "_fetch_nain",
+    "_fetch_text",
     "parse_nlt_primo_json",
     "parse_seed_product",
     "parse_openlibrary_json",
@@ -112,6 +125,27 @@ def _fetch_json(url: str, timeout: float = 5.0, extra_headers: Optional[dict] = 
         raise
     logger.debug("http GET %s -> %s in %.2fs", url, getattr(resp, "status", "?"), time.monotonic() - t0)
     return data
+
+
+def _fetch_text(url: str, timeout: float = 5.0, extra_headers: Optional[dict] = None) -> Optional[str]:
+    """Fetch HTML/text from URL with the standard User-Agent; returns decoded body or None on failure."""
+    headers = {"User-Agent": USER_AGENT}
+    if extra_headers:
+        headers.update(extra_headers)
+    req = urllib.request.Request(url, headers=headers)
+    t0 = time.monotonic()
+    try:
+        with urllib.request.urlopen(req, timeout=timeout, context=ssl.create_default_context()) as resp:
+            charset = resp.headers.get_content_charset() or "utf-8"
+            body = resp.read().decode(charset, errors="replace")
+    except Exception as exc:
+        logger.warning(
+            "http GET %s failed after %.2fs (timeout=%.1fs): %s: %s",
+            url, time.monotonic() - t0, timeout, type(exc).__name__, exc,
+        )
+        return None
+    logger.debug("http GET %s -> text in %.2fs", url, time.monotonic() - t0)
+    return body
 
 
 def _clean_primo_field(val: str) -> str:
@@ -241,6 +275,132 @@ def _fetch_chulabook(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
         return None
 
 
+NAIIN_ITEMS_RE = re.compile(r"<product-list[^>]*?:items='(.*?)'\s*:default-error=", re.S)
+NAIIN_LD_RE = re.compile(r'<script type="application/ld\+json">(.*?)</script>', re.S)
+
+
+def parse_nain_search_items(html_text: str) -> List[dict]:
+    """Extract the product JSON array embedded in a /search-result page.
+
+    The SSR page renders ``<product-list :items='[...]' :default-error='null'>``
+    with a JSON array (HTML-entity-escaped for single quotes) of product rows
+    carrying ProductID / ProductName / AuthorName / PublisherName / prices.
+    """
+    m = NAIIN_ITEMS_RE.search(html_text)
+    if not m:
+        return []
+    try:
+        items = json.loads(html.unescape(m.group(1)))
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(items, list):
+        return []
+    return [it for it in items if isinstance(it, dict) and it.get("ProductID")]
+
+
+def _nain_ld_name(value) -> str:
+    """Resolve a schema.org field that may be a string, a dict with name, or a list of either."""
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        return str(value.get("name") or "").strip()
+    if isinstance(value, list):
+        return ", ".join(n for n in (_nain_ld_name(v) for v in value) if n)
+    return ""
+
+
+def parse_nain_product_ld(html_text: str, isbn: str) -> Optional[Dict[str, str]]:
+    """Parse the schema.org Product/Book JSON-LD block from a /product/detail page.
+
+    Returns the standard metadata dict only when the block's ISBN (``isbn`` or
+    ``gtin13``/``sku``) exactly matches the queried ISBN (normalized).
+    """
+    target = normalize_isbn(isbn)
+    for block in NAIIN_LD_RE.findall(html_text):
+        try:
+            data = json.loads(block)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        block_types = data.get("@type") or []
+        if isinstance(block_types, str):
+            block_types = [block_types]
+        if "Book" not in block_types and "Product" not in block_types:
+            continue
+        block_isbn = next(
+            (normalize_isbn(str(data[k])) for k in ("isbn", "gtin13", "sku") if data.get(k)),
+            "",
+        )
+        if block_isbn and block_isbn != target:
+            continue
+        title = str(data.get("name") or "").strip()
+        if not title:
+            continue
+        brand = data.get("brand")
+        return {
+            "isbn": isbn,
+            "title": title,
+            "author": _nain_ld_name(data.get("author")),
+            "publisher": _nain_ld_name(data.get("publisher")) or _nain_ld_name(brand),
+        }
+    return None
+
+
+def _fetch_nain(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
+    """Nain Book (naiin.com) store: ISBN search on /search-result, then JSON-LD from /product/detail.
+
+    Two steps like Chulabook: the search page embeds a product JSON array
+    (no ISBN field), so each candidate's detail page is fetched and its
+    schema.org JSON-LD matched against the queried ISBN. Same 5 s per-request
+    budget and one retry per request as the Chulabook provider.
+    """
+    step = min(timeout, 5.0)
+
+    def _get(url: str) -> Optional[str]:
+        for attempt in range(2):
+            body = _fetch_text(url, timeout=step, extra_headers=NAIIN_HEADERS)
+            if body is not None:
+                return body
+            if attempt == 0:
+                logger.warning("nain GET %s failed (attempt 1) — retrying in 0.5s", url)
+                time.sleep(0.5)
+            else:
+                logger.warning("nain GET %s failed (attempt 2)", url)
+        return None
+
+    try:
+        page = _get(f"{NAIIN_BASE}/search-result?title={urllib.parse.quote(isbn)}")
+        if not page:
+            logger.debug("nain search for %s failed after retry, skip", isbn)
+            return None
+        items = parse_nain_search_items(page)
+        if not items:
+            logger.debug("nain search %s: no product items in page, skip", isbn)
+            return None
+        candidates = items[:3]
+        for it in candidates:
+            pid = it.get("ProductID")
+            detail = _get(f"{NAIIN_BASE}/product/detail/{pid}")
+            if not detail:
+                logger.debug("nain detail %s (ProductID=%s) failed after retry, skip", isbn, pid)
+                continue
+            meta = parse_nain_product_ld(detail, isbn)
+            if meta:
+                if not meta["author"]:
+                    meta["author"] = str(it.get("AuthorName") or "").strip()
+                if not meta["publisher"]:
+                    meta["publisher"] = str(it.get("PublisherName") or "").strip()
+                logger.debug("nain detail %s (ProductID=%s) -> %s", isbn, pid, meta["title"])
+                return meta
+            logger.debug("nain detail %s (ProductID=%s): no exact ISBN in JSON-LD", isbn, pid)
+        logger.debug("nain search %s: %d candidate(s) checked, no exact ISBN match, skip", isbn, len(candidates))
+        return None
+    except Exception as exc:
+        logger.warning("nain fetch %s error: %s: %s", isbn, type(exc).__name__, exc)
+        return None
+
+
 def _fetch_primo(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
     try:
         url = f"{NLT_PRIMO_URL}?vid=66NLT_INST:66NLT&q=isbn,exact,{isbn}&offset=0&limit=1&lang=th"
@@ -293,13 +453,14 @@ def _fetch_openlibrary(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
 
 
 def fetch_remote_providers(isbn: str, timeout: float = 5.0) -> Optional[Dict[str, str]]:
-    """Chain remote JSON providers: NLT Primo VE -> SE-ED BFF -> Open Library -> Chulabook."""
+    """Chain remote JSON providers: NLT Primo VE -> SE-ED BFF -> Open Library -> Chulabook -> Nain Book."""
     step = min(timeout, 2.5)
     chain = (
         ("NLT Primo", _fetch_primo, step),
         ("SE-ED", _fetch_seed, step),
         ("Open Library", _fetch_openlibrary, timeout),
         ("Chulabook", _fetch_chulabook, timeout),
+        ("Nain Book", _fetch_nain, timeout),
     )
     t0 = time.monotonic()
     for name, fetch, budget in chain:
