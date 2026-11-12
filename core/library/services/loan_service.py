@@ -1,5 +1,6 @@
 import datetime
 import sqlite3
+import sys
 from typing import Any, Dict, List, Optional
 from core.shared.result import Result
 from core.library.policy import DEFAULT_POLICY, LibraryPolicy
@@ -24,6 +25,78 @@ class LoanService:
         self.reservation_service = reservation_service or ReservationService(conn)
         self.student_service = student_service or StudentService(conn)
 
+    def _check_student_eligibility(self, student_id: int) -> Optional[Result]:
+        """Return a failure Result when the student may not borrow, else None.
+
+        Checks in order: student exists, status is active, unpaid fines within
+        the policy threshold, active loan count below the policy limit.
+        """
+        student_status = self.student_service.get_status(student_id)
+        if not student_status:
+            return Result.fail(f"Student {student_id} not found in local system")
+        if student_status != "active":
+            return Result.fail(
+                f"Borrowing refused: student status is '{student_status}' (must be 'active')"
+            )
+
+        unpaid = self.fine_service.get_unpaid_total(student_id)
+        if unpaid > self.policy.unpaid_fines_threshold:
+            return Result.fail(
+                f"Borrowing blocked: student has {unpaid:.2f} THB unpaid fines (threshold: {self.policy.unpaid_fines_threshold:.2f} THB)"
+            )
+
+        active_loans = loan_repo.get_active_loans_count(self.conn, student_id)
+        if active_loans >= self.policy.max_active_loans:
+            return Result.fail(
+                f"Borrowing limit reached: student already has {active_loans} active loan(s) (maximum: {self.policy.max_active_loans})"
+            )
+        return None
+
+    def _resolve_checkout_copy(
+        self, book_id: Optional[int], barcode: Optional[str]
+    ) -> Result:
+        """Resolve the copy to check out by barcode or book id; failure Result when unavailable."""
+        if barcode:
+            copy = book_repo.get_copy_by_barcode(self.conn, barcode)
+            if not copy:
+                return Result.fail(f"No copy found with barcode '{barcode}'")
+            if not copy["active"]:
+                return Result.fail(f"Book '{copy['title']}' is retired")
+            if copy["status"] != "available":
+                return Result.fail(f"Copy with barcode '{barcode}' is not available (status: {copy['status']})")
+            return Result.success(copy)
+        if book_id is not None:
+            copy = book_repo.get_available_copy(self.conn, book_id)
+            if not copy:
+                return Result.fail(f"No available copies for book ID {book_id}")
+            return Result.success(copy)
+        return Result.fail("Either barcode or book_id must be provided for checkout")
+
+    def _assess_overdue_fine(
+        self, loan: sqlite3.Row, loan_id: int, return_time: str, actor: Optional[str]
+    ) -> Optional[Dict[str, Any]]:
+        """Assess an overdue fine for a returned loan; None when not late or assessment fails."""
+        fine_info: Optional[Dict[str, Any]] = None
+        try:
+            due_dt = datetime.datetime.fromisoformat(loan["due_at"])
+            ret_dt = datetime.datetime.fromisoformat(return_time)
+            if due_dt.tzinfo is not None and ret_dt.tzinfo is None:
+                ret_dt = ret_dt.replace(tzinfo=datetime.timezone.utc)
+            elif due_dt.tzinfo is None and ret_dt.tzinfo is not None:
+                due_dt = due_dt.replace(tzinfo=datetime.timezone.utc)
+            if ret_dt > due_dt:
+                days_late = (ret_dt.date() - due_dt.date()).days
+                if days_late > 0:
+                    res_fine = self.fine_service.assess_overdue(loan_id, days_late, actor=actor)
+                    if res_fine.ok:
+                        fine_info = res_fine.data
+        except Exception as fine_exc:
+            print(
+                f"[WARN] Fine calculation failed for loan {loan_id}: {fine_exc}",
+                file=sys.stderr,
+            )
+        return fine_info
+
     def checkout(
         self,
         student_id: int,
@@ -34,47 +107,16 @@ class LoanService:
         """
         Process book checkout with all policy and student status validations.
         """
-        # 1. Student Status validation
-        student_status = self.student_service.get_status(student_id)
-        if not student_status:
-            return Result.fail(f"Student {student_id} not found in local system")
-        if student_status != "active":
-            return Result.fail(
-                f"Borrowing refused: student status is '{student_status}' (must be 'active')"
-            )
+        ineligible = self._check_student_eligibility(student_id)
+        if ineligible is not None:
+            return ineligible
 
-        # 2. Unpaid fines check
-        unpaid = self.fine_service.get_unpaid_total(student_id)
-        if unpaid > self.policy.unpaid_fines_threshold:
-            return Result.fail(
-                f"Borrowing blocked: student has {unpaid:.2f} THB unpaid fines (threshold: {self.policy.unpaid_fines_threshold:.2f} THB)"
-            )
+        copy_res = self._resolve_checkout_copy(book_id, barcode)
+        if not copy_res.ok:
+            return copy_res
+        copy = copy_res.data
 
-        # 3. Active loans limit
-        active_loans = loan_repo.get_active_loans_count(self.conn, student_id)
-        if active_loans >= self.policy.max_active_loans:
-            return Result.fail(
-                f"Borrowing limit reached: student already has {active_loans} active loan(s) (maximum: {self.policy.max_active_loans})"
-            )
-
-        # 4. Resolve copy
-        copy = None
-        if barcode:
-            copy = book_repo.get_copy_by_barcode(self.conn, barcode)
-            if not copy:
-                return Result.fail(f"No copy found with barcode '{barcode}'")
-            if not copy["active"]:
-                return Result.fail(f"Book '{copy['title']}' is retired")
-            if copy["status"] != "available":
-                return Result.fail(f"Copy with barcode '{barcode}' is not available (status: {copy['status']})")
-        elif book_id is not None:
-            copy = book_repo.get_available_copy(self.conn, book_id)
-            if not copy:
-                return Result.fail(f"No available copies for book ID {book_id}")
-        else:
-            return Result.fail("Either barcode or book_id must be provided for checkout")
-
-        # 5. Check if student had a ready reservation for this book
+        # Fulfill the student's ready reservation for this book, if any
         cur = self.conn.cursor()
         cur.execute(
             "SELECT reservation_id FROM reservations WHERE book_id = ? AND student_id = ? AND status = 'ready' LIMIT 1",
@@ -84,7 +126,7 @@ class LoanService:
         if res_row:
             self.reservation_service.fulfill(res_row["reservation_id"], actor=actor)
 
-        # 6. Issue loan
+        # Issue the loan
         now = datetime.datetime.now(datetime.timezone.utc)
         borrowed_at = now.isoformat()
         due_at = (now + datetime.timedelta(days=self.policy.loan_duration_days)).isoformat()
@@ -128,27 +170,8 @@ class LoanService:
         try:
             loan_repo.return_loan(self.conn, loan_id=loan_id, returned_at=return_time, actor=actor)
 
-            # Check overdue
-            fine_info = None
-            try:
-                due_dt = datetime.datetime.fromisoformat(loan["due_at"])
-                ret_dt = datetime.datetime.fromisoformat(return_time)
-                if due_dt.tzinfo is not None and ret_dt.tzinfo is None:
-                    ret_dt = ret_dt.replace(tzinfo=datetime.timezone.utc)
-                elif due_dt.tzinfo is None and ret_dt.tzinfo is not None:
-                    due_dt = due_dt.replace(tzinfo=datetime.timezone.utc)
-                if ret_dt > due_dt:
-                    days_late = (ret_dt.date() - due_dt.date()).days
-                    if days_late > 0:
-                        res_fine = self.fine_service.assess_overdue(loan_id, days_late, actor=actor)
-                        if res_fine.ok:
-                            fine_info = res_fine.data
-            except Exception as fine_exc:
-                import sys
-                print(
-                    f"[WARN] Fine calculation failed for loan {loan_id}: {fine_exc}",
-                    file=sys.stderr,
-                )
+            # Assess the overdue fine, if any
+            fine_info = self._assess_overdue_fine(loan, loan_id, return_time, actor)
 
             # Promote next waiting reservation if any
             promoted_res = self.reservation_service.promote_next(loan["book_id"], actor=actor)

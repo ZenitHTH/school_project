@@ -552,3 +552,36 @@ def test_librarian_adapter_adjust_book_copies(librarian_adapter):
 
 
 
+
+def test_detect_chulabook_books_payload_shape(librarian_adapter, monkeypatch):
+    from core.shared.result import Ok
+    lib_adapter, _ = librarian_adapter
+
+    emitted = []
+    lib_adapter.chulabookCheckCompleted.connect(lambda payload: emitted.append(payload))
+
+    fake_rows = [{"book_id": 1, "isbn": "9786160000001", "title": "ท", "author": None}]
+    monkeypatch.setattr(
+        "apps.librarian_management_app.adapters.librarian_admin_adapter.detect_chulabook_books",
+        lambda conn, timeout=5.0, workers=8: Ok(fake_rows),
+    )
+    payload = json.loads(lib_adapter.detectChulabookBooks())
+    assert payload["ok"] is True
+    assert payload["count"] == 1
+    assert payload["books"][0]["title"] == "ท"
+    assert payload["books"][0]["author"] == ""  # _sanitize_for_qml None -> ""
+    assert emitted and emitted[0] == json.dumps(payload)
+
+
+def test_detect_chulabook_books_err_payload(librarian_adapter, monkeypatch):
+    from core.shared.result import Err
+    lib_adapter, _ = librarian_adapter
+    monkeypatch.setattr(
+        "apps.librarian_management_app.adapters.librarian_admin_adapter.detect_chulabook_books",
+        lambda conn, timeout=5.0, workers=8: Err("boom"),
+    )
+    payload = json.loads(lib_adapter.detectChulabookBooks())
+    assert payload["ok"] is False
+    assert payload["error"] == "boom"
+    assert payload["count"] == 0
+    assert payload["books"] == []

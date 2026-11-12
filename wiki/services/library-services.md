@@ -58,6 +58,7 @@ Handles circulation desk borrowing rules and validation pipeline.
 - **Renew (`renew_loan`)**:
   - Validates remaining renewals < `max_renewals`.
   - Extends due date by `loan_duration_days`.
+- **Internal structure** (clean-code refactor, 2026-11-09): `checkout` is a thin orchestration calling `_check_student_eligibility` (steps 1–3; returns a failure `Result` or `None`) and `_resolve_checkout_copy` (step 4; `Result.success(copy)` or a failure `Result`). `return_book` delegates overdue-fine assessment to `_assess_overdue_fine` (keeps the same internal error-swallow + `[WARN]` stderr behavior). Public behavior, `Result` shapes, and error messages are unchanged.
 
 ---
 
@@ -77,6 +78,7 @@ Generates printable A4 PDF sheets with barcode labels and dashed cut lines.
 - **Pure-Stdlib Vector Engine**: Zero external dependencies (no `python-barcode`, `Pillow`, or `reportlab`). Emits direct vector PDF 1.4 rectangles (`re f`) and dashed cut guides (`[3 3] 0 d`).
 - **Grid Layout**: Configurable 3 columns × 8 rows (24 labels per A4 page).
 - **Format**: ISO/IEC 15417 Code128-B barcodes with human-readable text labels and PDF delimiter escaping.
+- **Structure** (clean-code refactor, 2026-11-09): `export_label_sheet_pdf` is the orchestrator; `_prepare_barcode_items` (input normalization), `_render_label_cell` (per-cell drawing: dashed guide + Code128 bars + readable text), `_assemble_pdf_document` (PDF 1.4 objects / xref / trailer). Output PDFs are byte-identical to the pre-refactor versions for identical inputs (verified by SHA-256).
 
 ---
 
@@ -100,4 +102,18 @@ Provides ISBN validation and metadata retrieval for book registration.
   - Non-Arabic characters immediately fail validation with `Err("ลืมเปลี่ยนภาษา")` before any local database or remote network requests are dispatched.
   - In QML views (`BarcodeGeneratorView.qml` and `BookActionDialogs.qml`), `onTextChanged` and fetch handlers display `"✗ ลืมเปลี่ยนภาษา"` to immediately guide librarians to toggle their keyboard layout without triggering remote fetch timeouts.
 - **Error Handling**: Network timeouts, non-book tables, redirects, or malformed inputs return `Err("cannot fetch data")` (or `Err("ลืมเปลี่ยนภาษา")` for non-Arabic characters) safely trapped in a Rust-style `Result[Dict[str, str], str]`.
+
+---
+
+## 8. Chulabook Detection & Fetching (`core.library.services.chulabook_service`)
+Detects catalog books that exist only in the Chulabook store (ศูนย์หนังสือจุฬาฯ) and auto-fills their metadata from the Chulabook API during registration.
+- **Chulabook Store API (4th provider, `isbn_providers.py`)**: `api.chulabook.com` is the store's public REST API — no auth, no cookies, **not** behind the Sucuri JS challenge that blocks `www.chulabook.com` HTML pages.
+  - Search: `GET /products?search=<isbn>&limit=5` → `{count, rows[]}`; match requires **exact normalized-barcode equality** (no fuzzy fallback).
+  - Detail: `GET /products/<id>` → full record (`isbn`, `name`, `author`, `pub_year`, `edition`, `translator`, `price`, `cover_price`, `detail_th`, …). The API has **no publisher-name field** (only `pbls_code`), so `publisher` is reported as `""` — never fabricated.
+  - Request headers: browser `User-Agent` + `Origin`/`Referer: https://www.chulabook.com` (sent via `_fetch_json(..., extra_headers=CHULABOOK_HEADERS)`).
+  - Timeout policy: **5 s per request (capped) + one automatic retry per request**. The original 2.5 s step timed out on slow school networks (cold TLS handshake) and looked like "chulabook cannot fetch on Linux Mint". Persistent per-machine failures: run `scripts/diagnose_chulabook.py <ISBN>` there (stdlib-only) — it checks proxy env vars → DNS → TLS/CA store → HTTP, step by step.
+- **Fetch logging**: every lookup/detection is traced to a rotating `app.log` (1 MB × 3) in the OS log dir — `~/Library/Logs/SMTE-LibrarianManagement/app.log` (macOS), `~/.local/state/SMTE-LibrarianManagement/logs/app.log` (Linux Mint), `%LOCALAPPDATA%\SMTE-LibrarianManagement\logs\app.log` (Windows). The file shows per-provider `miss`/`HIT` with elapsed times, every HTTP request (URL/status/elapsed), retry warnings with exception types, per-book detection skip reasons, and lookup rejections. Setup: `core/shared/app_logging.py` (`setup_app_logging`, called from Librarian `main.py`); module loggers use the `smte.isbn` namespace.
+  - Chain position: **last** — `NLT Primo → SE-ED → Open Library → Chulabook`. The existing `fetchIsbnMetadata` autofill therefore resolves Chulabook-only ISBNs with no UI change, and successful lookups persist to `isbn_cache`.
+- **Detection rule (`detect_chulabook_books(conn, timeout=5.0, workers=8) -> Result[list[dict], str]`)**: a book row is flagged iff `_fetch_chulabook(isbn)` hits **and** the normalized ISBN is absent from `isbn_cache` **and** all three standard providers miss. Invalid/Thai-digit ISBNs are skipped silently; per-row exceptions skip that row; `Err` only when the `books` table is missing. Rows: `{book_id, isbn (normalized), title, author}`.
+- **Librarian UI**: `LibrarianAdminAdapter.detectChulabookBooks()` slot (`chulabookCheckStarted`/`chulabookCheckCompleted` signals, `_sanitize_for_qml` on `books[]`) drives the `📕 ตรวจ Chulabook` button in `BookCatalogView.qml` (Tab 0) — status line `chulabookStatusText` + results `Dialog` (`chulabookResultsModel`) listing flagged books. Wired via `window.detectChulabook()` in `Main.qml`. Synchronous slot (house pattern); ~30–60 s for a 200-book catalog.
 

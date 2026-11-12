@@ -439,4 +439,46 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Hardened `tests/test_ui_overlap_and_layout.py::test_settings_view_labels_positive_spacing` with a bounded settle-wait, and gave the two settings `Slider`s an explicit `Layout.minimumHeight: 24` (pre-existing load flake: the plain Fusion slider's steady implicit height is ~13px, so the old `>= 24` expectation only held when the Typography pin happened to capture a settled baseline first).
 - 100% test pass across 347 tests.
 
+## [2026-11-06] fix | Category dropdown (StyledComboBox) renders no options
+- Root cause: `apps/common_qml/StyledComboBox.qml` overrode the `ComboBox` `popup` with a bare `Popup` that had no `contentItem: ListView`. In Qt Quick Controls 2 the options list belongs to the style's popup, so the override silently dropped every option row — the dropdown opened as an empty 0px box (affects every `StyledComboBox` in all apps, e.g. the category dropdown on the add-book page).
+- Fix: the popup now declares its own options `ListView` (`model: control.delegateModel`, `implicitHeight: contentHeight`, `clip: true`, vertical `ScrollBar`), mirroring the Fusion/Basic style internals, and sizes via `implicitHeight: Math.min(implicitContentHeight + padding * 2, 240)` (240px cap, scrolls beyond).
+- Regression test: `tests/test_ui_librarian.py::test_category_dropdown_renders_options` (real click opens the dropdown, the options `ListView` renders rows, a real row click selects the option). Verified end-to-end in the librarian app (Fusion) including selection.
 
+## [2026-11-06] fix | StyledComboBox option rows render with empty text
+- Follow-up to the popup/ListView fix: rows now appear but their text is empty. Root cause: the `StyledComboBox` `delegate` never declared `required property var model`/`required property int index` nor bound `text: model[control.textRole]` — the ComboBox/ListView machinery injects row data into the delegate's declared `model` property, so with no declaration nothing was injected and `text` stayed empty (verified: `typeof model === 'undefined'` on the delegate).
+- Fix: `apps/common_qml/StyledComboBox.qml` delegate now mirrors the Basic-style delegate contract (`required property var model`, `required property int index`, `text: model[control.textRole]`). Verified for both object models (role via `textRole`) and plain string models (rows arrive wrapped as `QQmlDM*AccessorData` objects).
+- Regression test extended: `test_category_dropdown_renders_options` now also asserts a row item's bound text via `QQmlExpression(..., "itemAt(x, y)")` (delegates are not reachable through `findChildren` — QML scene-graph parents differ from the QObject child tree).
+- 100% test pass across 342 tests.
+
+## [2026-11-06] fix | StyledComboBox option rows still blank — contentItem text binding
+- Third layer of the dropdown bug, found after the row-text fix: rows still rendered blank in the live app while the delegate's `text` property held the correct value. Root cause: the delegate's `contentItem: Text { text: text }` — the bare `text` on the right-hand side does **not** resolve to the delegate's `text` property (verified live via debug logging: delegate text correct, contentItem text `""`, `parent.text` correct). No binding-loop or reference error is emitted, so the failure is silent.
+- Fix: delegate now has `id: comboRow` and the contentItem binds `text: comboRow.text` — the same id-reference pattern Qt's Basic style uses (`text: control.text`).
+- The earlier regression test was green because it asserted the **delegate's** `text` (the layer that worked), not the contentItem's rendered `text` (the broken layer). Test now also asserts `contentItem.property("text") == cat_name`.
+- Debugging note: offscreen property dumps reproduce this exactly — the bug is in QML binding resolution, not in GPU rendering.
+- 100% test pass across 342 tests.
+
+## [2026-11-09] refactor | Clean-code pass on library services (behavior-preserving)
+- Readability refactor of the two least-readable production functions (Uncle Bob / Clean Code: small single-purpose functions, descriptive names, orchestration methods that read top-to-bottom).
+- `core/library/services/label_service.py`: the 148-line `export_label_sheet_pdf` is now a ~50-line orchestrator over three private helpers — `_prepare_barcode_items`, `_render_label_cell`, `_assemble_pdf_document`. **Proof**: generated PDFs are SHA-256-identical to the pre-refactor output (single-page and multi-page samples).
+- `core/library/services/loan_service.py`: `checkout` (was 82 lines) is now a thin pipeline over `_check_student_eligibility` (steps 1–3) and `_resolve_checkout_copy` (step 4); `return_book` delegates fine assessment to `_assess_overdue_fine` (same internal error-swallow + `[WARN]` stderr); `import sys` moved to module top. All `Result` shapes and error messages unchanged.
+- Deliberately left alone: `book_repo.py` (already cleanly decomposed despite its size) and the `data/sync` trio (ordering-critical air-gapped sync pipeline — high refactor risk, not worth the readability gain this round).
+- 100% test pass across 342 tests.
+
+
+## [2026-11-10] feat | Chulabook 4th ISBN provider + catalog detection + Librarian UI
+- `isbn_providers.py`: Chulabook store API (`api.chulabook.com/products?search=`, `/products/<id>`) added as the LAST provider in the fetch chain; `_fetch_json` gained `extra_headers` (Origin/Referer); exact normalized-barcode matching only. Existing `[🔍 ดึงข้อมูล]` autofill now resolves Chulabook-only ISBNs with no UI change.
+- `chulabook_service.py` (new): `detect_chulabook_books` flags books found in Chulabook but in no standard ISBN database (NLT/SE-ED/OpenLibrary/isbn_cache), 8-thread, `Result`-typed.
+- `librarian_admin_adapter.py`: `detectChulabookBooks()` slot + `chulabookCheckStarted/Completed` signals (sanitized JSON).
+- QML: `📕 ตรวจ Chulabook` button + status line + results dialog in `BookCatalogView.qml`, wired in `Main.qml` (`window.detectChulabook()`).
+- Python 3.15 compatibility: explicit `ThreadPoolExecutor` import in `isbn_service.py` (lazy module attr not callable on 3.15) + builtin `TimeoutError` raises in tests.
+- Tests: `test_chulabook_provider.py`, `test_chulabook_service.py`, `test_ui_chulabook_detection.py`, adapter payload tests; real API fixtures in `tests/fixtures/chulabook/`.
+## [2026-11-10] fix | Chulabook fetch timeout/retry for slow networks + Mint diagnostic
+- `isbn_providers.py`: Chulabook per-request timeout raised 2.5 s → 5 s (spec §4.6) + one automatic retry per request (0.5 s backoff) — fixes "chulabook still cannot fetch on Linux Mint" (cold TLS handshake on slow school links exceeded the old step).
+- `scripts/diagnose_chulabook.py` (new, stdlib-only): per-machine layer-by-layer diagnostic (proxy env → DNS → TLS/CA → HTTP with app headers) with interpretation hints; verified green on macOS.
+- Tests: retry-then-succeed, give-up-after-retry (exactly 2 attempts), 5 s cap assertion.
+## [2026-11-10] feat | Detailed fetch logging (rotating file + per-provider trail)
+- `core/shared/app_logging.py` (new): `setup_app_logging(app_name)` — rotating `app.log` (1 MB × 3) in the OS log dir (`data.paths.get_app_log_dir`) + stderr WARNING handler; idempotent; wired in Librarian `main.py`.
+- `isbn_providers.py`: `fetch_remote_providers` now a logged loop — per-provider INFO `miss at <name> after Ns` / `HIT at <name> ... title=...` / final `not found by any remote provider`; `_fetch_json` logs every request at DEBUG (URL, status, elapsed) and failures at WARNING (elapsed + exception); each provider logs its miss reason (no docs / no product / no record / no exact barcode match).
+- `isbn_service.py`: `lookup()` logs raw→normalized input, rejection reasons (Thai/Arabic keyboard layout, invalid ISBN), local hit, remote hit (saved to cache) / no-provider-hit, with elapsed times.
+- `chulabook_service.py`: detect logs start/summary (`detect start: N books`, `detect done: X flagged of N in Ts`) + per-book skip reasons at DEBUG (not in chulabook / in isbn_cache / in standard providers) — this is what would have diagnosed the Linux Mint fetch failure instantly.
+- Tests: `tests/test_isbn_logging.py` (8 tests: chain trail, all-miss, HTTP failure line, lookup local/remote/invalid, detect reasons+summary, setup idempotency + file write).
