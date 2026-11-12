@@ -1045,3 +1045,23 @@ def test_dialog_isbn_thai_keyboard_warning(lib_ui, monkeypatch):
     isbn_input.setProperty("text", "")
     assert status_text.property("text") == ""
 
+
+def test_checkbox_labels_survive_startup_typography(lib_ui):
+    """Regression: the startup Typography pass must not pin plain CheckBox
+    implicit heights to a transient (pre-layout) value, which squashed the
+    template label to height 0 and hid checkbox text (e.g. the
+    auto-fetch + No-ISBN checkboxes on the barcode-generator page)."""
+    from PySide6.QtCore import QObject
+    win = lib_ui["window"]
+    app = lib_ui["app"]
+    stacks = [o for o in win.findChildren(QObject) if o.metaObject().className() == "QQuickStackLayout"]
+    stacks[0].setProperty("currentIndex", 6)
+    app.processEvents()
+    for name in ["chkAutoFetchIsbn", "chkNoIsbnGen"]:
+        chk = win.findChild(QObject, name)
+        assert chk is not None, f"{name} not found on generator page"
+        ci = chk.property("contentItem")
+        assert ci.property("height") > 10, (
+            f"{name} label squashed by typography: height={ci.property('height')}"
+        )
+

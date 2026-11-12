@@ -556,6 +556,11 @@ Rectangle {
                                         }
                                     }
                                     onTextChanged: {
+                                        if (chkNoIsbnGen.checked) {
+                                            if (genStatusMessage.text === "✗ ลืมเปลี่ยนภาษา")
+                                                genStatusMessage.text = ""
+                                            return
+                                        }
                                         if (text.trim() !== "" && !barcodeGenScreen.isArabicIsbn(text)) {
                                             genStatusMessage.text = "✗ ลืมเปลี่ยนภาษา"
                                             barcodeGenScreen.updateGenPreview()

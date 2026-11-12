@@ -81,4 +81,6 @@ apps/librarian_management_app/
 - Opening the edit dialog on a `NULL`-ISBN book auto-checks the box and shows `-` (`openEditBookDialog` in `BookActionDialogs.qml`).
 - Catalog lists already render `model.isbn || '-'` for missing ISBNs (`BookCatalogView.qml:136`); ISBN auto-fetch and duplicate checks run only for non-empty ISBNs; lending keys off the copy barcode (`SMTE-{book_id:05d}-{seq:02d}`), never the ISBN.
 - Contract pinned in `tests/test_book_without_isbn.py`; checkbox lock behavior in `tests/test_ui_barcode_generator_fields.py::test_no_isbn_checkbox_locks_field`.
+- While the No-ISBN box is checked, the ISBN fields' `onTextChanged` handlers skip the `✗ ลืมเปลี่ยนภาษา` (forgot to switch language) detection and clear any active warning, so the sentinel `-` never trips it (add dialog + generator).
+- Labels on plain `CheckBox` controls were rendered at height 0 (invisible): `Typography.js` pinned `implicitHeight` baselines captured before layout settled (the startup `applyToTree` pass). `recordBaseHeight` now skips controls under 24px (the app's smallest stable control height) so template-sized controls (plain CheckBox, Slider) keep their live height bindings. Regression: `tests/test_ui_librarian.py::test_checkbox_labels_survive_startup_typography`.
 

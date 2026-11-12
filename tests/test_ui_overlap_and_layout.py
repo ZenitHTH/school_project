@@ -8,6 +8,7 @@ Tests UI layout resiliency under scaled fonts (20px, 150% scale):
 """
 import os
 import sys
+import time
 import pytest
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
@@ -94,6 +95,12 @@ def test_settings_view_labels_positive_spacing(qapp, tmp_path):
     settings_view = win.findChild(object, "settingsView")
     combo = settings_view.findChild(object, "fontFamilyCombo")
     slider = settings_view.findChild(object, "scaleSlider")
+
+    # Wait for the font-scaling layout to settle; a fixed processEvents
+    # count can be insufficient under load (template control sizes arrive late)
+    deadline = time.time() + 10.0
+    while slider.property("height") < 24 and time.time() < deadline:
+        _process_events(qapp)
 
     assert combo.property("height") >= 30
     assert slider.property("height") >= 24

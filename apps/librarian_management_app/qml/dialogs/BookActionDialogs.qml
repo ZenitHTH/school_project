@@ -272,6 +272,11 @@ Item {
                         }
                     }
                     onTextChanged: {
+                        if (chkNoIsbn.checked) {
+                            if (addBookStatusText.text === "✗ ลืมเปลี่ยนภาษา")
+                                addBookStatusText.text = ""
+                            return
+                        }
                         if (text.trim() !== "" && !root.isArabicIsbn(text)) {
                             addBookStatusText.text = "✗ ลืมเปลี่ยนภาษา"
                             return

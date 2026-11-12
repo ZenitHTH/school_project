@@ -105,6 +105,7 @@ Rectangle {
                 stepSize: 1
                 value: 14
                 Layout.fillWidth: true
+                Layout.minimumHeight: 24
                 onValueChanged: controlsRoot.fontSizeChanged(Math.round(value))
             }
             Button {
@@ -147,6 +148,7 @@ Rectangle {
                 stepSize: 5
                 value: 100
                 Layout.fillWidth: true
+                Layout.minimumHeight: 24
                 onValueChanged: controlsRoot.uiScaleChanged(Math.round(value) / 100.0)
             }
             Rectangle {

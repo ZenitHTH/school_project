@@ -433,4 +433,10 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - 100% test pass across 346 tests.
 - Plan: `docs/superpowers/plans/2026-11-11-books-without-isbn.md`.
 
+## [2026-11-12] fix | No-ISBN checkbox: visible labels + no false language warning
+- Fixed invisible `CheckBox` labels: `Typography.js` `recordBaseHeight` pinned `implicitHeight` baselines captured before layout settled (startup `applyToTree` pass), squashing plain template-sized controls (plain CheckBox label height → 0, Slider → 13px). Baselines under 24px (the app's smallest stable control height) are now skipped. Regression: `tests/test_ui_librarian.py::test_checkbox_labels_survive_startup_typography`.
+- While the No-ISBN box is checked, ISBN `onTextChanged` handlers (add dialog + generator) skip the `✗ ลืมเปลี่ยนภาษา` language detection and clear any active warning, so the sentinel `-` no longer trips it.
+- Hardened `tests/test_ui_overlap_and_layout.py::test_settings_view_labels_positive_spacing` with a bounded settle-wait, and gave the two settings `Slider`s an explicit `Layout.minimumHeight: 24` (pre-existing load flake: the plain Fusion slider's steady implicit height is ~13px, so the old `>= 24` expectation only held when the Typography pin happened to capture a settled baseline first).
+- 100% test pass across 347 tests.
+
 

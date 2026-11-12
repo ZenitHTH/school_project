@@ -166,16 +166,17 @@ def test_styled_text_input_component(qapp):
 
 
 def test_no_isbn_checkbox_locks_field(qapp):
-    """No-ISBN checkboxes lock the ISBN field and show '-' in all three dialogs."""
+    """No-ISBN checkboxes lock the ISBN field, show '-', and suppress the
+    'forgot to switch language' warning while locked."""
     pairs = [
         ("apps/librarian_management_app/qml/dialogs/BookActionDialogs.qml",
-         "chkNoIsbnAdd", "newBookIsbn"),
+         "chkNoIsbnAdd", "newBookIsbn", "addBookStatusText"),
         ("apps/librarian_management_app/qml/dialogs/EditBookDialog.qml",
-         "chkNoIsbnEdit", "editBookIsbnInput"),
+         "chkNoIsbnEdit", "editBookIsbnInput", None),
         ("apps/librarian_management_app/qml/views/BarcodeGeneratorView.qml",
-         "chkNoIsbnGen", "genBookIsbn"),
+         "chkNoIsbnGen", "genBookIsbn", "genStatusMessage"),
     ]
-    for rel, chk_name, field_name in pairs:
+    for rel, chk_name, field_name, status_name in pairs:
         _engine, root = _load_view(rel)
         chk = root.findChild(object, chk_name)
         field = root.findChild(object, field_name)
@@ -185,6 +186,11 @@ def test_no_isbn_checkbox_locks_field(qapp):
         qapp.processEvents()
         assert field.property("enabled") is False, f"{field_name} not locked"
         assert field.property("text") == "-", f"{field_name} should show '-'"
+        if status_name:
+            status = root.findChild(object, status_name)
+            assert status is not None, f"{status_name} not found in {rel}"
+            assert "ลืมเปลี่ยนภาษา" not in (status.property("text") or ""), \
+                f"{field_name} fired language warning while locked"
         chk.setProperty("checked", False)
         qapp.processEvents()
         assert field.property("enabled") is True, f"{field_name} not re-enabled"

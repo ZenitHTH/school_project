@@ -15,7 +15,11 @@ function extractBaselineSize(obj, factor) {
 }
 
 function recordBaseHeight(obj, factor) {
-    if (obj.implicitHeight === undefined || baseHeights.has(obj) || obj.implicitHeight <= 0) return;
+    // Baselines captured while layout is still settling (controls smaller
+    // than 24px — the app's smallest stable control height) are transient;
+    // pinning them would squash template-sized controls (plain CheckBox,
+    // Slider) to a pre-layout value on later typography passes.
+    if (obj.implicitHeight === undefined || baseHeights.has(obj) || obj.implicitHeight < 24) return;
     var isEligible = (obj.background !== undefined || obj.contentItem !== undefined || obj.placeholderText !== undefined);
     if (!isEligible) return;
     var safeFactor = (factor && factor > 0) ? factor : 1.0;
