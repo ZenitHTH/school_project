@@ -426,4 +426,11 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Add-book page right-pane inventory search bar (`BookInventoryRightPane.inventorySearchInput`) placeholder now mentions ISBN; it already routes through `searchBooks`, so the new matching applies with no QML logic change.
 - 100% test pass across 341 tests.
 
+## [2026-11-11] feat | No-ISBN checkbox in add/edit/generator dialogs
+- `ไม่มี ISBN (No ISBN)` checkbox added to the add-book dialog, edit-book dialog, and barcode generator. Checked → ISBN field locks and shows `-`; submit sends empty ISBN → `books.isbn` `NULL` (write paths store ISBNs as typed, so the sentinel `-` is never persisted).
+- Edit dialog auto-checks the box and shows `-` when opened on a `NULL`-ISBN book; lists continue rendering `model.isbn || '-'`.
+- Pinned no-ISBN backend contract (`tests/test_book_without_isbn.py`) and UI lock behavior (`tests/test_ui_barcode_generator_fields.py::test_no_isbn_checkbox_locks_field`).
+- 100% test pass across 346 tests.
+- Plan: `docs/superpowers/plans/2026-11-11-books-without-isbn.md`.
+
 

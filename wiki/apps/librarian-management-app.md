@@ -73,3 +73,12 @@ apps/librarian_management_app/
 - Left sidebar navigation uses dynamic `implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 18))` and `Layout.preferredHeight` on `NavBtn` to ensure active highlight pills cleanly encase text labels across all system font sizes and UI scaling factors.
 - Tab 8 embeds the shared `SettingsView.qml` for real-time font family, font size (10–24px), and UI scaling (50%–150%) adjustment.
 
+### 2.7 Books without ISBN (No-ISBN checkbox)
+- A book may exist without an ISBN: `books.isbn` is nullable (migration `0002`) and an empty ISBN stores as `NULL` — never a sentinel like `-` (repo write paths store the ISBN exactly as submitted, with no normalization on write).
+- All three ISBN inputs — add-book dialog `newBookIsbn`, edit dialog `editBookIsbnInput`, barcode generator `genBookIsbn` — carry a `ไม่มี ISBN (No ISBN)` checkbox (`chkNoIsbnAdd` / `chkNoIsbnEdit` / `chkNoIsbnGen`).
+- Checked → the ISBN field disables (`enabled: !chk.checked`) and shows `-`; unchecked → editable and the `-` is cleared (only when the field text is exactly `-`).
+- Every submit path sends `''` when the box is checked (`chk.checked ? "" : field.text`), so `books.isbn` becomes `NULL`; the database never stores the hyphen.
+- Opening the edit dialog on a `NULL`-ISBN book auto-checks the box and shows `-` (`openEditBookDialog` in `BookActionDialogs.qml`).
+- Catalog lists already render `model.isbn || '-'` for missing ISBNs (`BookCatalogView.qml:136`); ISBN auto-fetch and duplicate checks run only for non-empty ISBNs; lending keys off the copy barcode (`SMTE-{book_id:05d}-{seq:02d}`), never the ISBN.
+- Contract pinned in `tests/test_book_without_isbn.py`; checkbox lock behavior in `tests/test_ui_barcode_generator_fields.py::test_no_isbn_checkbox_locks_field`.
+
