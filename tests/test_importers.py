@@ -174,3 +174,93 @@ def test_import_roster_success_with_valid_xlsx(tmp_path, migrated_db):
     cur.execute("SELECT * FROM pragma_foreign_keys")
     fk_on = cur.fetchone()[0]
     assert fk_on == 1, "FK enforcement not ON after successful import!"
+
+
+def test_import_roster_uses_read_only_streaming_and_closes_workbook(tmp_path, migrated_db, monkeypatch):
+    import openpyxl
+
+    path = str(tmp_path / "stream.xlsx")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "ม.1"
+    ws.append(["ชั้นมัธยมศึกษาปีที่ 1 / 1 วิทย์-คณิต ปีการศึกษา 2568 ภาคเรียนที่ 1"])
+    ws.append(["ที่", "รหัส", "ชื่อ-สกุล", "เลขประชาชน"])
+    ws.append([1, 10001, "เด็กชายสมชาย ใจดี", "1100100100101"])
+    ws.append([None, None, None, None])
+    wb.save(path)
+    wb.close()
+
+    seen = {}
+    closed = []
+    orig_load = openpyxl.load_workbook
+
+    def spy_load(p, *args, **kwargs):
+        seen["read_only"] = kwargs.get("read_only")
+        seen["data_only"] = kwargs.get("data_only")
+        loaded = orig_load(p, *args, **kwargs)
+        orig_close = loaded.close
+
+        def spy_close():
+            closed.append(True)
+            return orig_close()
+
+        monkeypatch.setattr(loaded, "close", spy_close)
+        return loaded
+
+    monkeypatch.setattr(openpyxl, "load_workbook", spy_load)
+    res = import_roster(path, conn=migrated_db)
+    assert res.ok is True
+    assert seen == {"read_only": True, "data_only": True}
+    assert closed == [True]
+    row = migrated_db.execute("SELECT full_name FROM students WHERE student_id = 10001").fetchone()
+    assert row["full_name"] == "เด็กชายสมชาย ใจดี"
+
+
+def test_import_roster_streams_auxiliary_sheets(tmp_path, migrated_db):
+    import openpyxl
+
+    path = str(tmp_path / "aux.xlsx")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "ย้ายออก"
+    ws.append(["ที่", "รหัส", "ชื่อ", "เลขปชช", "ห้อง", "ปลายทาง", "วันที่", "หมายเหตุ"])
+    ws.append([1, 101, "นายก ข", "123", "1/1", "รร.อื่น", "15/05/2568", "ย้าย"])
+    ws.append([None])
+
+    wb.create_sheet("ย้ายเข้า").append(["hdr"])
+    for _ in range(2):
+        wb["ย้ายเข้า"].append([])
+    wb["ย้ายเข้า"].append([1, 99, 102, "นางสาวค ง", "รร.เก่า", "01/06/2568", "2/1", "เข้า"])
+
+    wb.create_sheet("ย้ายห้อง").append(["hdr"])
+    for _ in range(3):
+        wb["ย้ายห้อง"].append([])
+    wb["ย้ายห้อง"].append([1, 103, "นายจ ฉ", "1/1", "1/2", "02/06/2568", "เปลี่ยน"])
+
+    wb.create_sheet("รายชื่อพักการเรียน").append(["hdr"])
+    for _ in range(2):
+        wb["รายชื่อพักการเรียน"].append([])
+    wb["รายชื่อพักการเรียน"].append([1, 104, "นายช ซ", "456", "3/1", "03/06/2568", "ลา", "03/06/2569"])
+
+    wb.create_sheet("รายชื่อไม่ได้เลื่อนชั้นปี69").append(["hdr"])
+    wb["รายชื่อไม่ได้เลื่อนชั้นปี69"].append([1, 105, "นายญ ฎ", "ม.2/1", "04/06/2568", "ซ้ำ"])
+
+    wb.create_sheet("รายชื่อไม่ได้เลื่อนชั้นปี68").append(["hdr"])
+    wb["รายชื่อไม่ได้เลื่อนชั้นปี68"].append([])
+    wb["รายชื่อไม่ได้เลื่อนชั้นปี68"].append([1, 106, "นายฏ ฐ", None, "ม.1/1", "ม.1/2", "เดิม"])
+
+    wb.create_sheet("นักเรียนม.3ชั้น").append(["hdr"])
+    wb["นักเรียนม.3ชั้น"].append([1, 107, "นายฑ ฒ", "05/06/2568", "ม.3/1", "ซ้ำม.3"])
+
+    wb.save(path)
+    wb.close()
+
+    res = import_roster(path, conn=migrated_db)
+    assert res.ok is True
+    assert res.data["transfers_out"] == 1
+    assert res.data["transfers_in"] == 1
+    assert res.data["room_changes"] == 1
+    assert res.data["leave_of_absence"] == 1
+    assert res.data["retentions"] == 3
+    assert migrated_db.execute("SELECT status FROM students WHERE student_id = 101").fetchone()["status"] == "transferred_out"
+    assert migrated_db.execute("SELECT status FROM students WHERE student_id = 104").fetchone()["status"] == "on_leave"

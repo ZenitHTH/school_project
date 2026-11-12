@@ -1,78 +1,13 @@
-import re
 import sqlite3
 from typing import Any, Dict, List, Optional
-import openpyxl
-from core.importers.build_db import GRADE_SHEETS, clean, split_name, to_int, TITLE_RE, YEAR_RE, SEM_RE
+from core.importers.roster_parser import parse_grade_workbook
 from core.shared.log_service import record_activity
 from core.shared.result import Result
 
 
 def parse_roster_sheets(file_path: str) -> List[Dict[str, Any]]:
     """Parse roster workbook sheets into structured row dictionaries with fast read-only streaming."""
-    wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
-    rows: List[Dict[str, Any]] = []
-
-    try:
-        for sheet_name in wb.sheetnames:
-            if sheet_name not in GRADE_SHEETS:
-                continue
-            ws = wb[sheet_name]
-            grade, room, year, semester, track = None, None, None, None, None
-            in_block = False
-
-            for row in ws.iter_rows(values_only=True):
-                a = clean(row[0]) if len(row) > 0 else None
-                b = row[1] if len(row) > 1 else None
-                c = clean(row[2]) if len(row) > 2 else None
-                d = row[3] if len(row) > 3 else None
-
-                title_match = TITLE_RE.search(str(a)) if a else None
-                if title_match:
-                    grade, room = int(title_match.group(1)), int(title_match.group(2))
-                    ym = YEAR_RE.search(a)
-                    sm = SEM_RE.search(a)
-                    year = int(ym.group(1)) if ym else None
-                    if year and year > 2400:
-                        year -= 543
-                    semester = int(sm.group(1)) if sm else None
-                    track = TITLE_RE.sub("", a)
-                    track = YEAR_RE.sub("", track)
-                    track = SEM_RE.sub("", track)
-                    track = clean(track.replace("ภาคเรียนที่", "")) or None
-                    in_block = False
-                    continue
-
-                if a == "ที่":
-                    in_block = True
-                    continue
-
-                if in_block and isinstance(b, (int, float)) and c:
-                    seq = to_int(a)
-                    student_id = to_int(b)
-                    if not student_id:
-                        continue
-                    prefix, first, last, full, gender = split_name(c)
-                    rows.append({
-                        "student_id": student_id,
-                        "national_id": clean(str(d)) if d is not None else None,
-                        "prefix": prefix,
-                        "first_name": first,
-                        "last_name": last,
-                        "full_name": full,
-                        "gender": gender,
-                        "grade_level": f"ม.{grade}" if grade else None,
-                        "room": room,
-                        "track": track,
-                        "seq_no": seq,
-                        "academic_year": year,
-                        "semester": semester,
-                    })
-                elif in_block and a is None and b is None:
-                    in_block = False
-    finally:
-        wb.close()
-
-    return rows
+    return parse_grade_workbook(file_path)
 
 
 def calculate_xlsx_diff(
