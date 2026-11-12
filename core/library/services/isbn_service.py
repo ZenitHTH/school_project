@@ -19,11 +19,7 @@ from core.library.services.isbn_providers import (
     parse_openlibrary_json,
     parse_seed_product,
 )
-from core.shared.mock_qt import HAVE_QT
 from core.shared.result import Err, Ok, Result
-
-if HAVE_QT:
-    from PySide6.QtCore import QCoreApplication, QEventLoop
 
 __all__ = [
     "normalize_isbn",
@@ -79,10 +75,9 @@ class IsbnLookupService:
         deadline = time.monotonic() + self.timeout
         while time.monotonic() < deadline:
             try:
-                return future.result(timeout=0.02)
+                return future.result(timeout=min(0.02, max(0.0, deadline - time.monotonic())))
             except concurrent.futures.TimeoutError:
-                if HAVE_QT and QCoreApplication.instance() is not None:
-                    QCoreApplication.processEvents(QEventLoop.ExcludeUserInputEvents)
+                time.sleep(0.005)
         return None
 
     def _fetch_remote(self, isbn: str) -> Optional[Dict[str, str]]:
@@ -90,7 +85,8 @@ class IsbnLookupService:
         future = executor.submit(fetch_remote_providers, isbn, timeout=self.timeout)
         try:
             return self._wait_for_future(future)
-        except Exception:
+        except Exception as exc:
+            logger.warning("remote lookup failed for %s: %s", isbn, exc)
             return None
         finally:
             executor.shutdown(wait=False, cancel_futures=True)

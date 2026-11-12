@@ -538,3 +538,21 @@ def test_adapter_fetch_isbn_metadata_and_signals(tmp_path, monkeypatch):
     bad_json = adapter.fetchIsbnMetadata("invalid")
     assert json.loads(bad_json)["ok"] is False
     conn.close()
+
+
+def test_isbn_service_does_not_call_qt_process_events(monkeypatch):
+    import core.library.services.isbn_service as isbn_mod
+
+    assert not hasattr(isbn_mod, "QCoreApplication")
+    assert not hasattr(isbn_mod, "HAVE_QT")
+
+    conn = sqlite3.connect(":memory:")
+    svc = IsbnLookupService(conn, timeout=0.05)
+
+    class SlowFuture:
+        def result(self, timeout=None):
+            raise TimeoutError()
+
+    assert svc._wait_for_future(SlowFuture()) is None
+    conn.close()
+
