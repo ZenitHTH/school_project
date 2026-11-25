@@ -21,9 +21,28 @@ def _is_int(val: Any) -> bool:
     return isinstance(val, int) and not isinstance(val, bool)
 
 
+def _parse_optional_int(raw: str) -> Optional[int]:
+    try:
+        val = int((raw or "").strip())
+        return val if val > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_clamped_int(raw: str, default: int, lo: int, hi: int) -> int:
+    try:
+        return max(lo, min(hi, int((raw or "").strip())))
+    except (TypeError, ValueError):
+        return default
+
+
 def _res_payload(res: Any) -> Dict[str, Any]:
     data = _sanitize_for_qml(res.data) if res.ok else {}
     return {"ok": res.ok, "data": data, "error": res.error}
+
+
+def _list_payload(res: Any) -> Dict[str, Any]:
+    return {"ok": True, "data": _sanitize_for_qml(res.data) if res.ok else []}
 
 
 class _LanHTTPServer(ThreadingHTTPServer):
@@ -73,10 +92,20 @@ class _LanRequestHandler(BaseHTTPRequestHandler):
         if not self._check_auth():
             return
         parsed, ctx = urlsplit(self.path), self.server.ctx  # type: ignore[attr-defined]
+        qs = parse_qs(parsed.query)
         if parsed.path == "/api/health":
             self._send_json(200, ctx.handle_health())
         elif parsed.path == "/api/students":
-            self._send_json(200, ctx.handle_students(parse_qs(parsed.query).get("q", [""])[0]))
+            self._send_json(200, ctx.handle_students(qs.get("q", [""])[0]))
+        elif parsed.path == "/api/categories":
+            self._send_json(200, ctx.handle_categories())
+        elif parsed.path == "/api/books":
+            self._send_json(200, ctx.handle_books(
+                qs.get("q", [""])[0],
+                _parse_optional_int(qs.get("category_id", [""])[0]),
+                _parse_clamped_int(qs.get("limit", [""])[0], 50, 1, 200),
+                _parse_clamped_int(qs.get("offset", [""])[0], 0, 0, 100000),
+            ))
         elif parsed.path.startswith("/api/copies/") and len(parsed.path) > 12:
             self._send_json(200, ctx.handle_copy(unquote(parsed.path[12:])))
         else:
@@ -153,8 +182,19 @@ class BoothLanServer:
 
     def handle_students(self, query: str) -> Dict[str, Any]:
         with self.db_lock:
-            res = StudentService(self.conn).search(query=query)
-            return {"ok": True, "data": _sanitize_for_qml(res.data) if res.ok else []}
+            return _list_payload(StudentService(self.conn).search(query=query))
+
+    def handle_categories(self) -> Dict[str, Any]:
+        with self.db_lock:
+            return _list_payload(CatalogService(self.conn).list_categories())
+
+    def handle_books(
+        self, query: str = "", category_id: Optional[int] = None, limit: int = 50, offset: int = 0
+    ) -> Dict[str, Any]:
+        with self.db_lock:
+            return _list_payload(CatalogService(self.conn).search(
+                query=query, category_id=category_id, limit=limit, offset=offset
+            ))
 
     def handle_copy(self, barcode: str) -> Dict[str, Any]:
         with self.db_lock:

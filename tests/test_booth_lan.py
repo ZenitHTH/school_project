@@ -300,3 +300,130 @@ def test_lan_server_concurrent_requests_thread_safe():
     finally:
         server.stop()
         conn.close()
+
+
+def _make_catalog_conn():
+    conn = _make_seeded_conn()
+    cat_sci = book_repo.add_category(conn, "วิทยาศาสตร์")
+    cat_math = book_repo.add_category(conn, "คณิตศาสตร์")
+    b1 = book_repo.add_book(
+        conn,
+        title="ฟิสิกส์พื้นฐาน",
+        author="สมชาย ใจดี",
+        isbn="978-111",
+        category_id=cat_sci,
+        shelf_location="A-12",
+    )
+    book_repo.add_copies(conn, b1, barcodes=["SCI-001", "SCI-002"])
+    b2 = book_repo.add_book(
+        conn,
+        title="แคลคูลัสเบื้องต้น",
+        author="วิชัย เก่งเลข",
+        isbn="978-222",
+        category_id=cat_math,
+        shelf_location="B-03",
+    )
+    book_repo.add_copies(conn, b2, barcodes=["MTH-001"])
+    return conn, cat_sci, cat_math
+
+
+def test_lan_list_categories_returns_sorted_categories():
+    from core.network.lan_client import BoothLanClient
+    from core.network.lan_server import BoothLanServer
+
+    conn, _, _ = _make_catalog_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="tok")
+    server.start()
+    client = BoothLanClient(host="127.0.0.1", port=server.port, token="tok")
+    try:
+        cats = client.list_categories()
+        assert [c["name"] for c in cats] == ["คณิตศาสตร์", "วิทยาศาสตร์"]
+        assert all("category_id" in c and "name" in c for c in cats)
+    finally:
+        client.close()
+        server.stop()
+        conn.close()
+
+
+def test_lan_search_books_by_query_and_category():
+    from core.network.lan_client import BoothLanClient
+    from core.network.lan_server import BoothLanServer
+
+    conn, cat_sci, cat_math = _make_catalog_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="tok")
+    server.start()
+    client = BoothLanClient(host="127.0.0.1", port=server.port, token="tok")
+    try:
+        by_query = client.search_books(query="ฟิสิกส์")
+        assert len(by_query) == 1
+        book = by_query[0]
+        assert book["title"] == "ฟิสิกส์พื้นฐาน"
+        assert book["shelf_location"] == "A-12"
+        assert book["category_name"] == "วิทยาศาสตร์"
+        assert book["total_copies"] == 2
+        assert book["available_copies"] == 2
+
+        by_cat = client.search_books(query="", category_id=cat_math)
+        assert len(by_cat) == 1
+        assert by_cat[0]["title"] == "แคลคูลัสเบื้องต้น"
+        assert by_cat[0]["shelf_location"] == "B-03"
+        assert by_cat[0]["category_name"] == "คณิตศาสตร์"
+        assert by_cat[0]["available_copies"] == 1
+        assert by_cat[0]["total_copies"] == 1
+
+        all_books = client.search_books(query="", category_id=None)
+        assert len(all_books) == 3
+    finally:
+        client.close()
+        server.stop()
+        conn.close()
+
+
+def test_lan_search_books_invalid_query_params_safe():
+    from core.network.lan_server import BoothLanServer
+
+    conn, _, _ = _make_catalog_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="tok")
+    server.start()
+    hdrs = {"X-Booth-Token": "tok"}
+    try:
+        st, _, data = _raw_request(
+            server.port,
+            "GET",
+            "/api/books?q=&category_id=abc&limit=-5&offset=xyz",
+            headers=hdrs,
+        )
+        assert st == 200
+        assert data["ok"] is True
+        assert isinstance(data["data"], list)
+        assert len(data["data"]) >= 1
+
+        st2, _, data2 = _raw_request(
+            server.port,
+            "GET",
+            "/api/books?q=&category_id=0&limit=9999&offset=-10",
+            headers=hdrs,
+        )
+        assert st2 == 200
+        assert data2["ok"] is True
+        assert len(data2["data"]) == 3
+    finally:
+        server.stop()
+        conn.close()
+
+
+def test_lan_catalog_offline_returns_empty_list():
+    import socket
+    from core.network.lan_client import BoothLanClient
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        unused_port = s.getsockname()[1]
+
+    client = BoothLanClient(host="127.0.0.1", port=unused_port, token="tok", timeout=0.5)
+    try:
+        assert client.list_categories() == []
+        assert client.search_books("ฟิสิกส์") == []
+        assert client.search_books("", category_id=1) == []
+    finally:
+        client.close()

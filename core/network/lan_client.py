@@ -4,7 +4,7 @@ import http.client
 import json
 import threading
 from typing import Any, Dict, List, Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from core.network.booth_config import DEFAULT_BOOTH_TOKEN, DEFAULT_LAN_PORT
 
@@ -99,10 +99,28 @@ class BoothLanClient:
         res = self.health()
         return bool(res.get("empty", False)) if res.get("ok") else False
 
-    def search_students(self, query: str) -> List[Dict[str, Any]]:
-        res = self._request("GET", f"/api/students?q={quote(query, safe='')}")
+    def _get_list(self, path: str) -> List[Dict[str, Any]]:
+        res = self._request("GET", path)
         data = res.get("data") if res.get("ok") else None
         return data if isinstance(data, list) else []
+
+    def search_students(self, query: str) -> List[Dict[str, Any]]:
+        return self._get_list(f"/api/students?q={quote(query, safe='')}")
+
+    def list_categories(self) -> List[Dict[str, Any]]:
+        return self._get_list("/api/categories")
+
+    def search_books(
+        self,
+        query: str = "",
+        category_id: Optional[int] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[Dict[str, Any]]:
+        params: Dict[str, Any] = {"q": query, "limit": int(limit), "offset": int(offset)}
+        if category_id is not None and int(category_id) > 0:
+            params["category_id"] = int(category_id)
+        return self._get_list(f"/api/books?{urlencode(params)}")
 
     def get_copy_by_barcode(self, barcode: str) -> Dict[str, Any]:
         return self._request("GET", f"/api/copies/{quote(barcode, safe='')}")
