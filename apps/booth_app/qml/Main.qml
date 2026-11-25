@@ -16,6 +16,7 @@ ApplicationWindow {
     property var identifiedStudent: null
     property var connectionStatus: ({"connected": true, "host": "local", "port": 8765, "mode": "local", "error": ""})
     property bool isDbEmpty: false
+    property real fontScale: (typeof boothSettingsView !== "undefined" && boothSettingsView && boothSettingsView.currentUiScale) ? (boothSettingsView.currentFontSize / 14.0) * boothSettingsView.currentUiScale : 1.0
 
     Component.onCompleted: {
         refreshConnectionStatus()
@@ -82,6 +83,14 @@ ApplicationWindow {
                           : (connectionStatus.connected
                              ? ("🟢 เชื่อมต่อเซิร์ฟเวอร์: " + connectionStatus.host + ":" + connectionStatus.port)
                              : ("🔴 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์" + (connectionStatus.error ? " (" + connectionStatus.error + ")" : "")))
+                }
+
+                StyledButton {
+                    id: btnOpenBookSearch
+                    objectName: "btnOpenBookSearch"
+                    variant: StyledButton.Neutral
+                    text: "🔍 ค้นหาหนังสือ"
+                    onClicked: openBookSearch()
                 }
 
                 StyledButton {
@@ -323,6 +332,15 @@ ApplicationWindow {
             }
         }
     }
+
+    BookSearchView {
+        id: boothBookSearchView
+        objectName: "boothBookSearchView"
+        targetWindow: boothWindow
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        onBackRequested: closeBookSearch()
+    }
     }
 
     LanSettingsDialog {
@@ -374,6 +392,15 @@ ApplicationWindow {
         kioskStack.currentIndex = 0
         refreshConnectionStatus()
         refreshDbEmpty()
+    }
+
+    function openBookSearch() {
+        boothBookSearchView.refresh()
+        kioskStack.currentIndex = 2
+    }
+
+    function closeBookSearch() {
+        kioskStack.currentIndex = 0
     }
 
     function openLanSettings() {
