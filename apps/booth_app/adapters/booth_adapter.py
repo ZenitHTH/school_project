@@ -26,6 +26,14 @@ def _format_lan_res(res: Dict[str, Any]) -> str:
     return _format_res(bool(res.get("ok", False)), res.get("data") or {}, res.get("error"))
 
 
+def _dump_list(data: Any) -> str:
+    return json.dumps(_sanitize_for_qml(data))
+
+
+def _dump_service_list(res: Any) -> str:
+    return _dump_list(res.data if res.ok else [])
+
+
 def _clean_conn_args(
     host: str, port: int, token: str, fallback_token: str = DEFAULT_BOOTH_TOKEN
 ) -> Dict[str, Any]:
@@ -85,10 +93,28 @@ class BoothAdapter(QObject, SettingsAdapterMixin):
     def searchStudents(self, query: str) -> str:
         """Student self-identification lookup."""
         if self.client is not None:
-            return json.dumps(_sanitize_for_qml(self.client.search_students(query)))
-        res = self.student_svc.search(query=query)  # type: ignore[union-attr]
-        data = _sanitize_for_qml(res.data) if res.ok else []
-        return json.dumps(data)
+            return _dump_list(self.client.search_students(query))
+        return _dump_service_list(self.student_svc.search(query=query))  # type: ignore[union-attr]
+
+    @Slot(result=str)
+    def listCategories(self) -> str:
+        """List book categories sorted alphabetically."""
+        if self.client is not None:
+            return _dump_list(self.client.list_categories())
+        return _dump_service_list(self.catalog_svc.list_categories())  # type: ignore[union-attr]
+
+    @Slot(str, int, int, int, result=str)
+    def searchBooks(
+        self, query: str, category_id: int = 0, limit: int = 50, offset: int = 0
+    ) -> str:
+        """Search books by query and optional category filter."""
+        cat = category_id if category_id > 0 else None
+        q, lim, off = query or "", max(1, min(200, int(limit))), max(0, int(offset))
+        if self.client is not None:
+            return _dump_list(self.client.search_books(query=q, category_id=cat, limit=lim, offset=off))
+        return _dump_service_list(
+            self.catalog_svc.search(query=q, category_id=cat, limit=lim, offset=off)  # type: ignore[union-attr]
+        )
 
     @Slot(str, result=str)
     def getCopyByBarcode(self, barcode: str) -> str:

@@ -305,3 +305,92 @@ def test_booth_qml_has_lan_reconnect_timer():
     adapter.close()
     engine.deleteLater()
     app.processEvents()
+
+
+def _make_catalog_conn() -> tuple[sqlite3.Connection, int, int]:
+    conn = _make_seeded_conn()
+    cat_sci = book_repo.add_category(conn, "วิทยาศาสตร์")
+    cat_math = book_repo.add_category(conn, "คณิตศาสตร์")
+    b1 = book_repo.add_book(
+        conn,
+        title="เคมี ม.ปลาย",
+        author="ดร.อารีย์",
+        isbn="978-333",
+        category_id=cat_sci,
+        shelf_location="C-01",
+    )
+    book_repo.add_copies(conn, b1, barcodes=["CHM-001"])
+    b2 = book_repo.add_book(
+        conn,
+        title="เรขาคณิตวิเคราะห์",
+        author=None,
+        isbn=None,
+        category_id=cat_math,
+        shelf_location=None,
+    )
+    book_repo.add_copies(conn, b2, barcodes=["GEO-001"])
+    return conn, cat_sci, cat_math
+
+
+def test_adapter_list_categories_local_and_lan():
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    conn, cat_sci, cat_math = _make_catalog_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="secret-tok")
+    server.start()
+    local_adapter = BoothAdapter(conn=conn)
+    lan_adapter = BoothAdapter(
+        client=BoothLanClient(host="127.0.0.1", port=server.port, token="secret-tok"),
+        auto_discover=False,
+    )
+    try:
+        for adapter in (local_adapter, lan_adapter):
+            cats = json.loads(adapter.listCategories())
+            assert [c["name"] for c in cats] == ["คณิตศาสตร์", "วิทยาศาสตร์"]
+            ids = {c["name"]: c["category_id"] for c in cats}
+            assert ids["วิทยาศาสตร์"] == cat_sci
+            assert ids["คณิตศาสตร์"] == cat_math
+    finally:
+        lan_adapter.close()
+        server.stop()
+        conn.close()
+
+
+def test_adapter_search_books_local_and_lan():
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    conn, cat_sci, cat_math = _make_catalog_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="secret-tok")
+    server.start()
+    local_adapter = BoothAdapter(conn=conn)
+    lan_adapter = BoothAdapter(
+        client=BoothLanClient(host="127.0.0.1", port=server.port, token="secret-tok"),
+        auto_discover=False,
+    )
+    try:
+        for adapter in (local_adapter, lan_adapter):
+            res_q = json.loads(adapter.searchBooks("เคมี", 0, 50, 0))
+            assert len(res_q) == 1
+            b = res_q[0]
+            assert b["title"] == "เคมี ม.ปลาย"
+            assert b["shelf_location"] == "C-01"
+            assert b["category_name"] == "วิทยาศาสตร์"
+            assert b["available_copies"] == 1
+            assert b["total_copies"] == 1
+
+            res_cat = json.loads(adapter.searchBooks("", cat_math, 50, 0))
+            assert len(res_cat) == 1
+            b2 = res_cat[0]
+            assert b2["title"] == "เรขาคณิตวิเคราะห์"
+            assert b2["shelf_location"] == ""
+            assert b2["author"] == ""
+            assert b2["category_name"] == "คณิตศาสตร์"
+            assert b2["available_copies"] == 1
+            assert b2["total_copies"] == 1
+
+            res_all = json.loads(adapter.searchBooks("", -1, 50, 0))
+            assert len(res_all) == 3
+    finally:
+        lan_adapter.close()
+        server.stop()
+        conn.close()
