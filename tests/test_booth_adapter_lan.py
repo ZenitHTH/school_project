@@ -109,6 +109,26 @@ def test_booth_adapter_configure_connection_persists_and_swaps(live_server, tmp_
         adapter.close()
 
 
+def test_booth_adapter_blank_token_preserves_existing_token(live_server, tmp_path):
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    server, _ = live_server
+    cfg_path = str(tmp_path / "booth_config.json")
+    client = BoothLanClient(host="", port=DEFAULT_LAN_PORT, token="secret-tok")
+    adapter = BoothAdapter(client=client, config_path=cfg_path)
+    try:
+        res = json.loads(adapter.configureConnection("127.0.0.1", server.port, ""))
+        assert res["connected"] is True
+        assert adapter.client.token == "secret-tok"
+        assert load_booth_config(cfg_path)["token"] == "secret-tok"
+
+        res_ws = json.loads(adapter.configureConnection("127.0.0.1", server.port, "   "))
+        assert res_ws["connected"] is True
+        assert adapter.client.token == "secret-tok"
+    finally:
+        adapter.close()
+
+
 def test_booth_adapter_discover_server(monkeypatch):
     from apps.booth_app.adapters.booth_adapter import BoothAdapter
 
@@ -207,11 +227,19 @@ def test_booth_qml_lan_banner_and_settings_dialog(live_server, tmp_path, monkeyp
         lambda: {"host": "127.0.0.1", "port": server.port, "version": "1.0.0"},
     )
     QMetaObject.invokeMethod(window, "openLanSettings", Qt.DirectConnection)
+    assert window.findChild(QObject, "lanTokenInput").property("text") == ""
     QMetaObject.invokeMethod(window, "runAutoDiscover", Qt.DirectConnection)
     window.findChild(QObject, "lanTokenInput").setProperty("text", "secret-tok")
     QMetaObject.invokeMethod(window, "applyLanSettings", Qt.DirectConnection)
     app.processEvents()
 
+    assert "เชื่อมต่อเซิร์ฟเวอร์: 127.0.0.1" in window.findChild(QObject, "lanStatusText").property("text")
+
+    QMetaObject.invokeMethod(window, "openLanSettings", Qt.DirectConnection)
+    assert window.findChild(QObject, "lanTokenInput").property("text") == ""
+    QMetaObject.invokeMethod(window, "applyLanSettings", Qt.DirectConnection)
+    app.processEvents()
+    assert adapter.client.token == "secret-tok"
     assert "เชื่อมต่อเซิร์ฟเวอร์: 127.0.0.1" in window.findChild(QObject, "lanStatusText").property("text")
     ref_errors = [w for w in warnings if "ReferenceError" in w or "TypeError" in w]
     assert not ref_errors, f"Unexpected QML errors: {ref_errors}"

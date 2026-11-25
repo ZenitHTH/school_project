@@ -9,6 +9,7 @@ from core.library.services.loan_service import LoanService
 from core.network.booth_config import (
     DEFAULT_BOOTH_TOKEN,
     DEFAULT_LAN_PORT,
+    load_booth_config,
     save_booth_config,
 )
 from core.network.lan_client import BoothLanClient
@@ -26,16 +27,19 @@ def _format_lan_res(res: Dict[str, Any]) -> str:
     return _format_res(bool(res.get("ok", False)), res.get("data") or {}, res.get("error"))
 
 
-def _clean_conn_args(host: str, port: int, token: str) -> Dict[str, Any]:
+def _clean_conn_args(
+    host: str, port: int, token: str, fallback_token: str = DEFAULT_BOOTH_TOKEN
+) -> Dict[str, Any]:
     try:
         parsed_port = int(port)
     except (TypeError, ValueError):
         parsed_port = DEFAULT_LAN_PORT
     valid_port = parsed_port if 1 <= parsed_port <= 65535 else DEFAULT_LAN_PORT
+    cleaned_token = (token or "").strip()
     return {
         "host": (host or "").strip(),
         "port": valid_port,
-        "token": token if token else DEFAULT_BOOTH_TOKEN,
+        "token": cleaned_token if cleaned_token else (fallback_token or DEFAULT_BOOTH_TOKEN),
     }
 
 
@@ -150,10 +154,17 @@ class BoothAdapter(QObject):
         }
         return json.dumps(_sanitize_for_qml(payload))
 
+    def _existing_token(self) -> str:
+        if self.client is not None and self.client.token:
+            return self.client.token
+        if self.config_path:
+            return load_booth_config(self.config_path)["token"]
+        return DEFAULT_BOOTH_TOKEN
+
     @Slot(str, int, str, result=str)
     def configureConnection(self, host: str, port: int, token: str) -> str:
         """Persist LAN settings (when config_path is set), swap client, and probe health."""
-        cfg = _clean_conn_args(host, port, token)
+        cfg = _clean_conn_args(host, port, token, fallback_token=self._existing_token())
         if self.config_path:
             save_booth_config(self.config_path, cfg)
         if self.client is not None:

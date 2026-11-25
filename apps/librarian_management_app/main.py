@@ -134,21 +134,27 @@ def _resolve_qml_paths() -> Tuple[str, str]:
     return common_dir, os.path.join(qml_dir, "Main.qml")
 
 
-def _run_gui_mode(conn) -> int:
-    from PySide6.QtQuickControls2 import QQuickStyle
+def _create_qml_engine(adapter: LibrarianAdminAdapter) -> Tuple[QQmlApplicationEngine, str]:
     from core.shared.mock_qt import register_bundled_fonts
 
-    QQuickStyle.setStyle("Fusion")
-    lan_server, discovery = _start_lan_services(conn, threading.Lock())
-    adapter = LibrarianAdminAdapter(conn, lan_server=lan_server)
-    app = QGuiApplication(sys.argv)
-    app.setApplicationVersion(APP_VERSION)
     register_bundled_fonts()
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("librarianAdmin", adapter)
     common_dir, qml_file = _resolve_qml_paths()
     engine.addImportPath(common_dir)
     engine.addImportPath(os.path.dirname(common_dir))
+    return engine, qml_file
+
+
+def _run_gui_mode(conn) -> int:
+    from PySide6.QtQuickControls2 import QQuickStyle
+
+    QQuickStyle.setStyle("Fusion")
+    lan_server, discovery = _start_lan_services(conn, threading.Lock())
+    adapter = LibrarianAdminAdapter(conn, lan_server=lan_server)
+    app = QGuiApplication(sys.argv)
+    app.setApplicationVersion(APP_VERSION)
+    engine, qml_file = _create_qml_engine(adapter)
     exit_code = -1
     try:
         engine.load(qml_file)
