@@ -73,12 +73,14 @@ Handles circulation desk borrowing rules and validation pipeline.
 
 ---
 
-## 6. Barcode Label Generator (`core.library.services.label_service`)
-Generates printable A4 PDF sheets with barcode labels and dashed cut lines.
-- **Pure-Stdlib Vector Engine**: Zero external dependencies (no `python-barcode`, `Pillow`, or `reportlab`). Emits direct vector PDF 1.4 rectangles (`re f`) and dashed cut guides (`[3 3] 0 d`).
-- **Grid Layout**: Configurable 3 columns × 8 rows (24 labels per A4 page).
-- **Format**: ISO/IEC 15417 Code128-B barcodes with human-readable text labels and PDF delimiter escaping.
-- **Structure** (clean-code refactor, 2026-11-09): `export_label_sheet_pdf` is the orchestrator; `_prepare_barcode_items` (input normalization), `_render_label_cell` (per-cell drawing: dashed guide + Code128 bars + readable text), `_assemble_pdf_document` (PDF 1.4 objects / xref / trailer). Output PDFs are byte-identical to the pre-refactor versions for identical inputs (verified by SHA-256).
+## 6. Barcode Label Generator (`core.library.services.label_service` & `label_qt_renderer`)
+Generates printable A4 PDF sheets (`595.28 × 841.89 pt`) with Code128-B barcode labels, optional book titles, and dashed cut lines.
+- **Grid Layout & Inputs**: Configurable 3 columns × 8 rows (24 labels per A4 page). `_prepare_barcode_items` accepts bare barcode strings, `(copy_id, barcode)` 2-tuples, `(copy_id, barcode, title)` 3-tuples, and `{"barcode", "title"}` dicts.
+- **ASCII / No-Title Pure-Stdlib Vector Engine (`label_service.py`)**: Zero external dependencies (no `python-barcode`, `Pillow`, or `reportlab`). Emits direct vector PDF 1.4 rectangles (`re f`), dashed cut guides (`[3 3] 0 d`), ISO/IEC 15417 Code128-B bars, and human-readable text with PDF delimiter escaping (`_escape_pdf_literal`), assembled via `_assemble_pdf_document`. `_wrap_ascii_title` fits ASCII titles into 1–4 lines stepping `(7.5, 1)`, `(6.5, 2)`, `(6.0, 3)`, `(5.5, 4)` pt (eliding overflow with `...`), vertically centered inside a fixed `32.0 pt` top title zone in `_render_label_cell` with Code128 bars at a fixed vertical position and height across titled labels.
+- **Unicode / Thai Qt Renderer (`label_qt_renderer.py`)**: When `_has_non_ascii_title` detects any non-ASCII character (`ord(ch) > 126`), `export_label_sheet_pdf` delegates to `export_label_sheet_qt_pdf` using Qt `QPdfWriter` (72 DPI A4) and `QPainter` (initializing an offscreen `QGuiApplication` via `_ensure_qt_app` when needed).
+  - **Thai Word-Boundary Wrapping**: `_tokenize_title` segments text with `pythainlp.tokenize.word_tokenize(..., engine="newmm")` (character-list fallback if unavailable), and `_fit_title_lines` / `_wrap_tokens` pack tokens into 1–4 lines stepping `(7.5, 1)`, `(6.5, 2)`, `(6.0, 3)`, `(5.5, 4)` pt, eliding the 4th line via `QFontMetricsF.elidedText(..., Qt.ElideRight, max_w)`.
+  - **Fixed Barcode Geometry & Centered Title Zone**: `_draw_qt_label_cell` reserves a fixed `32.0 pt` top title zone (`title_zone_h = 32.0`) with the 1–4 wrapped lines centered horizontally and vertically inside it, keeping `_draw_code128_bars` at a uniform `bc_y` and `bc_h` across every cell above the `8.5 pt` bold human-readable barcode label.
+- **Librarian Adapter Title Enrichment (`LibrarianAdminAdapter._attach_book_titles`)**: `exportLabelsPdf(barcodes_json, output_path)` runs input items through `_attach_book_titles`, batch-querying `book_copies` joined with `books` for any bare barcode string or dict lacking a `title` while preserving caller-supplied titles.
 
 ---
 

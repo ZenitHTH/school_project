@@ -15,9 +15,12 @@ Rectangle {
     property int currentFontSize: 14
     property real currentUiScale: 1.0
     property var targetWindow: null
+    property bool showLanServerCard: false
+    property bool showLanClientCard: false
 
     signal settingsChanged()
     signal resetRequested()
+    signal lanConnectionUpdated(var status)
 
     property alias fontFamilyCombo: controlsCard.fontFamilyCombo
     property alias fontSizeSlider: controlsCard.fontSizeSlider
@@ -27,18 +30,19 @@ Rectangle {
     property alias btnResetSettings: footerBar.btnResetSettings
     property alias btnSaveSettings: footerBar.btnSaveSettings
     property alias previewCard: previewCard
+    property alias lanServerCard: lanServerCard
+    property alias lanClientCard: lanClientCard
+
+    function refreshLanServerInfo() { if (showLanServerCard) lanServerCard.refreshFromAdapter() }
+    function refreshLanClientInfo() { if (showLanClientCard) lanClientCard.refreshFromAdapter() }
 
     BundledFonts { id: bundledFonts }
-    Timer {
-        id: statusTimer
-        interval: 4000
-        repeat: false
-        onTriggered: footerBar.saveStatusText.text = ""
-    }
+    Timer { id: statusTimer; interval: 4000; repeat: false; onTriggered: footerBar.saveStatusText.text = "" }
 
     function getActiveAdapter() {
         if (typeof librarianAdmin !== "undefined" && librarianAdmin) return librarianAdmin
         if (typeof studentAdmin !== "undefined" && studentAdmin) return studentAdmin
+        if (typeof boothAdapter !== "undefined" && boothAdapter) return boothAdapter
         return null
     }
 
@@ -173,6 +177,19 @@ Rectangle {
                 id: footerBar
                 onResetClicked: settingsRoot.resetToDefaults()
                 onSaveClicked: settingsRoot.saveSettings()
+            }
+
+            SettingsLanServerCard {
+                id: lanServerCard
+                objectName: "lanServerCard"
+                visible: settingsRoot.showLanServerCard
+            }
+
+            SettingsLanClientCard {
+                id: lanClientCard
+                objectName: "lanClientCard"
+                visible: settingsRoot.showLanClientCard
+                onConnectionUpdated: (st) => settingsRoot.lanConnectionUpdated(st)
             }
         }
     }

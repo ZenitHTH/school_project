@@ -839,12 +839,18 @@ def test_barcode_printout_exports_all_five_barcodes_to_pdf(lib_ui):
     cat_screen = find(window, "categoryScreen")
     pdf_path = cat_screen.property("lastPdfExported")
     assert os.path.exists(pdf_path)
-    with open(pdf_path, "rb") as f:
-        pdf_bytes = f.read()
-    barcodes_in_pdf = re.findall(rb"\((SMTE-\d{5}-\d{2})\)", pdf_bytes)
+    from PySide6.QtPdf import QPdfDocument
+
+    doc = QPdfDocument()
+    assert doc.load(pdf_path) == QPdfDocument.Error.None_
+    try:
+        pdf_text = "\n".join(doc.getAllText(p).text() for p in range(doc.pageCount()))
+    finally:
+        doc.close()
+    barcodes_in_pdf = re.findall(r"SMTE-\d{5}-\d{2}", pdf_text)
     assert len(barcodes_in_pdf) == 5
-    assert barcodes_in_pdf[0].endswith(b"-01")
-    assert barcodes_in_pdf[4].endswith(b"-05")
+    assert barcodes_in_pdf[0].endswith("-01")
+    assert barcodes_in_pdf[4].endswith("-05")
 
 
 def test_book_entry_page_shows_live_incoming_preview_and_current_inventory_grid(lib_ui):

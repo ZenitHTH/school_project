@@ -22,7 +22,7 @@ datas = [
 binaries = []
 hiddenimports = ['sqlite3']
 
-for pkg in ['core', 'data', 'apps']:
+for pkg in ['core', 'data', 'apps', 'pythainlp']:
     d, b, h = collect_all(pkg)
     datas += d
     binaries += b

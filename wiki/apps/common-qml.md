@@ -46,9 +46,20 @@ The `apps/common_qml/` folder contains shared, production-tested QML components 
   - Auto-loads persisted settings on `Component.onCompleted` from active adapter (`loadSettings`).
   - Manual persistence via "💾 บันทึกการตั้งค่า (Save Settings)" button (`btnSaveSettings`) invoking `saveSettings`.
   - Reset to factory defaults button (`btnResetSettings`) persisting defaults via `resetSettings`.
-- **Properties**: `currentFontFamily`, `activeFontFamily`, `currentFontSize`, `currentUiScale`, `targetWindow`.
-- **Functions**: `loadPersistedSettings()`, `saveSettings()`, `resetToDefaults()`, `applySettingsToWindow()`.
-- **ObjectNames**: `settingsView`, `fontFamilyCombo`, `fontSizeSlider`, `btnFontSizeMinus`, `btnFontSizePlus`, `scaleSlider`, `btnResetSettings`, `btnSaveSettings`, `saveStatusText`, `previewCard`.
+- **Properties**: `currentFontFamily`, `activeFontFamily`, `currentFontSize`, `currentUiScale`, `targetWindow`, `showLanServerCard` (default `false`; set `true` in Librarian Management App to reveal `SettingsLanServerCard`), `showLanClientCard` (default `false`; set `true` in Self-Service Booth App to reveal `SettingsLanClientCard`).
+- **Signals**: `settingsChanged()`, `resetRequested()`, `lanConnectionUpdated(var status)`.
+- **Functions**: `loadPersistedSettings()`, `saveSettings()`, `resetToDefaults()`, `applySettingsToWindow()`, `refreshLanServerInfo()`, `refreshLanClientInfo()`.
+- **ObjectNames**: `settingsView`, `fontFamilyCombo`, `fontSizeSlider`, `btnFontSizeMinus`, `btnFontSizePlus`, `scaleSlider`, `btnResetSettings`, `btnSaveSettings`, `saveStatusText`, `previewCard`, `lanServerCard`, `lanClientCard`.
+
+### 1.6a `SettingsLanServerCard.qml`
+- Shared card component embedded at the bottom of `SettingsView.qml` (visible only when `showLanServerCard: true`) for inspecting and live-configuring the Librarian embedded LAN server (`BoothLanServer` + `LanDiscoveryResponder`).
+- Displays live status pill (`lanStatusBadge` / `lanStatusBadgeText`: `"● กำลังทำงาน (Online)"`, `"○ ปิดใช้งาน (Disabled)"`, or `"✕ ไม่สามารถเริ่มเซิร์ฟเวอร์ (Error)"`), Server LAN IP (`lanIpValueText`), Discovery UDP Port, Endpoint URL (`lanEndpointValueText`), error banner (`lanErrorBanner`), enable toggle (`lanEnabledCheck`), editable inputs (`lanPortInput`, `lanDiscoveryPortInput`, `lanTokenInput`), reset defaults (`btnResetLanDefaults`), and live save/apply (`btnSaveLanConfig`, `lanSaveStatusText`).
+- Calls `librarianAdmin.getLanConfig()` on load/refresh (`btnRefreshLanStatus`) and `librarianAdmin.saveAndApplyLanConfig(enabled, port, discoveryPort, token)` on save.
+
+### 1.6b `SettingsLanClientCard.qml`
+- Shared card component embedded at the bottom of `SettingsView.qml` (visible only when `showLanClientCard: true`, e.g., in `apps/booth_app/qml/Main.qml`) for inspecting, discovering, and switching the Booth App's target Librarian LAN server.
+- Displays connection status badge (`lanClientStatusBadge` / `lanClientStatusBadgeText`), current mode & endpoint (`lanClientInfoBox`, `lanClientEndpointText`), error banner (`lanClientErrorBanner`), UDP auto-discovery trigger (`btnDiscoverClientServer`, `lanDiscoverFeedbackText`), editable inputs (`lanClientHostInput`, `lanClientPortInput`, `lanClientTokenInput`), reset button (`btnResetClientLan`), and live connect/switch action (`btnConnectSwitchServer`, `lanClientSaveStatusText`).
+- Calls `boothAdapter.getConnectionStatus()` on load/refresh (`btnRefreshClientStatus`), `boothAdapter.discoverServer()` for UDP auto-discovery, and `boothAdapter.configureConnection(host, port, token)` on connect/switch, emitting `connectionUpdated(status)` (forwarded by `SettingsView.lanConnectionUpdated`).
 
 ### 1.7 `Typography.js`
 - Shared `.pragma library` script that maintains baseline font sizes and original font families across QML UI component trees.

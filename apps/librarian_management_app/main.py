@@ -11,11 +11,10 @@ from apps.common_linux_env import setup_linux_runtime_env
 setup_linux_runtime_env()
 
 import json
-import logging
 import threading
 from typing import Optional, Tuple
-from core.network.booth_config import DEFAULT_BOOTH_TOKEN, DEFAULT_DISCOVERY_PORT, DEFAULT_LAN_PORT
 from core.network.lan_discovery import LanDiscoveryResponder
+from core.network.lan_manager import LanServiceManager, _parse_port
 from core.network.lan_server import BoothLanServer
 from core.shared.version import APP_VERSION
 from data.db import get_connection
@@ -63,46 +62,19 @@ from data.paths import get_default_db_path
 from core.shared.app_logging import setup_app_logging
 
 
-def _parse_port(raw: Optional[str], default: int) -> int:
-    if not raw:
-        return default
-    try:
-        port = int(raw)
-        return port if 0 <= port <= 65535 else default
-    except ValueError:
-        return default
-
-
-def _start_responder(http_port: int, disc_port: int) -> Optional[LanDiscoveryResponder]:
-    responder = LanDiscoveryResponder(http_port=http_port, discovery_port=disc_port)
-    try:
-        responder.start()
-        return responder
-    except OSError as exc:
-        logging.getLogger(__name__).warning("Failed to start LanDiscoveryResponder: %s", exc)
-        return None
-
-
 def _start_lan_services(
     conn, db_lock: Optional[threading.Lock] = None
 ) -> Tuple[Optional[BoothLanServer], Optional[LanDiscoveryResponder]]:
-    if os.environ.get("LIBRARIAN_LAN_DISABLED", "").strip() == "1":
-        return None, None
-    port = _parse_port(os.environ.get("LIBRARIAN_LAN_PORT"), DEFAULT_LAN_PORT)
-    disc_port = _parse_port(os.environ.get("LIBRARIAN_DISCOVERY_PORT"), DEFAULT_DISCOVERY_PORT)
-    token = os.environ.get("BOOTH_SERVER_TOKEN") or DEFAULT_BOOTH_TOKEN
-    server = BoothLanServer(conn, port=port, token=token, db_lock=db_lock or threading.Lock())
-    try:
-        server.start()
-    except OSError as exc:
-        logging.getLogger(__name__).warning("Failed to start BoothLanServer on port %s: %s", port, exc)
-        return None, None
-    return server, _start_responder(server.port, disc_port)
+    """Start LAN HTTP and discovery services using environment overrides."""
+    mgr = LanServiceManager(conn, config_path=None, db_lock=db_lock)
+    mgr.start_with_env_overrides()
+    return mgr.lan_server, mgr.discovery_responder
 
 
 def _stop_lan_services(
     server: Optional[BoothLanServer], responder: Optional[LanDiscoveryResponder]
 ) -> None:
+    """Stop LAN HTTP and discovery services cleanly."""
     for svc in (responder, server):
         if svc is not None:
             try:
@@ -146,16 +118,31 @@ def _create_qml_engine(adapter: LibrarianAdminAdapter) -> Tuple[QQmlApplicationE
     return engine, qml_file
 
 
-def _run_gui_mode(conn) -> int:
+def _create_lan_manager(conn) -> LanServiceManager:
+    """Resolve persisted LAN config path and start LanServiceManager."""
+    config_path = os.environ.get("LIBRARIAN_LAN_CONFIG_PATH") or str(
+        get_default_db_path("SMTE-LibrarianManagement", "lan_server_config.json")
+    )
+    lan_manager = LanServiceManager(conn, config_path=config_path, db_lock=threading.Lock())
+    lan_manager.start_with_env_overrides()
+    return lan_manager
+
+
+def _create_qt_app():
     from PySide6.QtQuickControls2 import QQuickStyle
     from core.shared.mock_qt import apply_app_icon
 
     QQuickStyle.setStyle("Fusion")
-    lan_server, discovery = _start_lan_services(conn, threading.Lock())
-    adapter = LibrarianAdminAdapter(conn, lan_server=lan_server)
     app = QGuiApplication(sys.argv)
     app.setApplicationVersion(APP_VERSION)
     apply_app_icon(app, "librarianmanagement")
+    return app
+
+
+def _run_gui_mode(conn) -> int:
+    lan_manager = _create_lan_manager(conn)
+    adapter = LibrarianAdminAdapter(conn, lan_server=lan_manager.lan_server, lan_manager=lan_manager)
+    app = _create_qt_app()
     engine, qml_file = _create_qml_engine(adapter)
     exit_code = -1
     try:
@@ -163,7 +150,7 @@ def _run_gui_mode(conn) -> int:
         if engine.rootObjects():
             exit_code = app.exec()
     finally:
-        _stop_lan_services(lan_server, discovery)
+        lan_manager.stop()
         conn.close()
     return exit_code
 

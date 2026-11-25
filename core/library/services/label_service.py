@@ -5,7 +5,7 @@ ISO/IEC 15417 Code 128 character set B + Vector PDF 1.4 generator.
 """
 
 import math
-from typing import List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 # ISO/IEC 15417 Code 128 patterns (0..106)
 # Each pattern is an 11-module bit pattern (except stop pattern 106 which has 13 modules).
@@ -90,13 +90,91 @@ def _escape_pdf_literal(text: str) -> Tuple[str, float]:
     return "".join(escaped_chars), width_pt
 
 
-def _prepare_barcode_items(copies: List[Union[Tuple[int, str], str]]) -> List[str]:
-    """Normalize mixed (copy_id, barcode) tuples / bare barcode strings to clean barcode strings."""
-    items: List[str] = []
+def _prepare_barcode_items(
+    copies: List[Union[Tuple[int, str], Tuple[int, str, str], Dict[str, Any], str]],
+) -> List[Tuple[str, str]]:
+    """Normalize barcode inputs into (barcode, title) tuples."""
+    items: List[Tuple[str, str]] = []
     for item in copies:
-        barcode = item[1] if isinstance(item, tuple) else item
-        items.append(str(barcode).strip())
+        if isinstance(item, dict):
+            barcode = str(item.get("barcode", "")).strip()
+            title = str(item.get("title") or "").strip()
+        elif isinstance(item, tuple):
+            barcode = str(item[1]).strip()
+            title = str(item[2]).strip() if len(item) >= 3 and item[2] else ""
+        else:
+            barcode, title = str(item).strip(), ""
+        items.append((barcode, title))
     return items
+
+
+def _has_non_ascii_title(items: List[Tuple[str, str]]) -> bool:
+    return any(any(ord(ch) > 126 for ch in title) for _, title in items if title)
+
+
+def _truncate_ascii_title(title: str, max_width_pt: float, font_size: float = 7.5) -> Tuple[str, float]:
+    scale = font_size / 9.0
+    escaped, width_9pt = _escape_pdf_literal(title)
+    if width_9pt * scale <= max_width_pt:
+        return escaped, width_9pt * scale
+    trimmed = title
+    while len(trimmed) > 1:
+        trimmed = trimmed[:-1]
+        esc, w9 = _escape_pdf_literal(trimmed + "...")
+        if w9 * scale <= max_width_pt:
+            return esc, w9 * scale
+    return _escape_pdf_literal("...")[0], _escape_pdf_literal("...")[1] * scale
+
+
+def _wrap_ascii_lines_at_size(
+    title: str, max_width_pt: float, font_size: float, max_lines: int
+) -> Tuple[List[Tuple[str, float]], bool]:
+    """Wrap ASCII title up to max_lines at font_size; return (lines, truncated)."""
+    scale = font_size / 9.0
+    remaining = title.strip()
+    lines: List[Tuple[str, float]] = []
+    while remaining and len(lines) < max_lines:
+        if len(lines) == max_lines - 1:
+            esc, w9 = _escape_pdf_literal(remaining)
+            if w9 * scale <= max_width_pt:
+                lines.append((esc, w9 * scale))
+                return lines, False
+            lines.append(_truncate_ascii_title(remaining, max_width_pt, font_size))
+            return lines, True
+
+        cut = len(remaining)
+        while cut > 1 and _escape_pdf_literal(remaining[:cut])[1] * scale > max_width_pt:
+            cut -= 1
+        if cut == len(remaining):
+            esc, w9 = _escape_pdf_literal(remaining)
+            lines.append((esc, w9 * scale))
+            return lines, False
+        space = remaining.rfind(" ", 1, cut + 1)
+        if space > cut // 2:
+            cut = space
+        line_text = remaining[:cut].strip() or remaining[:cut]
+        esc_line, w9_line = _escape_pdf_literal(line_text)
+        lines.append((esc_line, w9_line * scale))
+        remaining = remaining[cut:].strip()
+    return lines, bool(remaining)
+
+
+def _wrap_ascii_title(
+    title: str, max_width_pt: float, max_lines: int = 4
+) -> Tuple[List[Tuple[str, float]], float]:
+    """Fit ASCII title into 1..4 wrapped lines, stepping font size down for longer titles."""
+    for pt_size, limit in ((7.5, 1), (6.5, 2), (6.0, 3), (5.5, max_lines)):
+        if limit == 1:
+            esc, w9 = _escape_pdf_literal(title)
+            w = w9 * (pt_size / 9.0)
+            if w <= max_width_pt:
+                return [(esc, w)], pt_size
+        else:
+            lines, truncated = _wrap_ascii_lines_at_size(title, max_width_pt, pt_size, limit)
+            if not truncated or limit == max_lines:
+                return lines, pt_size
+    lines, _ = _wrap_ascii_lines_at_size(title, max_width_pt, 5.5, max_lines)
+    return lines, 5.5
 
 
 def _render_label_cell(
@@ -107,8 +185,9 @@ def _render_label_cell(
     cell_width: float,
     cell_height: float,
     cell_padding: float,
+    title: str = "",
 ) -> None:
-    """Append one label cell to the page content stream: dashed cut guide, Code128 bars, readable text."""
+    """Append one label cell to the page content stream: dashed cut guide, optional title, Code128 bars, readable text."""
     # 1. Dashed cut guide box
     gx = cell_x + cell_padding
     gy = cell_y + cell_padding
@@ -118,17 +197,37 @@ def _render_label_cell(
         f"q 0.7 0.7 0.7 RG 0.5 w [3 3] 0 d {gx:.2f} {gy:.2f} {gw:.2f} {gh:.2f} re S Q"
     )
 
-    # 2. Vector barcode rectangles
+    inner_w = cell_width - (4.0 * cell_padding)
+    inner_h = cell_height - (4.0 * cell_padding)
+    clean_title = title.strip()
+
+    # 2. Optional book title in fixed 32.0 pt top zone (vertically centered 1..4 lines)
+    title_zone_top = cell_y + cell_height - cell_padding - 1.5
+    title_zone_h = 32.0
+    if clean_title:
+        title_lines, pt_size = _wrap_ascii_title(clean_title, inner_w)
+        line_h = pt_size + 2.2
+        block_h = len(title_lines) * line_h
+        top_offset = max(0.0, (title_zone_h - block_h) / 2.0)
+        first_y = title_zone_top - top_offset - (line_h + pt_size * 0.65) / 2.0
+        for i, (esc_line, line_w) in enumerate(title_lines):
+            tx = cell_x + (cell_width - line_w) / 2.0
+            ty = first_y - (i * line_h)
+            stream_lines.append(f"BT /F1 {pt_size:.1f} Tf {tx:.2f} {ty:.2f} Td ({esc_line}) Tj ET")
+
+    # 3. Vector barcode rectangles (fixed vertical position and height across all titled labels)
     bits = _encode_code128_b_bits(barcode_str)
     total_modules = len(bits)
 
-    inner_w = cell_width - (4.0 * cell_padding)
-    inner_h = cell_height - (4.0 * cell_padding)
-
     bc_img_w = inner_w * 0.88
-    bc_img_h = inner_h * 0.55
+    if clean_title:
+        bc_y = cell_y + cell_padding + 16.5
+        bc_top = title_zone_top - title_zone_h - 2.0
+        bc_img_h = max(12.0, bc_top - bc_y)
+    else:
+        bc_img_h = inner_h * 0.55
+        bc_y = cell_y + cell_padding + (inner_h * 0.35)
     bc_x = cell_x + (cell_width - bc_img_w) / 2.0
-    bc_y = cell_y + cell_padding + (inner_h * 0.35)
 
     module_w = bc_img_w / total_modules
 
@@ -227,6 +326,10 @@ def export_label_sheet_pdf(
         raise ValueError("No copies provided to export")
 
     barcode_items = _prepare_barcode_items(copies)
+    if _has_non_ascii_title(barcode_items):
+        from core.library.services.label_qt_renderer import export_label_sheet_qt_pdf
+        export_label_sheet_qt_pdf(barcode_items, output_path, cols, rows, _encode_code128_b_bits)
+        return
 
     page_width = 595.28  # A4 width in pt
     page_height = 841.89  # A4 height in pt
@@ -258,9 +361,11 @@ def export_label_sheet_pdf(
             cell_x = margin_x + (col * cell_width)
             cell_y = page_height - margin_y - ((row + 1) * cell_height)
 
+            barcode_str, title = barcode_items[idx]
             _render_label_cell(
-                stream_lines, barcode_items[idx],
+                stream_lines, barcode_str,
                 cell_x, cell_y, cell_width, cell_height, cell_padding,
+                title=title,
             )
 
         page_streams.append("\n".join(stream_lines).encode("latin1"))

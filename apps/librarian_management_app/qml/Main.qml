@@ -293,7 +293,10 @@ ApplicationWindow {
                     objectName: "navBtnSettings"
                     text: "⚙️ การตั้งค่าระบบ (Settings)"
                     active: stackLayout.currentIndex === 8
-                    onClicked: stackLayout.currentIndex = 8
+                    onClicked: {
+                        settingsView.refreshLanServerInfo()
+                        stackLayout.currentIndex = 8
+                    }
                 }
 
                 Item { Layout.fillHeight: true }
@@ -437,6 +440,7 @@ ApplicationWindow {
                 id: settingsView
                 objectName: "settingsView"
                 targetWindow: window
+                showLanServerCard: true
             }
         }
     }

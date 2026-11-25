@@ -10,6 +10,8 @@ SettingsPreviewCard 1.0 SettingsPreviewCard.qml
 SettingsControlsCard 1.0 SettingsControlsCard.qml
 SettingsHeader 1.0 SettingsHeader.qml
 SettingsFooter 1.0 SettingsFooter.qml
+SettingsLanServerCard 1.0 SettingsLanServerCard.qml
+SettingsLanClientCard 1.0 SettingsLanClientCard.qml
 StyledTextInput 1.0 StyledTextInput.qml
 StyledComboBox 1.0 StyledComboBox.qml
 StyledButton 1.0 StyledButton.qml

@@ -21,6 +21,7 @@ Each app has a unified cross-platform spec file:
 3. **Application Icons**: `('../assets/icons/*.png', 'assets/icons')`, plus platform-native executable/bundle icons (`EXE(..., icon=...)` `.ico`/`.png` and `BUNDLE(..., icon=...)` `.icns`) generated from `assets/icons/{boothapp,librarianmanagement,studentmanagement}.svg` and applied at runtime via `core/shared/mock_qt.py` (`apply_app_icon()`).
 4. **Local views & dialogs**: E.g. `('../apps/student_management_app/qml/views/*.qml', 'apps/student_management_app/qml/views')`.
 5. **Database migrations**: `('../data/migrations/*.sql', 'data/migrations')`.
+6. **PyThaiNLP Corpus Data (`librarian_management.spec` only)**: `collect_all('pythainlp')` bundles `pythainlp` corpus/dictionary files so Thai `newmm` word-boundary wrapping works in frozen barcode label exports.
 
 ---
 

@@ -22,10 +22,21 @@ ApplicationWindow {
         refreshDbEmpty()
     }
 
-    ColumnLayout {
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 80, 700)
-        spacing: 18
+    StackLayout {
+        id: kioskStack
+        objectName: "kioskStack"
+        anchors.fill: parent
+        currentIndex: 0
+
+        Item {
+            id: kioskHomePage
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            ColumnLayout {
+                anchors.centerIn: parent
+                width: Math.min(parent.width - 80, 700)
+                spacing: 18
 
         Text {
             text: "📖 บริการยืม-คืนหนังสือด้วยตนเอง"
@@ -78,6 +89,14 @@ ApplicationWindow {
                     variant: StyledButton.Neutral
                     text: "ตั้งค่าเซิร์ฟเวอร์"
                     onClicked: openLanSettings()
+                }
+
+                StyledButton {
+                    id: btnOpenBoothSettings
+                    objectName: "btnOpenBoothSettings"
+                    variant: StyledButton.Primary
+                    text: "⚙️ ตั้งค่าระบบ"
+                    onClicked: openBoothSettings()
                 }
             }
         }
@@ -248,9 +267,62 @@ ApplicationWindow {
                 studentIdInput.text = ""
                 bookBarcodeInput.text = ""
                 feedbackBanner.isError = false
-                feedbackBanner.text = "ขอบคุณที่ใช้บริการ"
+                    feedbackBanner.text = "ขอบคุณที่ใช้บริการ"
+                }
             }
         }
+    }
+
+    ColumnLayout {
+        id: boothSettingsPage
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        spacing: 0
+
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: Math.max(52, Math.round(settingsTopRow.implicitHeight + 20))
+            height: implicitHeight
+            color: "#1e293b"
+
+            RowLayout {
+                id: settingsTopRow
+                anchors.fill: parent
+                anchors.margins: 12
+                spacing: 12
+
+                Text {
+                    text: "⚙️ ตั้งค่าระบบและเชื่อมต่อเซิร์ฟเวอร์ (Booth Settings)"
+                    color: "#ffffff"
+                    font.bold: true
+                    font.pixelSize: 16
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                }
+
+                StyledButton {
+                    id: btnBackToKiosk
+                    objectName: "btnBackToKiosk"
+                    variant: StyledButton.Neutral
+                    text: "← กลับหน้าบริการ (Back to Kiosk)"
+                    onClicked: closeBoothSettings()
+                }
+            }
+        }
+
+        SettingsView {
+            id: boothSettingsView
+            objectName: "boothSettingsView"
+            showLanClientCard: true
+            targetWindow: boothWindow
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            onLanConnectionUpdated: function(st) {
+                boothWindow.connectionStatus = st
+                boothWindow.refreshDbEmpty()
+            }
+        }
+    }
     }
 
     LanSettingsDialog {
@@ -291,6 +363,17 @@ ApplicationWindow {
             return
         }
         isDbEmpty = boothAdapter.isDatabaseEmpty()
+    }
+
+    function openBoothSettings() {
+        boothSettingsView.refreshLanClientInfo()
+        kioskStack.currentIndex = 1
+    }
+
+    function closeBoothSettings() {
+        kioskStack.currentIndex = 0
+        refreshConnectionStatus()
+        refreshDbEmpty()
     }
 
     function openLanSettings() {

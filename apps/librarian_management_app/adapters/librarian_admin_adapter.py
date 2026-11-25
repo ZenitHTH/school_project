@@ -37,10 +37,16 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
         conn: sqlite3.Connection,
         settings_service: Optional[SettingsService] = None,
         lan_server: Optional[Any] = None,
+        lan_manager: Optional[Any] = None,
+        lan_config_path: Optional[str] = None,
     ):
         super().__init__()
         self.conn = conn
-        self.lan_server = lan_server
+        self.lan_manager = lan_manager
+        self.lan_config_path = lan_config_path
+        self.lan_server = (
+            lan_server if lan_server is not None else getattr(lan_manager, "lan_server", None)
+        )
         self.catalog_svc = CatalogService(conn)
         self.fine_svc = FineService(conn)
         self.res_svc = ReservationService(conn)
@@ -224,12 +230,39 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
         )
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
+    def _attach_book_titles(self, items: list) -> list:
+        """Resolve book titles from DB for bare barcode strings or dicts missing title."""
+        barcodes_to_lookup = [
+            (item["barcode"] if isinstance(item, dict) else str(item)).strip()
+            for item in items
+            if not (isinstance(item, dict) and item.get("title"))
+        ]
+        title_map: Dict[str, str] = {}
+        if barcodes_to_lookup:
+            placeholders = ",".join("?" for _ in barcodes_to_lookup)
+            rows = self.conn.execute(
+                f"SELECT bc.barcode, b.title FROM book_copies bc "
+                f"JOIN books b ON b.book_id = bc.book_id WHERE bc.barcode IN ({placeholders})",
+                barcodes_to_lookup,
+            ).fetchall()
+            title_map = {r["barcode"]: r["title"] for r in rows}
+
+        enriched = []
+        for item in items:
+            if isinstance(item, dict):
+                bc = str(item.get("barcode", "")).strip()
+                enriched.append({"barcode": bc, "title": item.get("title") or title_map.get(bc, "")})
+            else:
+                bc = str(item).strip()
+                enriched.append({"barcode": bc, "title": title_map.get(bc, "")})
+        return enriched
+
     @Slot(str, str, result=str)
     def exportLabelsPdf(self, barcodes_json: str, output_path: str) -> str:
         """Export barcode labels to printable A4 PDF."""
         try:
             from core.library.services.label_service import export_label_sheet_pdf
-            items = json.loads(barcodes_json)
+            items = self._attach_book_titles(json.loads(barcodes_json))
             output_path = normalize_file_path(output_path)
             if output_path.replace("\\", "/").startswith("/tmp/") and not os.path.exists("/tmp"):
                 import tempfile
@@ -466,21 +499,53 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
     @Slot(result=str)
     def getLanServerInfo(self) -> str:
         """Return JSON connection details for the embedded Booth LAN server."""
-        if self.lan_server is None:
+        server = self.lan_manager.lan_server if self.lan_manager is not None else self.lan_server
+        if server is None:
             return json.dumps({"running": False, "ip": "", "port": 0, "token": ""})
         running = bool(
-            self.lan_server.running
-            if hasattr(self.lan_server, "running")
-            else getattr(self.lan_server, "_httpd", None) is not None
+            server.running
+            if hasattr(server, "running")
+            else getattr(server, "_httpd", None) is not None
         )
         if not running:
             return json.dumps({"running": False, "ip": "", "port": 0, "token": ""})
         return json.dumps({
             "running": True,
-            "ip": str(self.lan_server.get_lan_ip()),
-            "port": int(self.lan_server.port),
-            "token": str(self.lan_server.token),
+            "ip": str(server.get_lan_ip()),
+            "port": int(server.port),
+            "token": str(server.token),
         })
+
+    def _ensure_lan_manager(self) -> Any:
+        """Return active LanServiceManager, creating one lazily when needed."""
+        if self.lan_manager is None:
+            from core.network.lan_manager import LanServiceManager
+
+            self.lan_manager = LanServiceManager(
+                self.conn, config_path=self.lan_config_path, lan_server=self.lan_server
+            )
+        return self.lan_manager
+
+    @Slot(result=str)
+    def getLanConfig(self) -> str:
+        """Return JSON status and configuration of the Librarian LAN server."""
+        try:
+            return json.dumps(self._ensure_lan_manager().status_dict())
+        except Exception as exc:
+            return json.dumps({"ok": False, "error": str(exc)})
+
+    @Slot(bool, int, int, str, result=str)
+    def saveAndApplyLanConfig(
+        self, enabled: bool, port: int, discovery_port: int, token: str
+    ) -> str:
+        """Validate, persist, and live-apply Librarian LAN server settings."""
+        try:
+            mgr = self._ensure_lan_manager()
+            result = mgr.apply_config(enabled, port, discovery_port, token)
+            self.lan_server = mgr.lan_server
+            return json.dumps(result)
+        except Exception as exc:
+            return json.dumps({"ok": False, "error": str(exc)})
 
 
 

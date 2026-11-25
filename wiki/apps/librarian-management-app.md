@@ -64,6 +64,7 @@ apps/librarian_management_app/
 - Clickable bordered table rows with checkboxes for selective printing (`exportSelectedBooksPdf`) or full printout (`exportAllBooksPdf` / `btnExportPdfSheet`).
 - Includes direct per-row `+ เล่ม` action button to top up physical copies without leaving the page.
 - Automatically excludes retired and disposed copies (`status NOT IN ('retired', 'disposed')`).
+- Exported A4 PDF sheets automatically render each book's title above its barcode (resolved by `LibrarianAdminAdapter._attach_book_titles`, 1–4 line Thai `newmm` / ASCII word-wrapping, fixed barcode size).
 
 ### 2.5 Student Snapshot Sync (`StudentSyncView.qml`)
 - Imports `snapshot.sqlite` exported from the Student Management App.
@@ -71,7 +72,16 @@ apps/librarian_management_app/
 
 ### 2.6 System Settings & Sidebar Navigation (`Main.qml` & `SettingsView.qml`)
 - Left sidebar navigation uses dynamic `implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 18))` and `Layout.preferredHeight` on `NavBtn` to ensure active highlight pills cleanly encase text labels across all system font sizes and UI scaling factors.
-- Tab 8 embeds the shared `SettingsView.qml` for real-time font family, font size (10–24px), and UI scaling (50%–150%) adjustment.
+- Tab 8 embeds the shared `SettingsView.qml` (`showLanServerCard: true`) for real-time font family, font size (10–24px), and UI scaling (50%–150%) adjustment alongside live LAN Server management.
+
+### 2.8 LAN Server Status & Live Configuration (`SettingsLanServerCard.qml` & `LanServiceManager`)
+- **Persistence (`core/network/lan_server_config.py`)**: Stores `{enabled, port, discovery_port, token}` in `SMTE-LibrarianManagement/lan_server_config.json` (overridable via `LIBRARIAN_LAN_CONFIG_PATH`), falling back to defaults (`enabled=True`, `port=8765`, `discovery_port=8766`, `token="123456"`) on missing or corrupt JSON and normalizing out-of-range/bool ports or empty tokens.
+- **Lifecycle Manager (`core/network/lan_manager.py`, `LanServiceManager`)**: Starts/stops `BoothLanServer` and `LanDiscoveryResponder`, applies `LIBRARIAN_LAN_DISABLED=1`, `LIBRARIAN_LAN_PORT`, `LIBRARIAN_DISCOVERY_PORT`, and `BOOTH_SERVER_TOKEN` overrides at startup, catches `OSError` cleanly without leaving partial servers, and validates live GUI updates (`1..65535`, `port != discovery_port`, non-empty `token`) before restarting services.
+- **Adapter Slots (`LibrarianAdminAdapter`)**:
+  - `getLanServerInfo()`: Preserves the strict 4-key contract `{"running", "ip", "port", "token"}`.
+  - `getLanConfig()`: Returns `{ok, running, enabled, ip, port, discovery_port, token, error}`.
+  - `saveAndApplyLanConfig(enabled, port, discovery_port, token)`: Validates, persists to `lan_server_config.json`, and live-restarts the LAN server & discovery responder without restarting the app.
+- **UI (`apps/common_qml/SettingsLanServerCard.qml`)**: Enabled via `SettingsView { showLanServerCard: true }` in `Main.qml` (Student Management keeps `showLanServerCard: false`). Displays live status badge, LAN IP, Endpoint URL, and inline editing/save/reset controls.
 
 ### 2.7 Books without ISBN (No-ISBN checkbox)
 - A book may exist without an ISBN: `books.isbn` is nullable (migration `0002`) and an empty ISBN stores as `NULL` — never a sentinel like `-` (repo write paths store the ISBN exactly as submitted, with no normalization on write).

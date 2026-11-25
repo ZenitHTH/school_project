@@ -17,9 +17,10 @@ In production deployment, `apps/booth_app` runs as a **thin LAN client** with no
 apps/booth_app/
 ├── main.py
 ├── adapters/
-│   └── booth_adapter.py     # Supports LAN client mode & legacy SQLite conn mode
+│   └── booth_adapter.py     # Supports LAN client mode, legacy SQLite conn mode & SettingsAdapterMixin
 └── qml/
-    └── Main.qml             # Kiosk UI + LAN status bar & connection settings dialog
+    ├── LanSettingsDialog.qml # Modal dialog for host/port/token & auto-discover
+    └── Main.qml              # StackLayout (kiosk home + SettingsView), LAN status bar & reconnect timer
 ```
 
 ---
@@ -29,7 +30,9 @@ apps/booth_app/
 ```
 [ Startup: Load booth_config.json -> Auto-discover UDP if host empty -> BoothLanClient ]
              │
-             ▼
+             ├──> [ ⚙️ ตั้งค่าระบบ (btnOpenBoothSettings) -> kioskStack[1]: SettingsView + SettingsLanClientCard ]
+             │
+             ▼ (kioskStack[0]: Kiosk Home)
 [ Step 1: Scan Student ID Card ]
              │
              ▼
@@ -50,8 +53,13 @@ apps/booth_app/
 
 ## 4. Key Adapter Slots & ObjectNames (for Testing & Automation)
 - **LAN Slots (`BoothAdapter`)**: `getConnectionStatus()`, `configureConnection(host, port, token)`, `discoverServer()`.
+- **Settings Slots (`BoothAdapter` via `SettingsAdapterMixin`)**: `loadSettings()`, `saveSettings(fontFamily, fontSize, uiScale)`, `resetSettings()`, `setAppFont(family, pixelSize)` backed by `SettingsService`.
 - **Librarian Host Slot (`LibrarianAdminAdapter`)**: `getLanServerInfo()` returning `{"running", "ip", "port", "token"}`.
-- `lanStatusBanner`: Top status banner showing LAN connection state (`connected`, `host`, `port`) and settings trigger.
+- `kioskStack`: Root `StackLayout` switching between Kiosk Home (`currentIndex: 0`) and Booth System Settings (`currentIndex: 1`).
+- `lanStatusBanner`: Top status banner showing LAN connection state (`connected`, `host`, `port`), modal settings trigger (`btnLanSettings`), and System Settings trigger (`btnOpenBoothSettings`).
+- `boothSettingsView` (`SettingsView` with `showLanClientCard: true`, `targetWindow: boothWindow`): Embedded visual settings and Connect/Switch Server card (`SettingsLanClientCard`), paired with `btnBackToKiosk` to return to `kioskStack` index `0` and refresh connection status + DB emptiness.
+- `lanReconnectTimer`: Background `Timer` (`interval: 5000`) polling `refreshConnectionStatus()` while `mode === "lan" && !connected && !lanSettingsDialog.visible`.
+- `lanSettingsDialog` (`LanSettingsDialog.qml`): Modal connection settings dialog (`lanHostInput`, `lanPortInput`, `lanTokenInput`, `btnAutoDiscover`, `discoverStatusLabel`).
 - `emptyDbWarningBanner`: Warning displayed if database has zero students or books.
 - `studentIdInput`: `StyledSearchField` for barcode scanner or keypad entry.
 - `btnIdentify`: Button to lookup student.

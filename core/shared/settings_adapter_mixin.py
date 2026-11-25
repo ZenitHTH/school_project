@@ -1,6 +1,6 @@
 import json
 from typing import Optional
-from core.shared.mock_qt import Slot
+from core.shared.mock_qt import Slot, apply_qt_app_font
 from core.shared.settings_service import SettingsService
 
 
@@ -26,3 +26,8 @@ class SettingsAdapterMixin:
         """Reset visual settings to defaults on disk."""
         res = self.settings_svc.reset_settings()
         return json.dumps({"ok": res.ok, "data": res.data, "error": res.error})
+
+    @Slot(str, int)
+    def setAppFont(self, family: str, pixel_size: int) -> None:
+        """Update application-level font family and pixel size."""
+        apply_qt_app_font(family, pixel_size)

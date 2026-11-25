@@ -12,6 +12,8 @@ from core.network.booth_config import (
 from core.network.lan_client import BoothLanClient
 from core.network.lan_discovery import discover_librarian
 from core.shared.mock_qt import QObject, Slot, _sanitize_for_qml
+from core.shared.settings_adapter_mixin import SettingsAdapterMixin
+from core.shared.settings_service import SettingsService
 from core.student.services.student_service import StudentService
 
 
@@ -40,7 +42,7 @@ def _clean_conn_args(
     }
 
 
-class BoothAdapter(QObject):
+class BoothAdapter(QObject, SettingsAdapterMixin):
     """Bridge for self-service checkout kiosk (supports LAN client or local SQLite)."""
 
     def __init__(
@@ -49,12 +51,14 @@ class BoothAdapter(QObject):
         client: Optional[BoothLanClient] = None,
         config_path: Optional[str] = None,
         auto_discover: bool = True,
+        settings_service: Optional[SettingsService] = None,
     ) -> None:
         super().__init__()
         if conn is None and client is None:
             raise ValueError("Either conn or client must be provided")
         self.conn, self.client, self.config_path = conn, client, config_path
         self.auto_discover = auto_discover
+        self.settings_svc = settings_service or SettingsService()
         self.catalog_svc = CatalogService(conn) if conn is not None else None
         self.student_svc = StudentService(conn) if conn is not None else None
         self.loan_svc = LoanService(conn, student_service=self.student_svc) if conn is not None else None

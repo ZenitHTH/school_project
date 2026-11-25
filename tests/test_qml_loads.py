@@ -100,6 +100,8 @@ def test_common_qml_components_load(qapp):
         "StyledComboBox.qml",
         "StyledButton.qml",
         "StyledDialog.qml",
+        "SettingsLanServerCard.qml",
+        "SettingsLanClientCard.qml",
     ]
 
     for comp_name in components:
@@ -142,6 +144,8 @@ def test_common_qml_module_import(qapp):
         StyledTextInput { id: textInput }
         StyledComboBox { id: comboBox }
         StyledButton { id: button }
+        SettingsLanServerCard { id: lanCard }
+        SettingsLanClientCard { id: lanClientCard }
         StyledDialog { id: styledDialog; objectName: "styledDialog"; standardButtons: Dialog.Ok | Dialog.Cancel }
         StyledDialog { id: styledDialogNoButtons; objectName: "styledDialogNoButtons"; standardButtons: Dialog.NoButton }
     }

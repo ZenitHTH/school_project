@@ -152,6 +152,66 @@ def test_export_label_sheet_pdf_escapes_special_and_non_ascii_chars(tmp_path):
     assert b"SMTE-\\(01\\)\\\\A" in raw
 
 
+def test_export_label_sheet_pdf_with_ascii_and_thai_titles(tmp_path):
+    ascii_pdf = str(tmp_path / "ascii_titles.pdf")
+    export_label_sheet_pdf(
+        [{"barcode": "SMTE-00001-01", "title": "Physics Vol 1"}],
+        ascii_pdf,
+    )
+    with open(ascii_pdf, "rb") as f:
+        raw = f.read()
+    assert raw.startswith(b"%PDF-1.4")
+    assert b"(Physics Vol 1)" in raw
+
+    thai_pdf = str(tmp_path / "thai_titles.pdf")
+    export_label_sheet_pdf(
+        [{"barcode": "SMTE-00001-01", "title": "ชีววิทยา ม.1 เล่ม 1"}],
+        thai_pdf,
+    )
+    with open(thai_pdf, "rb") as f:
+        thai_raw = f.read()
+    assert thai_raw.startswith(b"%PDF-")
+    assert len(thai_raw) > 2000
+
+    # Very long ASCII title (200 chars) wraps to 4 lines at 5.5 Tf and elides cleanly
+    long_ascii_pdf = str(tmp_path / "long_ascii.pdf")
+    long_ascii = (
+        "COMPREHENSIVE INTRODUCTION TO ADVANCED COMPUTATIONAL QUANTUM MECHANICS "
+        "AND STATISTICAL THERMODYNAMICS FOR GRADUATE PHYSICS STUDENTS VOLUME 4 "
+        "REVISED EDITION WITH WORKED EXAMPLES AND SOLUTIONS MANUAL 2"
+    )
+    assert len(long_ascii) == 200
+    export_label_sheet_pdf([{"barcode": "SMTE-00002-01", "title": long_ascii}], long_ascii_pdf)
+    with open(long_ascii_pdf, "rb") as f:
+        long_raw = f.read()
+    assert long_raw.count(b"5.5 Tf") == 4
+    assert b"...)" in long_raw
+    assert b"739.15" in raw and b"739.15" in long_raw
+    assert b"39.24 re f" in raw and b"39.24 re f" in long_raw
+
+    # Long no-space ASCII title (200 chars) wraps to 4 lines at 5.5 Tf without overflowing
+    nospace_ascii_pdf = str(tmp_path / "nospace_ascii.pdf")
+    export_label_sheet_pdf([{"barcode": "SMTE-00002-03", "title": "A" * 200}], nospace_ascii_pdf)
+    with open(nospace_ascii_pdf, "rb") as f:
+        nospace_raw = f.read()
+    assert nospace_raw.count(b"5.5 Tf") == 4
+    assert b"...)" in nospace_raw
+
+    # No-title label renders without error
+    no_title_pdf = str(tmp_path / "no_title.pdf")
+    export_label_sheet_pdf([{"barcode": "SMTE-00003-01", "title": ""}], no_title_pdf)
+    with open(no_title_pdf, "rb") as f:
+        no_title_raw = f.read()
+    assert no_title_raw.startswith(b"%PDF-1.4")
+    assert b"(SMTE-00003-01)" in no_title_raw
+
+    long_thai_pdf = str(tmp_path / "long_thai.pdf")
+    long_thai = "หนังสือเรียนรายวิชาเพิ่มเติมวิทยาศาสตร์และเทคโนโลยี ชีววิทยา ชั้นมัธยมศึกษาปีที่ 4 เล่ม 1 ฉบับปรับปรุง พ.ศ. 2560"
+    export_label_sheet_pdf([{"barcode": "SMTE-00002-02", "title": long_thai}], long_thai_pdf)
+    with open(long_thai_pdf, "rb") as f:
+        assert f.read().startswith(b"%PDF-")
+
+
 def test_export_labels_pdf_normalizes_file_url(conn, tmp_path):
     adapter = LibrarianAdminAdapter(conn)
     pdf_path = tmp_path / "url_labels.pdf"

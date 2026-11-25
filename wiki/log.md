@@ -525,3 +525,23 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - Added `.github/workflows/ci.yml` (`CI (Test & Build)`) triggering on `push` (`dev`), `pull_request` (`dev`, `main`), and `workflow_dispatch` with `contents: read` and no release publishing.
 - Includes `test` (`ubuntu-24.04` headless `pytest -q`) gating `build-windows` (with live silent install/uninstall verification of `netsh` LAN firewall rules), `build-linux` (`.deb` `dpkg -I`/`dpkg -c` verification), and `build-macos` (`.dmg`), retaining artifacts for 7 days.
 - Extended `tests/test_installer_firewall.py` and updated `wiki/architecture/packaging.md`.
+
+## [2026-11-25] feat | Plain-Paper Barcode Label Book Titles & Thai Word-Wrap Renderer
+- `core/library/services/label_service.py`: extended `export_label_sheet_pdf` normalization (`_prepare_barcode_items`) for `(copy_id, barcode, title)` tuples and `{"barcode", "title"}` dicts, routed non-ASCII titles via `_has_non_ascii_title` to `label_qt_renderer.export_label_sheet_qt_pdf`, and aligned ASCII wrapping (`_wrap_ascii_title`: 1–4 lines stepping `7.5/6.5/6.0/5.5 pt` with `...` elision, centered in a `32.0 pt` title zone with fixed Code128 bar position and height).
+- `core/library/services/label_qt_renderer.py`: Qt `QPdfWriter` + `QPainter` A4 PDF renderer with `pythainlp` `newmm` word-boundary wrapping (1–4 lines stepping `7.5/6.5/6.0/5.5 pt`, `Qt.ElideRight`), vertically centered `32.0 pt` title zone, and uniform Code128-B bar geometry.
+- `apps/librarian_management_app/adapters/librarian_admin_adapter.py`: added `_attach_book_titles` in `exportLabelsPdf` to resolve missing book titles from `book_copies` joined with `books`.
+- `packaging/librarian_management.spec` & `requirements.txt`: added `pythainlp>=5.0.0` and PyInstaller `collect_all` bundling for `pythainlp` corpus data.
+- Updated `wiki/services/library-services.md` (§6).
+
+## [2026-11-25] feat | Librarian LAN Server Status & Live Configuration Settings UI
+- `core/network/lan_server_config.py`: added JSON persistence (`default_lan_server_config`, `load_lan_server_config`, `save_lan_server_config`) to `SMTE-LibrarianManagement/lan_server_config.json` with validation/normalization and default fallbacks.
+- `core/network/lan_manager.py`: added `LanServiceManager` managing `BoothLanServer` + `LanDiscoveryResponder` lifecycle, env overrides, `OSError` cleanup, and live `apply_config()` restart without leaving partial servers.
+- `apps/librarian_management_app/`: `main.py` initializes `LanServiceManager` via `_create_lan_manager()` and stops it on exit; `LibrarianAdminAdapter` adds `getLanConfig()` and `saveAndApplyLanConfig()` while preserving the 4-key `getLanServerInfo()` contract.
+- `apps/common_qml/`: added `SettingsLanServerCard.qml` (`qmldir` + `SettingsView.showLanServerCard`, `true` only in Librarian `Main.qml`, `false` in Student Management).
+- Updated `wiki/apps/common-qml.md`, `wiki/apps/librarian-management-app.md`, and `wiki/apps/booth-app.md`; added `tests/test_librarian_lan_settings_ui.py` and updated `tests/test_qml_loads.py`.
+
+## [2026-11-25] feat | Booth App System Settings & Connect/Switch Server UI
+- `apps/booth_app/adapters/booth_adapter.py`: mixed in `SettingsAdapterMixin` with `SettingsService` injection for `loadSettings()`, `saveSettings()`, `resetSettings()`, and `setAppFont()`.
+- `apps/common_qml/`: added `SettingsLanClientCard.qml` (`qmldir`, `SettingsView.showLanClientCard`, `lanConnectionUpdated` signal, `refreshLanClientInfo()`) for inspecting, UDP auto-discovering, and connecting/switching Booth LAN server endpoints.
+- `apps/booth_app/qml/Main.qml`: wrapped kiosk UI in `kioskStack` (`StackLayout`) with `btnOpenBoothSettings`, `btnBackToKiosk`, and `boothSettingsView` (`SettingsView` with `showLanClientCard: true`).
+- Updated `wiki/apps/common-qml.md`, `wiki/apps/booth-app.md`, `tests/test_qml_loads.py`, and added `tests/test_booth_settings_and_switch_ui.py`.
