@@ -7,10 +7,7 @@ from typing import Any, Dict, Optional
 from core.library.services.catalog_service import CatalogService
 from core.library.services.loan_service import LoanService
 from core.network.booth_config import (
-    DEFAULT_BOOTH_TOKEN,
-    DEFAULT_LAN_PORT,
-    load_booth_config,
-    save_booth_config,
+    DEFAULT_BOOTH_TOKEN, DEFAULT_LAN_PORT, load_booth_config, save_booth_config,
 )
 from core.network.lan_client import BoothLanClient
 from core.network.lan_discovery import discover_librarian
@@ -51,20 +48,16 @@ class BoothAdapter(QObject):
         conn: Optional[sqlite3.Connection] = None,
         client: Optional[BoothLanClient] = None,
         config_path: Optional[str] = None,
+        auto_discover: bool = True,
     ) -> None:
         super().__init__()
         if conn is None and client is None:
             raise ValueError("Either conn or client must be provided")
-        self.conn = conn
-        self.client = client
-        self.config_path = config_path
+        self.conn, self.client, self.config_path = conn, client, config_path
+        self.auto_discover = auto_discover
         self.catalog_svc = CatalogService(conn) if conn is not None else None
         self.student_svc = StudentService(conn) if conn is not None else None
-        self.loan_svc = (
-            LoanService(conn, student_service=self.student_svc)
-            if conn is not None
-            else None
-        )
+        self.loan_svc = LoanService(conn, student_service=self.student_svc) if conn is not None else None
 
     def close(self) -> None:
         """Close the active LAN HTTP client if present."""
@@ -106,9 +99,7 @@ class BoothAdapter(QObject):
         """Self checkout."""
         if self.client is not None:
             return _format_lan_res(self.client.checkout(student_id, barcode))
-        res = self.loan_svc.checkout(  # type: ignore[union-attr]
-            student_id=student_id, barcode=barcode, actor=f"Booth:{student_id}"
-        )
+        res = self.loan_svc.checkout(student_id=student_id, barcode=barcode, actor=f"Booth:{student_id}")  # type: ignore[union-attr]
         return _format_res(res.ok, res.data, res.error)
 
     @Slot(int, result=str)
@@ -136,6 +127,26 @@ class BoothAdapter(QObject):
         res = self.loan_svc.return_book(row[0], actor="Booth:Return")  # type: ignore[union-attr]
         return _format_res(res.ok, res.data, res.error)
 
+    def _try_rediscover(self) -> Optional[Dict[str, Any]]:
+        """Probe LAN discovery and swap client if a healthy server responds."""
+        found = discover_librarian(timeout=0.4)
+        if not found or not found.get("host"):
+            return None
+        new_host = str(found["host"])
+        new_port = int(found.get("port", DEFAULT_LAN_PORT))
+        token = self._existing_token()
+        probe = BoothLanClient(host=new_host, port=new_port, token=token)
+        probe_health = probe.health()
+        if not probe_health.get("ok"):
+            probe.close()
+            return None
+        if self.client is not None:
+            self.client.close()
+        self.client = probe
+        if self.config_path:
+            save_booth_config(self.config_path, {"host": new_host, "port": new_port, "token": token})
+        return probe_health
+
     @Slot(result=str)
     def getConnectionStatus(self) -> str:
         """Return JSON status for the active LAN or local DB connection."""
@@ -143,15 +154,11 @@ class BoothAdapter(QObject):
             payload = {"connected": True, "host": "local", "port": 0, "mode": "local", "error": ""}
             return json.dumps(_sanitize_for_qml(payload))
         health = self.client.health()
+        if not health.get("ok") and self.auto_discover:
+            health = self._try_rediscover() or health
         ok = bool(health.get("ok", False))
         err = "" if ok else str(health.get("error") or "Unable to reach server")
-        payload = {
-            "connected": ok,
-            "host": self.client.host,
-            "port": self.client.port,
-            "mode": "lan",
-            "error": err,
-        }
+        payload = {"connected": ok, "host": self.client.host, "port": self.client.port, "mode": "lan", "error": err}
         return json.dumps(_sanitize_for_qml(payload))
 
     def _existing_token(self) -> str:

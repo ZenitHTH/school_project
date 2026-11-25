@@ -85,7 +85,7 @@ def test_booth_adapter_configure_connection_persists_and_swaps(live_server, tmp_
     server, _ = live_server
     cfg_path = str(tmp_path / "booth_config.json")
     offline_client = BoothLanClient(host="", port=DEFAULT_LAN_PORT, token=DEFAULT_BOOTH_TOKEN)
-    adapter = BoothAdapter(client=offline_client, config_path=cfg_path)
+    adapter = BoothAdapter(client=offline_client, config_path=cfg_path, auto_discover=False)
     try:
         before = json.loads(adapter.getConnectionStatus())
         assert before["connected"] is False
@@ -201,6 +201,7 @@ def test_booth_qml_lan_banner_and_settings_dialog(live_server, tmp_path, monkeyp
     adapter = BoothAdapter(
         client=BoothLanClient(host="", port=DEFAULT_LAN_PORT, token=DEFAULT_BOOTH_TOKEN),
         config_path=cfg_path,
+        auto_discover=False,
     )
     engine = QQmlApplicationEngine()
     warnings = []
@@ -244,6 +245,63 @@ def test_booth_qml_lan_banner_and_settings_dialog(live_server, tmp_path, monkeyp
     ref_errors = [w for w in warnings if "ReferenceError" in w or "TypeError" in w]
     assert not ref_errors, f"Unexpected QML errors: {ref_errors}"
 
+    adapter.close()
+    engine.deleteLater()
+    app.processEvents()
+
+
+def test_booth_adapter_auto_rediscovers_when_server_starts_later_or_ip_changes(tmp_path, monkeypatch):
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    cfg_path = str(tmp_path / "booth_config.json")
+    dead_client = BoothLanClient(host="127.0.0.1", port=1, token="tok")
+    adapter = BoothAdapter(client=dead_client, config_path=cfg_path, auto_discover=True)
+    conn = _make_seeded_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="tok")
+    server.start()
+    try:
+        monkeypatch.setattr(
+            "apps.booth_app.adapters.booth_adapter.discover_librarian",
+            lambda timeout=0.4: {"host": "127.0.0.1", "port": server.port, "version": "1.0"},
+        )
+        status = json.loads(adapter.getConnectionStatus())
+        assert status["connected"] is True
+        assert status["port"] == server.port
+        assert load_booth_config(cfg_path) == {
+            "host": "127.0.0.1",
+            "port": server.port,
+            "token": "tok",
+        }
+    finally:
+        adapter.close()
+        server.stop()
+        conn.close()
+
+
+def test_booth_qml_has_lan_reconnect_timer():
+    import os
+    import sys
+    from PySide6.QtCore import QObject
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtQml import QQmlApplicationEngine
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    app = QGuiApplication.instance() or QGuiApplication(sys.argv)
+    adapter = BoothAdapter(
+        client=BoothLanClient(host="", port=DEFAULT_LAN_PORT, token=DEFAULT_BOOTH_TOKEN),
+        auto_discover=False,
+    )
+    engine = QQmlApplicationEngine()
+    engine.addImportPath(os.path.abspath("apps/common_qml"))
+    engine.addImportPath(os.path.abspath("apps"))
+    engine.rootContext().setContextProperty("boothAdapter", adapter)
+    engine.load(os.path.abspath("apps/booth_app/qml/Main.qml"))
+    assert len(engine.rootObjects()) > 0
+    window = engine.rootObjects()[0]
+    timer = window.findChild(QObject, "lanReconnectTimer")
+    assert timer is not None
+    assert timer.property("interval") == 5000
     adapter.close()
     engine.deleteLater()
     app.processEvents()

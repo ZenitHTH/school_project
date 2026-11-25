@@ -262,6 +262,20 @@ ApplicationWindow {
         onAutoDiscoverRequested: runAutoDiscover()
     }
 
+    Timer {
+        id: reconnectTimer
+        objectName: "lanReconnectTimer"
+        interval: 5000
+        repeat: true
+        running: connectionStatus.mode === "lan" && !connectionStatus.connected && !lanSettingsDialog.visible
+        onTriggered: {
+            refreshConnectionStatus()
+            if (connectionStatus.connected) {
+                refreshDbEmpty()
+            }
+        }
+    }
+
     function refreshConnectionStatus() {
         if (typeof boothAdapter === "undefined" || boothAdapter === null || !boothAdapter.getConnectionStatus) {
             return
