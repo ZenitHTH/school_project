@@ -45,7 +45,11 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
+#ifdef EnableLanFirewall
+PrivilegesRequired=admin
+#else
 PrivilegesRequired=lowest
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -62,4 +66,16 @@ Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
 
 [Run]
+#ifdef EnableLanFirewall
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""SMTE Librarian LAN HTTP"""; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""SMTE Librarian LAN HTTP"" dir=in action=allow protocol=TCP localport=8765 profile=private,domain"; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""SMTE Librarian LAN Discovery"""; Flags: runhidden waituntilterminated
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall add rule name=""SMTE Librarian LAN Discovery"" dir=in action=allow protocol=UDP localport=8766 profile=private,domain"; Flags: runhidden waituntilterminated
+#endif
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+
+#ifdef EnableLanFirewall
+[UninstallRun]
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""SMTE Librarian LAN HTTP"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveLanHttpRule"
+Filename: "{sys}\netsh.exe"; Parameters: "advfirewall firewall delete rule name=""SMTE Librarian LAN Discovery"""; Flags: runhidden waituntilterminated; RunOnceId: "RemoveLanDiscoveryRule"
+#endif

@@ -70,6 +70,36 @@ chmod 644 %{buildroot}/usr/share/applications/$PKG_NAME.desktop
 /usr/lib/$PKG_NAME/$APP_BIN_NAME
 /usr/bin/$PKG_NAME
 /usr/share/applications/$PKG_NAME.desktop
+EOF
+
+if [ "$PKG_NAME" = "librarianmanagement" ]; then
+    cat <<'EOF' >> "$SPEC_FILE"
+
+%post
+if command -v firewall-cmd >/dev/null 2>&1; then
+    firewall-cmd --permanent --add-port=8765/tcp --add-port=8766/udp >/dev/null 2>&1 || true
+    firewall-cmd --reload >/dev/null 2>&1 || true
+fi
+if command -v ufw >/dev/null 2>&1; then
+    ufw allow 8765/tcp >/dev/null 2>&1 || true
+    ufw allow 8766/udp >/dev/null 2>&1 || true
+fi
+
+%postun
+if [ "$1" -eq 0 ]; then
+    if command -v firewall-cmd >/dev/null 2>&1; then
+        firewall-cmd --permanent --remove-port=8765/tcp --remove-port=8766/udp >/dev/null 2>&1 || true
+        firewall-cmd --reload >/dev/null 2>&1 || true
+    fi
+    if command -v ufw >/dev/null 2>&1; then
+        ufw delete allow 8765/tcp >/dev/null 2>&1 || true
+        ufw delete allow 8766/udp >/dev/null 2>&1 || true
+    fi
+fi
+EOF
+fi
+
+cat <<EOF >> "$SPEC_FILE"
 
 %changelog
 * Fri Oct 02 2026 Admin <admin@school.local> - $RPM_VERSION-1

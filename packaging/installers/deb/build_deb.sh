@@ -71,6 +71,42 @@ EOF
 INSTALLED_SIZE=$(du -sk "$BUILD_ROOT" | cut -f1)
 echo "Installed-Size: $INSTALLED_SIZE" >> "$CONTROL_DIR/control"
 
+if [ "$PKG_NAME" = "librarianmanagement" ]; then
+    cat <<'EOF' > "$CONTROL_DIR/postinst"
+#!/bin/sh
+set -e
+if [ "$1" = "configure" ]; then
+    if command -v ufw >/dev/null 2>&1; then
+        ufw allow 8765/tcp >/dev/null 2>&1 || true
+        ufw allow 8766/udp >/dev/null 2>&1 || true
+    fi
+    if command -v firewall-cmd >/dev/null 2>&1; then
+        firewall-cmd --permanent --add-port=8765/tcp --add-port=8766/udp >/dev/null 2>&1 || true
+        firewall-cmd --reload >/dev/null 2>&1 || true
+    fi
+fi
+exit 0
+EOF
+    cat <<'EOF' > "$CONTROL_DIR/prerm"
+#!/bin/sh
+set -e
+case "$1" in
+    remove|purge)
+        if command -v ufw >/dev/null 2>&1; then
+            ufw delete allow 8765/tcp >/dev/null 2>&1 || true
+            ufw delete allow 8766/udp >/dev/null 2>&1 || true
+        fi
+        if command -v firewall-cmd >/dev/null 2>&1; then
+            firewall-cmd --permanent --remove-port=8765/tcp --remove-port=8766/udp >/dev/null 2>&1 || true
+            firewall-cmd --reload >/dev/null 2>&1 || true
+        fi
+        ;;
+esac
+exit 0
+EOF
+    chmod 755 "$CONTROL_DIR/postinst" "$CONTROL_DIR/prerm"
+fi
+
 DEB_FILE="$OUTPUT_DIR/${PKG_NAME}_${DEB_VERSION}_${ARCH}.deb"
 dpkg-deb --build --root-owner-group "$BUILD_ROOT" "$DEB_FILE"
 
