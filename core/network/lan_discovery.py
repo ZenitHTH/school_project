@@ -94,6 +94,19 @@ class LanDiscoveryResponder:
                     pass
 
 
+def _recv_until_match(sock: socket.socket, timeout: float) -> Optional[Dict[str, Any]]:
+    deadline = time.monotonic() + float(timeout)
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None
+        sock.settimeout(remaining)
+        raw, addr = sock.recvfrom(1024)
+        parsed = _parse_reply(raw, addr[0])
+        if parsed is not None:
+            return parsed
+
+
 def discover_librarian(
     discovery_port: int = DEFAULT_DISCOVERY_PORT,
     timeout: float = 1.5,
@@ -104,16 +117,7 @@ def discover_librarian(
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.sendto(DISCOVERY_MAGIC, (broadcast_addr, int(discovery_port)))
-        deadline = time.monotonic() + float(timeout)
-        while True:
-            remaining = deadline - time.monotonic()
-            if remaining <= 0:
-                return None
-            sock.settimeout(remaining)
-            raw, addr = sock.recvfrom(1024)
-            parsed = _parse_reply(raw, addr[0])
-            if parsed is not None:
-                return parsed
+        return _recv_until_match(sock, timeout)
     except (socket.timeout, OSError):
         return None
     finally:

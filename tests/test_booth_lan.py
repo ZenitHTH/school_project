@@ -276,3 +276,27 @@ def test_udp_discovery_timeout_returns_none():
         discovery_port=unused_port, timeout=0.1, broadcast_addr="127.0.0.1"
     )
     assert result is None
+
+
+def test_lan_server_concurrent_requests_thread_safe():
+    from concurrent.futures import ThreadPoolExecutor
+    from core.network.lan_client import BoothLanClient
+    from core.network.lan_server import BoothLanServer
+
+    conn = _make_seeded_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="tok")
+    server.start()
+    try:
+        def _worker():
+            c = BoothLanClient(host="127.0.0.1", port=server.port, token="tok")
+            try:
+                return c.health()["ok"] and len(c.search_students("3001")) == 1
+            finally:
+                c.close()
+
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            results = list(pool.map(lambda _: _worker(), range(12)))
+        assert all(results)
+    finally:
+        server.stop()
+        conn.close()

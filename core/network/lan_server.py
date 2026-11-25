@@ -21,6 +21,11 @@ def _is_int(val: Any) -> bool:
     return isinstance(val, int) and not isinstance(val, bool)
 
 
+def _res_payload(res: Any) -> Dict[str, Any]:
+    data = _sanitize_for_qml(res.data) if res.ok else {}
+    return {"ok": res.ok, "data": data, "error": res.error}
+
+
 class _LanHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
@@ -58,28 +63,22 @@ class _LanRequestHandler(BaseHTTPRequestHandler):
             return None, "Invalid Content-Length"
         if length <= 0:
             return None, "Empty request body"
-        raw = self.rfile.read(length)
         try:
-            data = json.loads(raw.decode("utf-8"))
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
             return None, "Malformed JSON payload"
-        if not isinstance(data, dict):
-            return None, "JSON body must be an object"
-        return data, None
+        return (data, None) if isinstance(data, dict) else (None, "JSON body must be an object")
 
     def do_GET(self) -> None:
         if not self._check_auth():
             return
-        parsed = urlsplit(self.path)
-        path = parsed.path
-        if path == "/api/health":
-            self._send_json(200, self.server.ctx.handle_health())  # type: ignore[attr-defined]
-        elif path == "/api/students":
-            q = parse_qs(parsed.query).get("q", [""])[0]
-            self._send_json(200, self.server.ctx.handle_students(q))  # type: ignore[attr-defined]
-        elif path.startswith("/api/copies/") and len(path) > len("/api/copies/"):
-            barcode = unquote(path[len("/api/copies/"):])
-            self._send_json(200, self.server.ctx.handle_copy(barcode))  # type: ignore[attr-defined]
+        parsed, ctx = urlsplit(self.path), self.server.ctx  # type: ignore[attr-defined]
+        if parsed.path == "/api/health":
+            self._send_json(200, ctx.handle_health())
+        elif parsed.path == "/api/students":
+            self._send_json(200, ctx.handle_students(parse_qs(parsed.query).get("q", [""])[0]))
+        elif parsed.path.startswith("/api/copies/") and len(parsed.path) > 12:
+            self._send_json(200, ctx.handle_copy(unquote(parsed.path[12:])))
         else:
             self._send_json(404, {"ok": False, "error": "Not found"})
 
@@ -94,11 +93,8 @@ class _LanRequestHandler(BaseHTTPRequestHandler):
         if err or body is None:
             self._send_json(400, {"ok": False, "error": err or "Invalid body"})
             return
-        status, payload = (
-            self.server.ctx.handle_checkout(body)  # type: ignore[attr-defined]
-            if path == "/api/checkout"
-            else self.server.ctx.handle_return(body)  # type: ignore[attr-defined]
-        )
+        ctx = self.server.ctx  # type: ignore[attr-defined]
+        status, payload = ctx.handle_checkout(body) if path == "/api/checkout" else ctx.handle_return(body)
         self._send_json(status, payload)
 
 
@@ -106,16 +102,11 @@ class BoothLanServer:
     """Thread-safe embedded HTTP/1.1 server exposing Booth kiosk operations."""
 
     def __init__(
-        self,
-        conn: sqlite3.Connection,
-        host: str = "0.0.0.0",
-        port: int = DEFAULT_LAN_PORT,
-        token: str = DEFAULT_BOOTH_TOKEN,
+        self, conn: sqlite3.Connection, host: str = "0.0.0.0",
+        port: int = DEFAULT_LAN_PORT, token: str = DEFAULT_BOOTH_TOKEN,
         db_lock: Optional[threading.Lock] = None,
     ) -> None:
-        self.conn = conn
-        self.host = host
-        self._requested_port = port
+        self.conn, self.host, self._requested_port = conn, host, port
         self.token = token
         self.db_lock = db_lock or threading.Lock()
         self._httpd: Optional[_LanHTTPServer] = None
@@ -139,8 +130,7 @@ class BoothLanServer:
         self._httpd.server_close()
         if self._thread is not None:
             self._thread.join(timeout=2.0)
-        self._httpd = None
-        self._thread = None
+        self._httpd, self._thread = None, None
 
     def get_lan_ip(self) -> str:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -156,9 +146,7 @@ class BoothLanServer:
         with self.db_lock:
             try:
                 cur = self.conn.cursor()
-                st_count = cur.execute("SELECT COUNT(*) FROM students;").fetchone()[0]
-                bk_count = cur.execute("SELECT COUNT(*) FROM books;").fetchone()[0]
-                empty = st_count == 0 or bk_count == 0
+                empty = cur.execute("SELECT COUNT(*) FROM students;").fetchone()[0] == 0 or cur.execute("SELECT COUNT(*) FROM books;").fetchone()[0] == 0
             except Exception:
                 empty = True
         return {"ok": True, "empty": empty, "version": APP_VERSION}
@@ -166,32 +154,23 @@ class BoothLanServer:
     def handle_students(self, query: str) -> Dict[str, Any]:
         with self.db_lock:
             res = StudentService(self.conn).search(query=query)
-            data = _sanitize_for_qml(res.data) if res.ok else []
-        return {"ok": True, "data": data}
+            return {"ok": True, "data": _sanitize_for_qml(res.data) if res.ok else []}
 
     def handle_copy(self, barcode: str) -> Dict[str, Any]:
         with self.db_lock:
-            res = CatalogService(self.conn).get_copy_by_barcode(barcode)
-            data = _sanitize_for_qml(res.data) if res.ok else {}
-        return {"ok": res.ok, "data": data, "error": res.error}
+            return _res_payload(CatalogService(self.conn).get_copy_by_barcode(barcode))
 
     def handle_checkout(self, body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
-        student_id = body.get("student_id")
-        barcode = body.get("barcode")
+        student_id, barcode = body.get("student_id"), body.get("barcode")
         if not _is_int(student_id) or not isinstance(barcode, str) or not barcode.strip():
             return 400, {"ok": False, "error": "Missing or invalid student_id or barcode"}
         with self.db_lock:
-            student_svc = StudentService(self.conn)
-            loan_svc = LoanService(self.conn, student_service=student_svc)
-            res = loan_svc.checkout(
-                student_id=student_id, barcode=barcode.strip(), actor=f"Booth:{student_id}"
-            )
-            data = _sanitize_for_qml(res.data) if res.ok else {}
-        return 200, {"ok": res.ok, "data": data, "error": res.error}
+            loan_svc = LoanService(self.conn, student_service=StudentService(self.conn))
+            res = loan_svc.checkout(student_id=student_id, barcode=barcode.strip(), actor=f"Booth:{student_id}")
+            return 200, _res_payload(res)
 
     def handle_return(self, body: Dict[str, Any]) -> Tuple[int, Dict[str, Any]]:
-        loan_id = body.get("loan_id")
-        barcode = body.get("barcode")
+        loan_id, barcode = body.get("loan_id"), body.get("barcode")
         if _is_int(loan_id):
             return 200, self._return_by_loan_id(loan_id)
         if isinstance(barcode, str) and barcode.strip():
@@ -200,9 +179,7 @@ class BoothLanServer:
 
     def _return_by_loan_id(self, loan_id: int) -> Dict[str, Any]:
         with self.db_lock:
-            res = LoanService(self.conn).return_book(loan_id, actor="Booth:Return")
-            data = _sanitize_for_qml(res.data) if res.ok else {}
-        return {"ok": res.ok, "data": data, "error": res.error}
+            return _res_payload(LoanService(self.conn).return_book(loan_id, actor="Booth:Return"))
 
     def _return_by_barcode(self, barcode: str) -> Dict[str, Any]:
         with self.db_lock:
@@ -215,6 +192,4 @@ class BoothLanServer:
             ).fetchone()
             if not row:
                 return {"ok": False, "data": {}, "error": "ไม่พบรายการยืมที่ค้างอยู่สำหรับบาร์โค้ดนี้"}
-            res = LoanService(self.conn).return_book(row[0], actor="Booth:Return")
-            data = _sanitize_for_qml(res.data) if res.ok else {}
-        return {"ok": res.ok, "data": data, "error": res.error}
+            return _res_payload(LoanService(self.conn).return_book(row[0], actor="Booth:Return"))
