@@ -511,3 +511,12 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - `apps/librarian_management_app/`: `main.py` starts/stops `BoothLanServer` + `LanDiscoveryResponder` on GUI launch (disable via `LIBRARIAN_LAN_DISABLED=1` or `--cli`; configurable via `LIBRARIAN_LAN_PORT` / `BOOTH_SERVER_TOKEN`), and `LibrarianAdminAdapter.getLanServerInfo()` exposes `{running, ip, port, token}`.
 - `apps/booth_app/`: operates as a thin LAN client (`BoothAdapter(client=...)`, `getConnectionStatus`, `configureConnection`, `discoverServer`, LAN status bar & settings dialog) while keeping `BoothAdapter(conn)` for tests.
 - Updated `wiki/apps/booth-app.md` and `wiki/architecture/overview.md`; added `tests/test_booth_lan.py` and `tests/test_librarian_lan.py`.
+
+## [2026-11-25] feat | Zero-Click LAN Install, Booth Auto-Rediscovery & Vector App Icons
+- **Installer Firewall Automation (`LibrarianManagement` only)**:
+  - `packaging/installers/deb/build_deb.sh`: emits `0755` `DEBIAN/postinst` (`ufw`/`firewall-cmd` allow `8765/tcp` and `8766/udp`, `|| true`) and `DEBIAN/prerm` (`remove|purge` guard only).
+  - `packaging/installers/rpm/build_rpm.sh`: emits `%post` and `%postun` (`if [ "$1" -eq 0 ]` upgrade guard).
+  - `packaging/installers/windows/installer.iss` & `.github/workflows/release.yml`: passes `/DEnableLanFirewall=1` exclusively for `LibrarianManagement`, enabling `PrivilegesRequired=admin` and `[Run]`/`[UninstallRun]` `netsh advfirewall` rules (`profile=private,domain`). `StudentManagement` and `BoothApp` stay `PrivilegesRequired=lowest`.
+- **Booth Auto-Rediscovery**: `BoothAdapter(..., auto_discover=True)` probes `discover_librarian(timeout=0.4)` on failed `health()`, swaps to a healthy server, and persists `{host, port}` to `booth_config.json`; `apps/booth_app/qml/Main.qml` adds `lanReconnectTimer` (`interval: 5000`, active only when disconnected and settings dialog closed).
+- **Generated Vector App Icons**: Added `assets/icons/{boothapp,librarianmanagement,studentmanagement}.{svg,png,ico,icns}`, `core/shared/mock_qt.py` `apply_app_icon()`, entrypoint calls across all 3 apps, PyInstaller `.spec` (`datas`/`EXE`/`BUNDLE`), `.deb`/`.rpm` hicolor icons, and Windows `SetupIconFile`.
+- Added `tests/test_installer_firewall.py`; updated `wiki/architecture/packaging.md` and `wiki/apps/booth-app.md`.

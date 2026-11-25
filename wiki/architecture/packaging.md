@@ -18,26 +18,30 @@ Each app has a unified cross-platform spec file:
 ### Bundled Asset Requirements:
 1. **Common QML library**: `('../apps/common_qml/*.qml', 'apps/common_qml')`, `('../apps/common_qml/*.js', 'apps/common_qml')`, and `('../apps/common_qml/qmldir', 'apps/common_qml')`.
 2. **Built-in Fonts**: `('../apps/common_qml/fonts/*', 'apps/common_qml/fonts')` ensuring Thai and system fonts (Noto Sans Thai, TH Sarabun New, Tahoma, Sukhumvit Set) work out-of-the-box on clean client machines without OS font installation.
-3. **Local views & dialogs**: E.g. `('../apps/student_management_app/qml/views/*.qml', 'apps/student_management_app/qml/views')`.
-4. **Database migrations**: `('../data/migrations/*.sql', 'data/migrations')`.
+3. **Application Icons**: `('../assets/icons/*.png', 'assets/icons')`, plus platform-native executable/bundle icons (`EXE(..., icon=...)` `.ico`/`.png` and `BUNDLE(..., icon=...)` `.icns`) generated from `assets/icons/{boothapp,librarianmanagement,studentmanagement}.svg` and applied at runtime via `core/shared/mock_qt.py` (`apply_app_icon()`).
+4. **Local views & dialogs**: E.g. `('../apps/student_management_app/qml/views/*.qml', 'apps/student_management_app/qml/views')`.
+5. **Database migrations**: `('../data/migrations/*.sql', 'data/migrations')`.
 
 ---
 
 ## 3. Native Setup Installers (`packaging/installers/`)
 - **Debian / Ubuntu (`.deb`)**:
   - Script: `packaging/installers/deb/build_deb.sh`
-  - Installs to `/usr/lib/<app>`, creates symlink in `/usr/bin/<app>`, and installs desktop launcher in `/usr/share/applications/<app>.desktop`.
+  - Installs to `/usr/lib/<app>`, creates symlink in `/usr/bin/<app>`, installs `256x256` icon to `/usr/share/icons/hicolor/256x256/apps/<app>.png`, and installs desktop launcher (`Icon=<app>`) in `/usr/share/applications/<app>.desktop`.
+  - **Librarian LAN Firewall (`librarianmanagement` only)**: Emits executable (`0755`) `DEBIAN/postinst` (`configure` allows `8765/tcp` and `8766/udp` via `ufw`/`firewall-cmd` with `|| true`) and `DEBIAN/prerm` (`remove|purge` guard only so upgrades retain rules). `studentmanagement` and `boothapp` emit neither.
 - **Fedora / RHEL (`.rpm`)**:
   - Script: `packaging/installers/rpm/build_rpm.sh`
-  - Generates RPM spec and runs `rpmbuild` inside Fedora container. Installs to `/usr/lib/<app>`, symlinks to `/usr/bin/<app>`, and sets up `.desktop`.
+  - Generates RPM spec and runs `rpmbuild` inside Fedora container. Installs to `/usr/lib/<app>`, symlinks to `/usr/bin/<app>`, installs `256x256` hicolor icon, and sets up `.desktop` (`Icon=<app>`).
+  - **Librarian LAN Firewall (`librarianmanagement` only)**: Emits `%post` (`8765/tcp` and `8766/udp` allow with `|| true`) and `%postun` (`if [ "$1" -eq 0 ]` guard so `rpm -U` upgrades keep rules). `studentmanagement` and `boothapp` emit neither.
   - Sanitizes pre-release versions containing hyphens (`RPM_VERSION="${VERSION//-/\~}"`) to conform to RPM spec version constraints.
 - **Windows (`setup.exe`)**:
   - Script: `packaging/installers/windows/installer.iss`
-  - Built with Inno Setup CLI (`iscc`). Provides Start Menu shortcut, Desktop icon toggle, and clean Windows uninstaller.
+  - Built with Inno Setup CLI (`iscc`). Provides Start Menu shortcut, Desktop icon toggle, optional `#ifdef AppIcon` (`SetupIconFile={#AppIcon}` via `/DAppIcon=...`), and clean Windows uninstaller.
+  - **Librarian LAN Firewall (`LibrarianManagement` only)**: `.github/workflows/release.yml` passes `/DEnableLanFirewall=1` exclusively for `LibrarianManagement`, setting `PrivilegesRequired=admin` and registering idempotent `[Run]`/`[UninstallRun]` `netsh.exe advfirewall` rules (`8765/tcp`, `8766/udp`, `profile=private,domain`). `StudentManagement` and `BoothApp` stay `PrivilegesRequired=lowest`.
   - Generates unique per-application `AppId={{C78DFE32-0941-4E7B-BFA6-92AE8997321F}-{#AppName}` so multiple SMTE apps installed on the same machine do not overwrite each other's registry keys.
 - **macOS (`.dmg`)**:
   - Script: `packaging/installers/macos/create_dmg.sh`
-  - Built with native Apple `hdiutil` (UDZO compressed format) with drag-to-Applications folder symlink.
+  - Built with native Apple `hdiutil` (UDZO compressed format) with drag-to-Applications folder symlink (retained over unsigned `.pkg` to avoid Gatekeeper friction; macOS Application Firewall is off by default and auto-prompts once if enabled).
 
 ---
 

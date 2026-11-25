@@ -6,8 +6,9 @@ The Booth App is a lightweight, high-speed, self-service kiosk intended for libr
 In production deployment, `apps/booth_app` runs as a **thin LAN client** with no local `library.sqlite` file:
 - Talks to the embedded `BoothLanServer` hosted by `apps/librarian_management_app` over stdlib **HTTP/1.1 keep-alive** (`core/network/lan_client.py`, default port `8765`, `X-Booth-Token` header).
 - Discovers the Librarian PC automatically via **UDP broadcast** (`core/network/lan_discovery.py`, port `8766`, magic `SMTE_DISCOVER_LIBRARIAN`), with manual host/port/token fallback persisted to `SMTE-Booth/booth_config.json` (`core/network/booth_config.py`) and optional env overrides (`BOOTH_SERVER_HOST`, `BOOTH_SERVER_PORT`, `BOOTH_SERVER_TOKEN`).
+- **Auto-Rediscovery Across Boot Order & DHCP Changes**: `BoothAdapter(..., auto_discover=True)` automatically probes `discover_librarian(timeout=0.4)` inside `getConnectionStatus()` whenever the saved Librarian host is unreachable; if a healthy server responds, it swaps the client and persists the updated `{host, port}` (preserving `token`) to `booth_config.json`. In `Main.qml`, `lanReconnectTimer` (`interval: 5000`) polls `refreshConnectionStatus()` **only** while `mode === "lan" && !connected && !lanSettingsDialog.visible`.
 - Monthly student `.xlsx` imports and catalog updates in `librarian_management_app` are immediately live on the Booth kiosk without file copying or sync.
-- `BoothAdapter` preserves its legacy `BoothAdapter(conn)` mode alongside `BoothAdapter(client=BoothLanClient(...), config_path=...)` so unit and UI tests continue to run offline.
+- `BoothAdapter` preserves its legacy `BoothAdapter(conn)` mode alongside `BoothAdapter(client=BoothLanClient(...), config_path=...)` so unit and UI tests continue to run offline (with `auto_discover=False` or mocked discovery for deterministic tests).
 
 ---
 
