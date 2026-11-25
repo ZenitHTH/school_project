@@ -1,0 +1,221 @@
+"""Tests for BoothAdapter LAN mode, booth_app config loading, and LAN UI slots."""
+
+import json
+import sqlite3
+
+import pytest
+
+from core.network.booth_config import DEFAULT_BOOTH_TOKEN, DEFAULT_LAN_PORT, load_booth_config
+from core.network.lan_client import BoothLanClient
+from core.network.lan_server import BoothLanServer
+from data.migrate import apply_migrations
+from data.repositories import book_repo
+
+
+def _make_seeded_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(":memory:", check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    apply_migrations(conn)
+    conn.execute(
+        "INSERT INTO students (student_id, full_name, status) VALUES "
+        "(3001, 'นักเรียน ทดสอบ', 'active')"
+    )
+    conn.commit()
+    book_id = book_repo.add_book(conn, title="คู่มือ LAN", author=None, isbn=None)
+    book_repo.add_copies(conn, book_id, barcodes=["BK-001"])
+    return conn
+
+
+@pytest.fixture
+def live_server():
+    conn = _make_seeded_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="secret-tok")
+    server.start()
+    yield server, conn
+    server.stop()
+    conn.close()
+
+
+def test_booth_adapter_lan_mode_end_to_end(live_server, tmp_path):
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    server, _ = live_server
+    cfg_path = str(tmp_path / "booth_config.json")
+    client = BoothLanClient(host="127.0.0.1", port=server.port, token="secret-tok")
+    adapter = BoothAdapter(client=client, config_path=cfg_path)
+    try:
+        status = json.loads(adapter.getConnectionStatus())
+        assert status["connected"] is True
+        assert status["mode"] == "lan"
+        assert status["host"] == "127.0.0.1"
+        assert status["port"] == server.port
+        assert status["error"] == ""
+
+        assert adapter.isDatabaseEmpty() is False
+
+        students = json.loads(adapter.searchStudents("3001"))
+        assert len(students) == 1
+        assert students[0]["student_id"] == 3001
+
+        copy_res = json.loads(adapter.getCopyByBarcode("BK-001"))
+        assert copy_res["ok"] is True
+        assert copy_res["data"]["author"] == ""
+        assert copy_res["data"]["isbn"] == ""
+
+        co_res = json.loads(adapter.checkout(3001, "BK-001"))
+        assert co_res["ok"] is True
+        loan_id = co_res["data"]["loan_id"]
+
+        ret_res = json.loads(adapter.returnByBarcode("BK-001"))
+        assert ret_res["ok"] is True
+        assert ret_res["data"]["loan_id"] == loan_id
+
+        co_res2 = json.loads(adapter.checkout(3001, "BK-001"))
+        assert co_res2["ok"] is True
+        ret_res2 = json.loads(adapter.returnBook(co_res2["data"]["loan_id"]))
+        assert ret_res2["ok"] is True
+    finally:
+        adapter.close()
+
+
+def test_booth_adapter_configure_connection_persists_and_swaps(live_server, tmp_path):
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    server, _ = live_server
+    cfg_path = str(tmp_path / "booth_config.json")
+    offline_client = BoothLanClient(host="", port=DEFAULT_LAN_PORT, token=DEFAULT_BOOTH_TOKEN)
+    adapter = BoothAdapter(client=offline_client, config_path=cfg_path)
+    try:
+        before = json.loads(adapter.getConnectionStatus())
+        assert before["connected"] is False
+        assert before["mode"] == "lan"
+        assert before["error"] != ""
+
+        after = json.loads(adapter.configureConnection("127.0.0.1", server.port, "secret-tok"))
+        assert after["connected"] is True
+        assert after["host"] == "127.0.0.1"
+        assert after["port"] == server.port
+        assert after["mode"] == "lan"
+        assert load_booth_config(cfg_path) == {
+            "host": "127.0.0.1",
+            "port": server.port,
+            "token": "secret-tok",
+        }
+
+        students = json.loads(adapter.searchStudents("3001"))
+        assert len(students) == 1
+    finally:
+        adapter.close()
+
+
+def test_booth_adapter_discover_server(monkeypatch):
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    client = BoothLanClient(host="", port=DEFAULT_LAN_PORT, token=DEFAULT_BOOTH_TOKEN)
+    adapter = BoothAdapter(client=client)
+
+    monkeypatch.setattr(
+        "apps.booth_app.adapters.booth_adapter.discover_librarian",
+        lambda: {"host": "192.168.1.25", "port": 8765, "version": "1.0.0"},
+    )
+    found = json.loads(adapter.discoverServer())
+    assert found == {"ok": True, "host": "192.168.1.25", "port": 8765}
+
+    monkeypatch.setattr(
+        "apps.booth_app.adapters.booth_adapter.discover_librarian",
+        lambda: None,
+    )
+    missing = json.loads(adapter.discoverServer())
+    assert missing == {"ok": False, "host": "", "port": 0}
+    adapter.close()
+
+
+def test_booth_adapter_local_mode_connection_status():
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    conn = _make_seeded_conn()
+    adapter = BoothAdapter(conn)
+    try:
+        status = json.loads(adapter.getConnectionStatus())
+        assert status["connected"] is True
+        assert status["mode"] == "local"
+        assert status["error"] == ""
+    finally:
+        conn.close()
+
+
+def test_booth_main_resolves_env_and_discovery(tmp_path, monkeypatch):
+    from apps.booth_app.main import resolve_booth_lan_config
+
+    cfg_path = str(tmp_path / "booth_config.json")
+    monkeypatch.delenv("BOOTH_SERVER_HOST", raising=False)
+    monkeypatch.delenv("BOOTH_SERVER_PORT", raising=False)
+    monkeypatch.delenv("BOOTH_SERVER_TOKEN", raising=False)
+    monkeypatch.setattr(
+        "apps.booth_app.main.discover_librarian",
+        lambda: {"host": "10.0.0.5", "port": 8770, "version": "1.0.0"},
+    )
+    cfg = resolve_booth_lan_config(cfg_path)
+    assert cfg == {"host": "10.0.0.5", "port": 8770, "token": DEFAULT_BOOTH_TOKEN}
+
+    monkeypatch.setenv("BOOTH_SERVER_HOST", "192.168.10.2")
+    monkeypatch.setenv("BOOTH_SERVER_PORT", "9090")
+    monkeypatch.setenv("BOOTH_SERVER_TOKEN", "env-tok")
+    cfg_env = resolve_booth_lan_config(cfg_path)
+    assert cfg_env == {"host": "192.168.10.2", "port": 9090, "token": "env-tok"}
+
+
+def test_booth_qml_lan_banner_and_settings_dialog(live_server, tmp_path, monkeypatch):
+    import os
+    import sys
+    from PySide6.QtCore import QMetaObject, QObject, Qt
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtQml import QQmlApplicationEngine
+    from apps.booth_app.adapters.booth_adapter import BoothAdapter
+
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    app = QGuiApplication.instance() or QGuiApplication(sys.argv)
+    server, _ = live_server
+    cfg_path = str(tmp_path / "booth_config.json")
+    adapter = BoothAdapter(
+        client=BoothLanClient(host="", port=DEFAULT_LAN_PORT, token=DEFAULT_BOOTH_TOKEN),
+        config_path=cfg_path,
+    )
+    engine = QQmlApplicationEngine()
+    warnings = []
+    engine.warnings.connect(lambda ws: warnings.extend([w.toString() for w in ws]))
+    engine.addImportPath(os.path.abspath("apps/common_qml"))
+    engine.addImportPath(os.path.abspath("apps"))
+    engine.rootContext().setContextProperty("boothAdapter", adapter)
+    engine.load(os.path.abspath("apps/booth_app/qml/Main.qml"))
+    assert len(engine.rootObjects()) > 0
+    window = engine.rootObjects()[0]
+    app.processEvents()
+
+    for name in (
+        "lanStatusBanner", "btnLanSettings", "lanSettingsDialog",
+        "lanHostInput", "lanPortInput", "lanTokenInput", "btnAutoDiscover",
+    ):
+        assert window.findChild(QObject, name) is not None, f"Missing {name}"
+
+    status_text = window.findChild(QObject, "lanStatusText").property("text")
+    assert "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์" in status_text
+
+    monkeypatch.setattr(
+        "apps.booth_app.adapters.booth_adapter.discover_librarian",
+        lambda: {"host": "127.0.0.1", "port": server.port, "version": "1.0.0"},
+    )
+    QMetaObject.invokeMethod(window, "openLanSettings", Qt.DirectConnection)
+    QMetaObject.invokeMethod(window, "runAutoDiscover", Qt.DirectConnection)
+    window.findChild(QObject, "lanTokenInput").setProperty("text", "secret-tok")
+    QMetaObject.invokeMethod(window, "applyLanSettings", Qt.DirectConnection)
+    app.processEvents()
+
+    assert "เชื่อมต่อเซิร์ฟเวอร์: 127.0.0.1" in window.findChild(QObject, "lanStatusText").property("text")
+    ref_errors = [w for w in warnings if "ReferenceError" in w or "TypeError" in w]
+    assert not ref_errors, f"Unexpected QML errors: {ref_errors}"
+
+    adapter.close()
+    engine.deleteLater()
+    app.processEvents()

@@ -14,11 +14,18 @@ ApplicationWindow {
     color: "#0f172a"
 
     property var identifiedStudent: null
+    property var connectionStatus: ({"connected": true, "host": "local", "port": 8765, "mode": "local", "error": ""})
+    property bool isDbEmpty: false
+
+    Component.onCompleted: {
+        refreshConnectionStatus()
+        refreshDbEmpty()
+    }
 
     ColumnLayout {
         anchors.centerIn: parent
         width: Math.min(parent.width - 80, 700)
-        spacing: 24
+        spacing: 18
 
         Text {
             text: "📖 บริการยืม-คืนหนังสือด้วยตนเอง"
@@ -28,18 +35,67 @@ ApplicationWindow {
             Layout.alignment: Qt.AlignHCenter
         }
 
+        // LAN Connection Status Bar
+        Rectangle {
+            id: lanStatusBanner
+            objectName: "lanStatusBanner"
+            Layout.fillWidth: true
+            implicitHeight: Math.max(40, Math.round(lanStatusRow.implicitHeight + 16))
+            height: implicitHeight
+            radius: 8
+            color: connectionStatus.mode === "local"
+                   ? "#1e293b"
+                   : (connectionStatus.connected ? "#064e3b" : "#450a0a")
+            border.color: connectionStatus.mode === "local"
+                          ? "#334155"
+                          : (connectionStatus.connected ? "#10b981" : "#ef4444")
+
+            RowLayout {
+                id: lanStatusRow
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 12
+
+                Text {
+                    id: lanStatusText
+                    objectName: "lanStatusText"
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: 13
+                    font.bold: true
+                    color: connectionStatus.mode === "local"
+                           ? "#cbd5e1"
+                           : (connectionStatus.connected ? "#6ee7b7" : "#fca5a5")
+                    text: connectionStatus.mode === "local"
+                          ? "โหมดฐานข้อมูลในเครื่อง (Local)"
+                          : (connectionStatus.connected
+                             ? ("🟢 เชื่อมต่อเซิร์ฟเวอร์: " + connectionStatus.host + ":" + connectionStatus.port)
+                             : ("🔴 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์" + (connectionStatus.error ? " (" + connectionStatus.error + ")" : "")))
+                }
+
+                StyledButton {
+                    objectName: "btnLanSettings"
+                    variant: StyledButton.Neutral
+                    text: "ตั้งค่าเซิร์ฟเวอร์"
+                    onClicked: openLanSettings()
+                }
+            }
+        }
+
         // Empty DB Warning Banner
         Rectangle {
             id: emptyDbWarningBanner
             objectName: "emptyDbWarningBanner"
             Layout.fillWidth: true
-            height: 60
+            implicitHeight: Math.max(48, Math.round(emptyDbRow.implicitHeight + 20))
+            height: implicitHeight
             color: "#451a03"
             radius: 8
             border.color: "#b45309"
-            visible: (typeof boothAdapter !== "undefined" && boothAdapter !== null) ? boothAdapter.isDatabaseEmpty() : false
+            visible: boothWindow.isDbEmpty
 
             RowLayout {
+                id: emptyDbRow
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 10
@@ -49,6 +105,7 @@ ApplicationWindow {
                 }
                 ColumnLayout {
                     spacing: 2
+                    Layout.fillWidth: true
                     Text {
                         text: "ยังไม่มีข้อมูลในระบบ หรือฐานข้อมูลว่าง"
                         color: "#fde047"
@@ -59,6 +116,8 @@ ApplicationWindow {
                         text: "กรุณาติดต่อบรรณารักษ์เพื่อทำการ Sync ข้อมูลนักเรียน/หนังสือเข้าระบบก่อนเริ่มใช้งาน"
                         color: "#fef08a"
                         font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
                     }
                 }
             }
@@ -67,12 +126,14 @@ ApplicationWindow {
         // Student Card
         Rectangle {
             Layout.fillWidth: true
-            height: 140
+            implicitHeight: Math.max(120, Math.round(studentCardCol.implicitHeight + 36))
+            height: implicitHeight
             color: "#1e293b"
             radius: 12
             border.color: "#334155"
 
             ColumnLayout {
+                id: studentCardCol
                 anchors.fill: parent
                 anchors.margins: 18
                 spacing: 10
@@ -89,7 +150,8 @@ ApplicationWindow {
                         objectName: "studentIdInput"
                         placeholderText: "พิมพ์รหัสนักเรียน..."
                         font.pixelSize: 18
-                        implicitHeight: 44
+                        horizontalAlignment: TextInput.AlignLeft
+                        verticalAlignment: TextInput.AlignVCenter
                         Layout.fillWidth: true
                         onAccepted: identifyStudent()
                     }
@@ -98,7 +160,6 @@ ApplicationWindow {
                         variant: StyledButton.Primary
                         text: "ยืนยันตัวตน"
                         highlighted: true
-                        implicitHeight: 44
                         onClicked: identifyStudent()
                     }
                 }
@@ -117,12 +178,14 @@ ApplicationWindow {
         // Book Scan Card
         Rectangle {
             Layout.fillWidth: true
-            height: 160
+            implicitHeight: Math.max(130, Math.round(bookCardCol.implicitHeight + 36))
+            height: implicitHeight
             color: "#1e293b"
             radius: 12
             border.color: "#334155"
 
             ColumnLayout {
+                id: bookCardCol
                 anchors.fill: parent
                 anchors.margins: 18
                 spacing: 12
@@ -138,7 +201,8 @@ ApplicationWindow {
                     objectName: "bookBarcodeInput"
                     placeholderText: "สแกนบาร์โค้ดหนังสือ..."
                     font.pixelSize: 18
-                    implicitHeight: 44
+                    horizontalAlignment: TextInput.AlignLeft
+                    verticalAlignment: TextInput.AlignVCenter
                     Layout.fillWidth: true
                 }
 
@@ -170,7 +234,6 @@ ApplicationWindow {
             id: feedbackBanner
             objectName: "feedbackBanner"
             Layout.fillWidth: true
-            implicitHeight: 52
             font.pixelSize: 16
             text: "กรุณาระบุตัวตนเพื่อเริ่มทำรายการ"
         }
@@ -188,6 +251,137 @@ ApplicationWindow {
                 feedbackBanner.text = "ขอบคุณที่ใช้บริการ"
             }
         }
+    }
+
+    StyledDialog {
+        id: lanSettingsDialog
+        objectName: "lanSettingsDialog"
+        title: "ตั้งค่าเซิร์ฟเวอร์ห้องสมุด (LAN)"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: {
+            applyLanSettings()
+            close()
+        }
+        onRejected: close()
+
+        ColumnLayout {
+            width: parent.width
+            spacing: 10
+
+            Text {
+                text: "IP / Host ของเครื่องบรรณารักษ์"
+                font.pixelSize: 13
+                color: "#334155"
+            }
+            StyledTextInput {
+                id: lanHostInput
+                objectName: "lanHostInput"
+                Layout.fillWidth: true
+                placeholderText: "เช่น 192.168.1.10"
+                horizontalAlignment: TextInput.AlignLeft
+                verticalAlignment: TextInput.AlignVCenter
+            }
+
+            Text {
+                text: "พอร์ต (Port)"
+                font.pixelSize: 13
+                color: "#334155"
+            }
+            StyledTextInput {
+                id: lanPortInput
+                objectName: "lanPortInput"
+                Layout.fillWidth: true
+                placeholderText: "8765"
+                horizontalAlignment: TextInput.AlignLeft
+                verticalAlignment: TextInput.AlignVCenter
+            }
+
+            Text {
+                text: "รหัสเชื่อมต่อ (Token)"
+                font.pixelSize: 13
+                color: "#334155"
+            }
+            StyledTextInput {
+                id: lanTokenInput
+                objectName: "lanTokenInput"
+                Layout.fillWidth: true
+                placeholderText: "123456"
+                horizontalAlignment: TextInput.AlignLeft
+                verticalAlignment: TextInput.AlignVCenter
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 10
+                StyledButton {
+                    objectName: "btnAutoDiscover"
+                    variant: StyledButton.Neutral
+                    text: "🔍 ค้นหาอัตโนมัติ (Auto-Discover)"
+                    onClicked: runAutoDiscover()
+                }
+                Text {
+                    id: discoverStatusLabel
+                    objectName: "discoverStatusLabel"
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: 12
+                    color: "#475569"
+                    text: ""
+                }
+            }
+        }
+    }
+
+    function refreshConnectionStatus() {
+        if (typeof boothAdapter === "undefined" || boothAdapter === null || !boothAdapter.getConnectionStatus) {
+            return
+        }
+        try {
+            connectionStatus = JSON.parse(boothAdapter.getConnectionStatus())
+        } catch (e) {}
+    }
+
+    function refreshDbEmpty() {
+        if (typeof boothAdapter === "undefined" || boothAdapter === null) {
+            isDbEmpty = false
+            return
+        }
+        isDbEmpty = boothAdapter.isDatabaseEmpty()
+    }
+
+    function openLanSettings() {
+        refreshConnectionStatus()
+        lanHostInput.text = connectionStatus.mode === "lan" ? (connectionStatus.host || "") : ""
+        lanPortInput.text = String(connectionStatus.port > 0 ? connectionStatus.port : 8765)
+        if (!lanTokenInput.text) {
+            lanTokenInput.text = "123456"
+        }
+        discoverStatusLabel.text = ""
+        lanSettingsDialog.open()
+    }
+
+    function runAutoDiscover() {
+        if (typeof boothAdapter === "undefined" || boothAdapter === null || !boothAdapter.discoverServer) {
+            return
+        }
+        var res = JSON.parse(boothAdapter.discoverServer())
+        if (res.ok) {
+            lanHostInput.text = res.host
+            lanPortInput.text = String(res.port)
+            discoverStatusLabel.text = "พบเซิร์ฟเวอร์: " + res.host + ":" + res.port
+        } else {
+            discoverStatusLabel.text = "ไม่พบเซิร์ฟเวอร์ในเครือข่าย LAN"
+        }
+    }
+
+    function applyLanSettings() {
+        if (typeof boothAdapter === "undefined" || boothAdapter === null || !boothAdapter.configureConnection) {
+            return
+        }
+        var portNum = parseInt(lanPortInput.text) || 8765
+        var res = JSON.parse(boothAdapter.configureConnection(lanHostInput.text, portNum, lanTokenInput.text))
+        connectionStatus = res
+        refreshDbEmpty()
     }
 
     function identifyStudent() {

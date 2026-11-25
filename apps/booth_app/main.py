@@ -1,5 +1,8 @@
+"""Entrypoint for the Self-Service Booth thin LAN client application."""
+
 import os
 import sys
+from typing import Any, Dict
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -10,79 +13,96 @@ from apps.common_linux_env import setup_linux_runtime_env
 
 setup_linux_runtime_env()
 
-from core.shared.version import APP_VERSION
-from data.db import get_connection
-from data.migrate import apply_migrations
 from apps.booth_app.adapters.booth_adapter import BoothAdapter
+from core.network.booth_config import load_booth_config
+from core.network.lan_client import BoothLanClient
+from core.network.lan_discovery import discover_librarian
+from core.shared.version import APP_VERSION
+from data.paths import get_default_db_path
 
 try:
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtQml import QQmlApplicationEngine
+
     HAVE_QT = True
 except ImportError:
     HAVE_QT = False
 
 
-from data.paths import get_default_db_path
+def _apply_env_overrides(cfg: Dict[str, Any]) -> str:
+    env_host = os.environ.get("BOOTH_SERVER_HOST", "").strip()
+    env_port = os.environ.get("BOOTH_SERVER_PORT", "").strip()
+    env_token = os.environ.get("BOOTH_SERVER_TOKEN", "").strip()
+    if env_host:
+        cfg["host"] = env_host
+    if env_port:
+        try:
+            port_val = int(env_port)
+            if 1 <= port_val <= 65535:
+                cfg["port"] = port_val
+        except ValueError:
+            pass
+    if env_token:
+        cfg["token"] = env_token
+    return env_port
 
 
-def resolve_booth_db_path() -> str:
-    if os.environ.get("BOOTH_DB_PATH"):
-        return os.environ["BOOTH_DB_PATH"]
-    lib_path = str(get_default_db_path("SMTE-LibrarianManagement", "library.sqlite"))
-    booth_path = str(get_default_db_path("SMTE-Booth", "library.sqlite"))
-    if os.path.exists(lib_path) and not os.path.exists(booth_path):
-        return lib_path
-    return booth_path
+def resolve_booth_lan_config(config_path: str) -> Dict[str, Any]:
+    """Load booth_config.json, apply env overrides, and auto-discover if host is empty."""
+    cfg = load_booth_config(config_path)
+    env_port = _apply_env_overrides(cfg)
+    if not cfg["host"]:
+        found = discover_librarian()
+        if found:
+            cfg["host"] = str(found.get("host", ""))
+            if not env_port and isinstance(found.get("port"), int):
+                cfg["port"] = found["port"]
+    return cfg
 
 
-def main():
-    db_path = resolve_booth_db_path()
-    pin = os.environ.get("BOOTH_DB_PIN", "123456")
-
-    conn = get_connection(db_path, pin=pin)
-    apply_migrations(conn, db_path=db_path)
-
+def _resource_dir(*parts: str) -> str:
+    base = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    if getattr(sys, "frozen", False):
+        return os.path.join(base, "apps", *parts)
+    return os.path.join(base, *parts)
 
 
-    adapter = BoothAdapter(conn)
-
-    if adapter.isDatabaseEmpty():
-        print("[Self-Service Booth] Warning: Database is empty. Please sync student records in Librarian App.")
-
-    if not HAVE_QT:
-        print("[Self-Service Booth] PySide6 not installed. Running in CLI verification mode.")
-        res = adapter.searchStudents("")
-        print(f"Sample booth query: {res[:100]}...")
-        conn.close()
-        return
-
+def _run_qt_app(adapter: BoothAdapter) -> int:
     from PySide6.QtQuickControls2 import QQuickStyle
-    QQuickStyle.setStyle("Fusion")
+    from core.shared.mock_qt import register_bundled_fonts
 
+    QQuickStyle.setStyle("Fusion")
     app = QGuiApplication(sys.argv)
     app.setApplicationVersion(APP_VERSION)
-    from core.shared.mock_qt import register_bundled_fonts
     register_bundled_fonts()
+
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("boothAdapter", adapter)
-
-    common_qml_dir = os.path.join(sys._MEIPASS, "apps", "common_qml") \
-        if getattr(sys, "frozen", False) else os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "common_qml"))
+    common_qml_dir = _resource_dir("common_qml")
     engine.addImportPath(common_qml_dir)
     engine.addImportPath(os.path.dirname(common_qml_dir))
-
-    qml_dir = os.path.join(sys._MEIPASS, "apps", "booth_app", "qml") \
-        if getattr(sys, "frozen", False) else os.path.join(os.path.dirname(__file__), "qml")
-    qml_file = os.path.join(qml_dir, "Main.qml")
-    engine.load(qml_file)
-
+    engine.load(os.path.join(_resource_dir("booth_app", "qml"), "Main.qml"))
     if not engine.rootObjects():
-        sys.exit(-1)
+        return -1
+    return app.exec()
 
-    exit_code = app.exec()
-    conn.close()
-    sys.exit(exit_code)
+
+def main() -> None:
+    """Launch the Booth LAN client in GUI mode (or CLI probe when PySide6 is absent)."""
+    config_path = str(get_default_db_path("SMTE-Booth", "booth_config.json"))
+    cfg = resolve_booth_lan_config(config_path)
+    client = BoothLanClient(host=cfg["host"], port=cfg["port"], token=cfg["token"])
+    adapter = BoothAdapter(client=client, config_path=config_path)
+    try:
+        if adapter.isDatabaseEmpty():
+            print("[Self-Service Booth] Warning: Server database is empty.")
+        if not HAVE_QT:
+            print("[Self-Service Booth] PySide6 not installed. Running in CLI verification mode.")
+            print(f"Connection status: {adapter.getConnectionStatus()}")
+            return
+        sys.exit(_run_qt_app(adapter))
+    finally:
+        adapter.close()
 
 
 if __name__ == "__main__":
