@@ -552,3 +552,9 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
   - Updated `wiki/index.md` summaries for `common-qml`, `librarian-management-app`, and `booth-app` to reflect `SettingsView`, `SettingsLanServerCard`, `SettingsLanClientCard`, LAN architecture, and barcode book titles.
   - Updated `wiki/architecture/overview.md` (`LanServiceManager`, `SettingsLanServerCard.qml`, `SettingsLanClientCard.qml`, `SettingsAdapterMixin`, `getLanConfig()`, `saveAndApplyLanConfig()`).
   - Normalized duplicate/out-of-order section numbering (`1.8`–`1.13`) and documented `SettingsHeader`/`SettingsControlsCard`/`SettingsFooter` sub-components in `wiki/apps/common-qml.md`.
+
+## [2026-11-25] feat | Booth Self-Service Book Search & Shelf Locator
+- `core/network/lan_server.py` & `core/network/lan_client.py`: added read-only `GET /api/categories` and `GET /api/books` (with safe `_parse_optional_int` / `_parse_clamped_int` query parsing) plus `BoothLanClient.list_categories()` and `search_books()` returning `[]` safely offline (`861341d`).
+- `apps/booth_app/adapters/booth_adapter.py`: added `listCategories()` and `searchBooks(query, category_id=0, limit=50, offset=0)` Qt slots supporting both LAN client and local SQLite `CatalogService` with `_sanitize_for_qml` (`b09f64d`).
+- `apps/booth_app/qml/BookSearchView.qml` & `apps/booth_app/qml/Main.qml`: added self-service book search and shelf locator page at `kioskStack` index `2` (`btnOpenBookSearch`, `boothBookSearchView`, `boothBookSearchInput`, `boothCategoryFilter`, `boothBookResultsList`) with responsive card heights, `Typography.applyToItem`, fallback category/shelf badges, and copy availability indicators (`44bd603`).
+- Updated `wiki/apps/booth-app.md` and `wiki/log.md`; verified full suite (`465 passed` across `tests/test_booth_lan.py`, `tests/test_booth_adapter_lan.py`, `tests/test_ui_booth.py`, and all existing tests).

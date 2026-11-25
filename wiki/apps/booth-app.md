@@ -19,8 +19,9 @@ apps/booth_app/
 ├── adapters/
 │   └── booth_adapter.py     # Supports LAN client mode, legacy SQLite conn mode & SettingsAdapterMixin
 └── qml/
+    ├── BookSearchView.qml    # Self-service book search, category filter, shelf locator & availability
     ├── LanSettingsDialog.qml # Modal dialog for host/port/token & auto-discover
-    └── Main.qml              # StackLayout (kiosk home + SettingsView), LAN status bar & reconnect timer
+    └── Main.qml              # StackLayout (kiosk home, SettingsView, BookSearchView), LAN status bar & reconnect timer
 ```
 
 ---
@@ -31,6 +32,7 @@ apps/booth_app/
 [ Startup: Load booth_config.json -> Auto-discover UDP if host empty -> BoothLanClient ]
              │
              ├──> [ ⚙️ ตั้งค่าระบบ (btnOpenBoothSettings) -> kioskStack[1]: SettingsView + SettingsLanClientCard ]
+             ├──> [ 🔍 ค้นหาหนังสือ (btnOpenBookSearch) -> kioskStack[2]: BookSearchView (GET /api/categories, /api/books) ]
              │
              ▼ (kioskStack[0]: Kiosk Home)
 [ Step 1: Scan Student ID Card ]
@@ -53,11 +55,13 @@ apps/booth_app/
 
 ## 4. Key Adapter Slots & ObjectNames (for Testing & Automation)
 - **LAN Slots (`BoothAdapter`)**: `getConnectionStatus()`, `configureConnection(host, port, token)`, `discoverServer()`.
+- **Book Search Slots (`BoothAdapter`)**: `listCategories()` (JSON array of sorted `{category_id, name}` via `GET /api/categories` or local `CatalogService.list_categories()`), `searchBooks(query, category_id=0, limit=50, offset=0)` (JSON array of sanitized book records including `shelf_location`, `category_name`, `available_copies`, `total_copies` via `GET /api/books` or local `CatalogService.search()`; `category_id <= 0` searches all categories and `BoothLanServer` safely clamps/parses invalid query params).
 - **Settings Slots (`BoothAdapter` via `SettingsAdapterMixin`)**: `loadSettings()`, `saveSettings(fontFamily, fontSize, uiScale)`, `resetSettings()`, `setAppFont(family, pixelSize)` backed by `SettingsService`.
 - **Librarian Host Slot (`LibrarianAdminAdapter`)**: `getLanServerInfo()` returning `{"running", "ip", "port", "token"}`.
-- `kioskStack`: Root `StackLayout` switching between Kiosk Home (`currentIndex: 0`) and Booth System Settings (`currentIndex: 1`).
-- `lanStatusBanner`: Top status banner showing LAN connection state (`connected`, `host`, `port`), modal settings trigger (`btnLanSettings`), and System Settings trigger (`btnOpenBoothSettings`).
+- `kioskStack`: Root `StackLayout` switching between Kiosk Home (`currentIndex: 0`), Booth System Settings (`currentIndex: 1`), and Self-Service Book Search (`currentIndex: 2`).
+- `lanStatusBanner`: Top status banner showing LAN connection state (`connected`, `host`, `port`), Book Search trigger (`btnOpenBookSearch`), modal settings trigger (`btnLanSettings`), and System Settings trigger (`btnOpenBoothSettings`).
 - `boothSettingsView` (`SettingsView` with `showLanClientCard: true`, `targetWindow: boothWindow`): Embedded visual settings and Connect/Switch Server card (`SettingsLanClientCard`), paired with `btnBackToKiosk` to return to `kioskStack` index `0` and refresh connection status + DB emptiness.
+- `boothBookSearchView` (`BookSearchView.qml`): Self-service book search and shelf locator screen at `kioskStack` index `2`, featuring `btnBackFromBookSearch`, `boothBookSearchInput` (`StyledSearchField`), `boothCategoryFilter` (`StyledComboBox` backed by `boothCategoryFilterModel` prepending `"ทุกหมวดหมู่"`), `btnBoothSearchBooks`, `boothBookSearchStatus`, and `boothBookResultsList` (backed by `bookResultsModel` with dynamic card heights, `Typography.applyToItem`, fallback labels `"ไม่ระบุหมวดหมู่"` / `"ไม่ระบุชั้นวาง"`, and available vs. borrowed-out copy badges).
 - `lanReconnectTimer`: Background `Timer` (`interval: 5000`) polling `refreshConnectionStatus()` while `mode === "lan" && !connected && !lanSettingsDialog.visible`.
 - `lanSettingsDialog` (`LanSettingsDialog.qml`): Modal connection settings dialog (`lanHostInput`, `lanPortInput`, `lanTokenInput`, `btnAutoDiscover`, `discoverStatusLabel`).
 - `emptyDbWarningBanner`: Warning displayed if database has zero students or books.
