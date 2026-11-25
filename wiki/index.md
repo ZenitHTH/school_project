@@ -28,10 +28,10 @@ This wiki synthesizes all architecture, database schemas, core business logic, U
 ---
 
 ## 🖥️ Applications & QML UI Layer
-- [[wiki/apps/common-qml|Common QML Components Library]] — Shared components: `StyledSearchField`, `PaginationBar`, `AuditLogView`, `ActionFeedbackBanner`, `FirstLaunchDialog`.
-- [[wiki/apps/student-management-app|Student Management App]] — Modular views (`StudentSearchView`, `StudentDetailView`, `ExcelImportView`), action dialogs, and admin adapter.
-- [[wiki/apps/librarian-management-app|Librarian Management App]] — Modular catalog, circulation desk, category action dialogs, barcode generator view.
-- [[wiki/apps/booth-app|Self-Service Kiosk Booth App]] — Touch-friendly scanner interface, auto student identification, checkout/return workflows.
+- [[wiki/apps/common-qml|Common QML Components Library]] — Shared components: `StyledSearchField`, `StyledTextInput`, `StyledButton`, `StyledComboBox`, `StyledDialog`, `PaginationBar`, `AuditLogView`, `ActionFeedbackBanner`, `FirstLaunchDialog`, `SettingsView` (+ `SettingsLanServerCard`, `SettingsLanClientCard`), `Theme.js`, `Typography.js`, and `BundledFonts`.
+- [[wiki/apps/student-management-app|Student Management App]] — Modular views (`StudentSearchView`, `StudentDetailView`, `ExcelImportView`), action dialogs, `SettingsView`, and admin adapter.
+- [[wiki/apps/librarian-management-app|Librarian Management App]] — Modular catalog, circulation desk, plain-paper barcode PDF generator with Thai/ASCII titles, `BoothLanServer`/`LanServiceManager` host, and live `SettingsView` LAN config.
+- [[wiki/apps/booth-app|Self-Service Kiosk Booth App]] — Thin LAN client (`BoothLanClient` + UDP auto-discovery/reconnect) with touch-friendly scanner UI, `LanSettingsDialog`, and `SettingsView` Connect & Switch Server page.
 
 ---
 

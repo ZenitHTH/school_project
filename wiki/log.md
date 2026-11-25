@@ -545,3 +545,10 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - `apps/common_qml/`: added `SettingsLanClientCard.qml` (`qmldir`, `SettingsView.showLanClientCard`, `lanConnectionUpdated` signal, `refreshLanClientInfo()`) for inspecting, UDP auto-discovering, and connecting/switching Booth LAN server endpoints.
 - `apps/booth_app/qml/Main.qml`: wrapped kiosk UI in `kioskStack` (`StackLayout`) with `btnOpenBoothSettings`, `btnBackToKiosk`, and `boothSettingsView` (`SettingsView` with `showLanClientCard: true`).
 - Updated `wiki/apps/common-qml.md`, `wiki/apps/booth-app.md`, `tests/test_qml_loads.py`, and added `tests/test_booth_settings_and_switch_ui.py`.
+
+## [2026-11-25] ci(release) & lint | Release v1.3.0 & LLM Wiki Lint Sync
+- Released `v1.3.0` (`debed28`, bumped `1.2.10 -> 1.3.0` via `scripts/bump_version.py 1.3.0` across `VERSION` and `packaging/installers/windows/installer.iss`, cancelled prior `2.0.0` runs, published GitHub Release `SMTE School System v1.3.0`).
+- **Wiki Lint & Sync**:
+  - Updated `wiki/index.md` summaries for `common-qml`, `librarian-management-app`, and `booth-app` to reflect `SettingsView`, `SettingsLanServerCard`, `SettingsLanClientCard`, LAN architecture, and barcode book titles.
+  - Updated `wiki/architecture/overview.md` (`LanServiceManager`, `SettingsLanServerCard.qml`, `SettingsLanClientCard.qml`, `SettingsAdapterMixin`, `getLanConfig()`, `saveAndApplyLanConfig()`).
+  - Normalized duplicate/out-of-order section numbering (`1.8`–`1.13`) and documented `SettingsHeader`/`SettingsControlsCard`/`SettingsFooter` sub-components in `wiki/apps/common-qml.md`.

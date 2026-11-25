@@ -20,11 +20,11 @@ graph TD
 2. **Librarian Management App (`apps/librarian_management_app`)**:
    - Manages book catalog, barcode printing (A4 PDF label sheets), active loans, overdue fines, and categories.
    - Ingests student snapshot diffs from Student Management and monthly `.xlsx` rosters.
-   - Hosts an embedded stdlib HTTP/1.1 keep-alive server (`BoothLanServer`, port `8765`) and UDP discovery responder (`LanDiscoveryResponder`, port `8766`) on a `check_same_thread=False` SQLite connection guarded by a `threading.Lock`, exposing `getLanServerInfo()` via `LibrarianAdminAdapter`.
+   - Hosts an embedded stdlib HTTP/1.1 keep-alive server (`BoothLanServer`, default port `8765`) and UDP discovery responder (`LanDiscoveryResponder`, default port `8766`) managed by `LanServiceManager` (`lan_server_config.json`) on a `check_same_thread=False` SQLite connection guarded by a `threading.Lock`, exposing `getLanServerInfo()`, `getLanConfig()`, and `saveAndApplyLanConfig()` via `LibrarianAdminAdapter` (live UI in `SettingsLanServerCard.qml`).
 3. **Self-Service Booth Kiosk (`apps/booth_app`)**:
    - High-speed student checkout and return station.
    - Designed for barcode scanner inputs and touch screens on separate LAN PCs.
-   - Operates as a zero-dependency thin LAN client (`BoothLanClient` + `discover_librarian()` + `booth_config.json`) communicating with `Librarian Management App` (no local SQLite DB in LAN mode; `BoothAdapter(conn)` preserved for tests).
+   - Operates as a zero-dependency thin LAN client (`BoothLanClient` + `discover_librarian()` + `booth_config.json`) communicating with `Librarian Management App` (no local SQLite DB in LAN mode; `BoothAdapter(conn)` preserved for tests), with `SettingsAdapterMixin` visual settings and `SettingsView` (`SettingsLanClientCard.qml`) + `LanSettingsDialog.qml` for switching/reconnecting servers.
 
 ---
 
@@ -34,7 +34,7 @@ graph TD
 ┌──────────────────────────────────────────────────────────┐
 │                   QML Presentation Layer                 │
 │  - Main.qml                                              │
-│  - apps/common_qml/ (StyledSearchField, PaginationBar)    │
+│  - apps/common_qml/ (SettingsView, StyledDialog/Button/Inputs)│
 │  - apps/<app>/qml/views/ (Modular Views)                 │
 │  - apps/<app>/qml/dialogs/ (Action Dialogs)              │
 └────────────────────────────┬─────────────────────────────┘
@@ -49,7 +49,7 @@ graph TD
 │                    Core Services & Network                 │
 │  - StudentService, EnrollmentService                     │
 │  - CatalogService, LoanService, FineService              │
-│  - core/network/: BoothLanServer, BoothLanClient, UDP    │
+│  - core/network/: BoothLanServer, BoothLanClient, Manager│
 │  - xlsx_diff_importer, build_db, roster_parser           │
 └────────────────────────────┬─────────────────────────────┘
                              │ SQL Queries / Transactions
