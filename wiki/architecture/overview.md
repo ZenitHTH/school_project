@@ -7,9 +7,9 @@ The system consists of three independent desktop GUI applications written in **P
 graph TD
     SM[Student Management App] -->|Exports Snapshot| SS[(snapshot.sqlite)]
     SS -->|Air-Gapped Import via USB/LINE| LM[Librarian Management App]
-    LM -->|Shared SQLite DB| BA[Self-Service Booth Kiosk App]
+    LM -->|Embedded HTTP/1.1 LAN API + UDP Discovery| BA[Self-Service Booth Kiosk App]
     SM -->|Local DB| SDB[(student.sqlite)]
-    LM -->|Local DB| LDB[(library.sqlite)]
+    LM -->|Local DB + threading.Lock| LDB[(library.sqlite)]
 ```
 
 ### The Three Applications:
@@ -19,11 +19,12 @@ graph TD
    - Exports signed/checksummed `snapshot.sqlite` for the library system.
 2. **Librarian Management App (`apps/librarian_management_app`)**:
    - Manages book catalog, barcode printing (A4 PDF label sheets), active loans, overdue fines, and categories.
-   - Ingests student snapshot diffs from Student Management.
+   - Ingests student snapshot diffs from Student Management and monthly `.xlsx` rosters.
+   - Hosts an embedded stdlib HTTP/1.1 keep-alive server (`BoothLanServer`, port `8765`) and UDP discovery responder (`LanDiscoveryResponder`, port `8766`) on a `check_same_thread=False` SQLite connection guarded by a `threading.Lock`, exposing `getLanServerInfo()` via `LibrarianAdminAdapter`.
 3. **Self-Service Booth Kiosk (`apps/booth_app`)**:
    - High-speed student checkout and return station.
-   - Designed for barcode scanner inputs and touch screens.
-   - Directly connects to `library.sqlite`.
+   - Designed for barcode scanner inputs and touch screens on separate LAN PCs.
+   - Operates as a zero-dependency thin LAN client (`BoothLanClient` + `discover_librarian()` + `booth_config.json`) communicating with `Librarian Management App` (no local SQLite DB in LAN mode; `BoothAdapter(conn)` preserved for tests).
 
 ---
 
@@ -45,9 +46,10 @@ graph TD
 └────────────────────────────┬─────────────────────────────┘
                              │ Returns Result[T, E]
 ┌────────────────────────────▼─────────────────────────────┐
-│                    Core Services Layer                   │
+│                    Core Services & Network                 │
 │  - StudentService, EnrollmentService                     │
 │  - CatalogService, LoanService, FineService              │
+│  - core/network/: BoothLanServer, BoothLanClient, UDP    │
 │  - xlsx_diff_importer, build_db, roster_parser           │
 └────────────────────────────┬─────────────────────────────┘
                              │ SQL Queries / Transactions

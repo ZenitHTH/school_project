@@ -93,6 +93,7 @@ def get_connection(
     db_path: str,
     pin: Optional[str] = None,
     enforce_foreign_keys: bool = True,
+    check_same_thread: bool = True,
 ) -> sqlite3.Connection:
     """
     Open connection to database with derived key and standard PRAGMAs.
@@ -101,7 +102,11 @@ def get_connection(
     if pin is not None:
         check_lockout(db_path)
 
-    conn = sqlite3.connect(db_path)
+    conn = (
+        sqlite3.connect(db_path)
+        if check_same_thread
+        else sqlite3.connect(db_path, check_same_thread=False)
+    )
 
     if pin is not None:
         salt = get_or_create_salt(db_path)

@@ -32,9 +32,15 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
     chulabookCheckStarted = Signal()
     chulabookCheckCompleted = Signal(str)
 
-    def __init__(self, conn: sqlite3.Connection, settings_service: Optional[SettingsService] = None):
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        settings_service: Optional[SettingsService] = None,
+        lan_server: Optional[Any] = None,
+    ):
         super().__init__()
         self.conn = conn
+        self.lan_server = lan_server
         self.catalog_svc = CatalogService(conn)
         self.fine_svc = FineService(conn)
         self.res_svc = ReservationService(conn)
@@ -456,6 +462,25 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
     def setAppFont(self, family: str, pixel_size: int) -> None:
         """Update application-level font family and pixel size."""
         apply_qt_app_font(family, pixel_size)
+
+    @Slot(result=str)
+    def getLanServerInfo(self) -> str:
+        """Return JSON connection details for the embedded Booth LAN server."""
+        if self.lan_server is None:
+            return json.dumps({"running": False, "ip": "", "port": 0, "token": ""})
+        running = bool(
+            self.lan_server.running
+            if hasattr(self.lan_server, "running")
+            else getattr(self.lan_server, "_httpd", None) is not None
+        )
+        if not running:
+            return json.dumps({"running": False, "ip": "", "port": 0, "token": ""})
+        return json.dumps({
+            "running": True,
+            "ip": str(self.lan_server.get_lan_ip()),
+            "port": int(self.lan_server.port),
+            "token": str(self.lan_server.token),
+        })
 
 
 

@@ -501,3 +501,13 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - `core/importers/`: extracted shared `roster_parser.py` (`<=20L` helpers), deduplicated grade-sheet parsing between `build_db.py` and `xlsx_diff_importer.py`, and switched `build_db.import_roster` to `read_only=True` streaming with `wb.close()`.
 - `data/sync/` & `data/paths.py`: extracted `load_snapshot_data` / `diff_snapshot_data` in `data/sync/diff.py` so `apply_sync` opens `snapshot.sqlite` once with `<=20L` helpers; simplified `data/paths.py` with `platformdirs` Path APIs + deduplicated fallback helper.
 - Plan: `docs/superpowers/plans/2026-11-12-core-data-critical-fixes-and-hygiene.md`. Full suite: 412 passed.
+## [2026-11-25] feat | Booth Thin LAN Client & Embedded Librarian LAN Server
+- Replaced local `library.sqlite` assumption in `apps/booth_app` with a 100% Python stdlib LAN client/server architecture (`core/network/`):
+  - `core/network/booth_config.py`: JSON `{host, port, token}` config persistence (`DEFAULT_LAN_PORT = 8765`, `DEFAULT_DISCOVERY_PORT = 8766`, `DEFAULT_BOOTH_TOKEN = "123456"`).
+  - `core/network/lan_server.py`: `BoothLanServer` (`ThreadingHTTPServer`, HTTP/1.1 keep-alive, `Content-Length`, `X-Booth-Token` verified via `hmac.compare_digest`, single `threading.Lock` around SQLite) serving `/api/health`, `/api/students`, `/api/copies/<barcode>`, `/api/checkout`, `/api/return`.
+  - `core/network/lan_client.py`: keep-alive `BoothLanClient` with automatic 1-retry reconnect and graceful offline error dicts.
+  - `core/network/lan_discovery.py`: UDP broadcast `LanDiscoveryResponder` & `discover_librarian()`.
+- `data/db.py`: added optional `check_same_thread: bool = True` to `get_connection` so `BoothLanServer` worker threads share the Librarian connection safely.
+- `apps/librarian_management_app/`: `main.py` starts/stops `BoothLanServer` + `LanDiscoveryResponder` on GUI launch (disable via `LIBRARIAN_LAN_DISABLED=1` or `--cli`; configurable via `LIBRARIAN_LAN_PORT` / `BOOTH_SERVER_TOKEN`), and `LibrarianAdminAdapter.getLanServerInfo()` exposes `{running, ip, port, token}`.
+- `apps/booth_app/`: operates as a thin LAN client (`BoothAdapter(client=...)`, `getConnectionStatus`, `configureConnection`, `discoverServer`, LAN status bar & settings dialog) while keeping `BoothAdapter(conn)` for tests.
+- Updated `wiki/apps/booth-app.md` and `wiki/architecture/overview.md`; added `tests/test_booth_lan.py` and `tests/test_librarian_lan.py`.
