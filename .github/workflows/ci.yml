@@ -1,0 +1,237 @@
+name: CI (Test & Build)
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run Pytest & Resolve Version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Version
+        id: meta
+        run: |
+          VER="$(tr -d '[:space:]' < VERSION)"
+          VER="${VER#v}"
+          echo "version=${VER}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${VER}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \
+            libxcb-xfixes0 libxcb-xinerama0
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run test suite
+        run: QT_QPA_PLATFORM=offscreen pytest -q
+
+  build-windows:
+    name: Build & Verify Windows Installers (Setup.exe)
+    needs: [test]
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build Windows Apps
+        run: |
+          pyinstaller packaging/librarian_management.spec
+          pyinstaller packaging/student_management.spec
+          pyinstaller packaging/booth_app.spec
+        working-directory: ${{ github.workspace }}
+
+      - name: Build Windows Installers (Inno Setup)
+        run: |
+          mkdir -Force dist\installers
+          iscc /DEnableLanFirewall=1 /DAppIcon="${{ github.workspace }}\assets\icons\librarianmanagement.ico" /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\LibrarianManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppIcon="${{ github.workspace }}\assets\icons\studentmanagement.ico" /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\StudentManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppIcon="${{ github.workspace }}\assets\icons\boothapp.ico" /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\BoothApp.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+        working-directory: ${{ github.workspace }}
+
+      - name: Test LibrarianManagement Installer & Firewall Rules
+        shell: pwsh
+        run: |
+          $installer = (Get-ChildItem "dist\installers\LibrarianManagement-Setup-*.exe" | Select-Object -First 1).FullName
+          if (-not $installer) { throw "LibrarianManagement installer not found" }
+
+          $installProc = Start-Process -FilePath $installer -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/DIR="C:\smte-lib"' -Wait -PassThru
+          if ($installProc.ExitCode -ne 0) { throw "Installer failed with exit code $($installProc.ExitCode)" }
+          if (-not (Test-Path "C:\smte-lib\LibrarianManagement.exe")) { throw "Installed executable missing in C:\smte-lib" }
+
+          netsh advfirewall firewall show rule name="SMTE Librarian LAN HTTP"
+          if ($LASTEXITCODE -ne 0) { throw "Missing firewall rule: SMTE Librarian LAN HTTP" }
+          netsh advfirewall firewall show rule name="SMTE Librarian LAN Discovery"
+          if ($LASTEXITCODE -ne 0) { throw "Missing firewall rule: SMTE Librarian LAN Discovery" }
+
+          $uninsProc = Start-Process -FilePath "C:\smte-lib\unins000.exe" -ArgumentList '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART' -Wait -PassThru
+          if ($uninsProc.ExitCode -ne 0) { throw "Uninstaller failed with exit code $($uninsProc.ExitCode)" }
+
+          # Inno Setup unins000.exe spawns a temp child process to finish uninstall & [UninstallRun]
+          for ($i = 0; $i -lt 30; $i++) {
+            if (-not (Test-Path "C:\smte-lib\unins000.exe")) { break }
+            Start-Sleep -Seconds 1
+          }
+          Start-Sleep -Seconds 2
+
+          $ErrorActionPreference = 'Continue'
+          netsh advfirewall firewall show rule name="SMTE Librarian LAN HTTP"
+          if ($LASTEXITCODE -eq 0) { throw "Firewall rule was not removed: SMTE Librarian LAN HTTP" }
+          netsh advfirewall firewall show rule name="SMTE Librarian LAN Discovery"
+          if ($LASTEXITCODE -eq 0) { throw "Firewall rule was not removed: SMTE Librarian LAN Discovery" }
+
+      - name: Upload Windows Installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: CI-Installers-Windows
+          path: dist/installers/*.exe
+          retention-days: 7
+
+  build-linux:
+    name: Build & Verify Debian Packages (.deb)
+    needs: [test]
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl1 libgl1 libxkbcommon-x11-0 libdbus-1-3 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-shape0 libxcb-sync1 \
+            libxcb-xfixes0 libxcb-xinerama0 binutils dpkg
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build Linux Binaries
+        run: |
+          pyinstaller packaging/librarian_management.spec
+          pyinstaller packaging/student_management.spec
+          pyinstaller packaging/booth_app.spec
+        working-directory: ${{ github.workspace }}
+
+      - name: Build Debian Packages (.deb)
+        run: |
+          ./packaging/installers/deb/build_deb.sh LibrarianManagement LibrarianManagement "$VERSION" dist/LibrarianManagement dist/installers
+          ./packaging/installers/deb/build_deb.sh StudentManagement StudentManagement "$VERSION" dist/StudentManagement dist/installers
+          ./packaging/installers/deb/build_deb.sh BoothApp BoothApp "$VERSION" dist/BoothApp dist/installers
+
+      - name: Verify LibrarianManagement .deb Metadata & Contents
+        run: |
+          DEB_FILE=$(ls dist/installers/librarianmanagement_*.deb)
+          dpkg -I "$DEB_FILE" | tee /tmp/deb_info.txt
+          grep -q "postinst" /tmp/deb_info.txt
+          grep -q "prerm" /tmp/deb_info.txt
+          dpkg -c "$DEB_FILE" | tee /tmp/deb_contents.txt
+          grep -q "usr/share/icons/hicolor/256x256/apps/librarianmanagement.png" /tmp/deb_contents.txt
+          grep -q "usr/share/applications/librarianmanagement.desktop" /tmp/deb_contents.txt
+
+      - name: Upload Debian Installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: CI-Installers-Linux-Debian
+          path: dist/installers/*.deb
+          retention-days: 7
+
+  build-macos:
+    name: Build macOS Installers (.dmg)
+    needs: [test]
+    runs-on: macos-latest
+    env:
+      VERSION: ${{ needs.test.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements.txt
+
+      - name: Build macOS Apps
+        run: |
+          pyinstaller packaging/librarian_management.spec
+          pyinstaller packaging/student_management.spec
+          pyinstaller packaging/booth_app.spec
+        working-directory: ${{ github.workspace }}
+
+      - name: Build macOS DMGs
+        run: |
+          ./packaging/installers/macos/create_dmg.sh LibrarianManagement dist/LibrarianManagement.app "$VERSION" dist/installers
+          ./packaging/installers/macos/create_dmg.sh StudentManagement dist/StudentManagement.app "$VERSION" dist/installers
+          ./packaging/installers/macos/create_dmg.sh BoothApp dist/BoothApp.app "$VERSION" dist/installers
+
+      - name: Upload macOS Installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: CI-Installers-macOS
+          path: dist/installers/*.dmg
+          retention-days: 7

@@ -520,3 +520,8 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - **Booth Auto-Rediscovery**: `BoothAdapter(..., auto_discover=True)` probes `discover_librarian(timeout=0.4)` on failed `health()`, swaps to a healthy server, and persists `{host, port}` to `booth_config.json`; `apps/booth_app/qml/Main.qml` adds `lanReconnectTimer` (`interval: 5000`, active only when disconnected and settings dialog closed).
 - **Generated Vector App Icons**: Added `assets/icons/{boothapp,librarianmanagement,studentmanagement}.{svg,png,ico,icns}`, `core/shared/mock_qt.py` `apply_app_icon()`, entrypoint calls across all 3 apps, PyInstaller `.spec` (`datas`/`EXE`/`BUNDLE`), `.deb`/`.rpm` hicolor icons, and Windows `SetupIconFile`.
 - Added `tests/test_installer_firewall.py`; updated `wiki/architecture/packaging.md` and `wiki/apps/booth-app.md`.
+
+## [2026-11-25] ci | Test-Only GitHub Actions Workflow on `dev`
+- Added `.github/workflows/ci.yml` (`CI (Test & Build)`) triggering on `push` (`dev`), `pull_request` (`dev`, `main`), and `workflow_dispatch` with `contents: read` and no release publishing.
+- Includes `test` (`ubuntu-24.04` headless `pytest -q`) gating `build-windows` (with live silent install/uninstall verification of `netsh` LAN firewall rules), `build-linux` (`.deb` `dpkg -I`/`dpkg -c` verification), and `build-macos` (`.dmg`), retaining artifacts for 7 days.
+- Extended `tests/test_installer_firewall.py` and updated `wiki/architecture/packaging.md`.

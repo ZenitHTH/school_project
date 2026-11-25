@@ -10,6 +10,7 @@ DEB_SCRIPT = REPO_ROOT / "packaging" / "installers" / "deb" / "build_deb.sh"
 RPM_SCRIPT = REPO_ROOT / "packaging" / "installers" / "rpm" / "build_rpm.sh"
 ISS_PATH = REPO_ROOT / "packaging" / "installers" / "windows" / "installer.iss"
 RELEASE_YML = REPO_ROOT / ".github" / "workflows" / "release.yml"
+CI_YML = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def _make_mock_dpkg_deb(bin_dir: Path) -> Path:
@@ -286,3 +287,48 @@ def test_apply_app_icon_and_entrypoints(monkeypatch):
     ]:
         txt = (REPO_ROOT / rel).read_text(encoding="utf-8")
         assert f'apply_app_icon(app, "{stem}")' in txt
+
+
+def test_ci_yml_triggers_and_has_no_release_publishing():
+    assert CI_YML.is_file(), ".github/workflows/ci.yml must exist"
+    yml = CI_YML.read_text(encoding="utf-8")
+
+    assert "name: CI (Test & Build)" in yml
+    assert "dev" in yml
+    assert "workflow_dispatch" in yml
+    assert "pull_request:" in yml
+
+    # Test-only CI must never publish releases or request write permissions
+    assert "gh release" not in yml
+    assert "action-gh-release" not in yml
+    assert "publish-release" not in yml
+    assert "contents: write" not in yml
+    assert "tags:" not in yml
+
+
+def test_ci_yml_contains_test_and_platform_build_jobs():
+    assert CI_YML.is_file(), ".github/workflows/ci.yml must exist"
+    yml = CI_YML.read_text(encoding="utf-8")
+
+    for job_id in ("test:", "build-windows:", "build-linux:", "build-macos:"):
+        assert job_id in yml, f"Missing CI job: {job_id}"
+
+    # Windows build must enable LAN firewall only for LibrarianManagement and verify rules live
+    iscc_lines = [line.strip() for line in yml.splitlines() if "iscc " in line]
+    assert len(iscc_lines) == 3
+    lib_lines = [l for l in iscc_lines if "LibrarianManagement" in l]
+    stu_lines = [l for l in iscc_lines if "StudentManagement" in l]
+    booth_lines = [l for l in iscc_lines if "BoothApp" in l]
+
+    assert len(lib_lines) == 1 and "/DEnableLanFirewall=1" in lib_lines[0] and "/DAppIcon=" in lib_lines[0]
+    assert len(stu_lines) == 1 and "EnableLanFirewall" not in stu_lines[0] and "/DAppIcon=" in stu_lines[0]
+    assert len(booth_lines) == 1 and "EnableLanFirewall" not in booth_lines[0] and "/DAppIcon=" in booth_lines[0]
+
+    assert "netsh advfirewall firewall show rule" in yml
+    assert "SMTE Librarian LAN HTTP" in yml
+    assert "SMTE Librarian LAN Discovery" in yml
+    assert "unins000.exe" in yml
+    assert "dpkg -I" in yml
+    assert "dpkg -c" in yml
+    assert "create_dmg.sh" in yml
+    assert "retention-days: 7" in yml

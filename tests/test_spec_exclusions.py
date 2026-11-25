@@ -91,8 +91,14 @@ def test_ci_and_release_workflows_follow_standard_release_pipeline():
     assert not os.path.exists(os.path.join(workflows_dir, "build.yml")), "Legacy build.yml must be removed"
     ci_path = os.path.join(workflows_dir, "ci.yml")
     rel_path = os.path.join(workflows_dir, "release.yml")
-    assert not os.path.exists(ci_path), "ci.yml must be removed (build only origin main, not dev)"
+    assert os.path.exists(ci_path), "test-only ci.yml must exist"
     assert os.path.exists(rel_path), "release.yml missing"
+
+    with open(ci_path, "r", encoding="utf-8") as f:
+        ci_yml = f.read()
+    assert "action-gh-release" not in ci_yml
+    assert "publish-release" not in ci_yml
+    assert "contents: write" not in ci_yml
 
     with open(rel_path, "r", encoding="utf-8") as f:
         rel_yml = f.read()

@@ -54,11 +54,12 @@ To prevent Qt QML font crashes, missing Wayland/X11 platform plugins, or GLX/Ope
 ---
 
 ## 5. GitHub Actions Pipeline & Git Branch Strategy (`.github/workflows/`)
-The repository builds and releases strictly from `main`:
-1. **Local Development (`dev` branch)**:
-   - Reserved for active local coding and fast iteration.
-   - Zero GitHub Actions run on `dev` to save runner minutes and eliminate noise.
-2. **Main & Tag Build Pipeline (`.github/workflows/release.yml`)**:
+The repository separates test-only CI on `dev` from release publishing on `main`:
+1. **Test-Only CI Pipeline (`.github/workflows/ci.yml`, `CI (Test & Build)`)**:
+   - Triggers on `push` to `dev`, `pull_request` to `dev`/`main`, and manual `workflow_dispatch` (read-only permissions; zero `tags` or release publishing).
+   - `test` (`ubuntu-24.04`) runs headless `QT_QPA_PLATFORM=offscreen pytest -q`, then gates `build-windows`, `build-linux`, and `build-macos` (7-day artifact retention).
+   - `build-windows` runs a live silent install/uninstall test of `LibrarianManagement-Setup-*.exe` (`C:\smte-lib`) verifying `SMTE Librarian LAN HTTP` and `SMTE Librarian LAN Discovery` `netsh` firewall rules are added and cleanly removed; `build-linux` verifies `dpkg -I`/`dpkg -c` (`postinst`, `prerm`, `hicolor` icon, `.desktop`) on `librarianmanagement_*.deb`.
+2. **Main & Tag Release Pipeline (`.github/workflows/release.yml`)**:
    - Triggers exclusively on `push` to `main`, semantic version tags (`v*.*.*`), or manual `workflow_dispatch`.
    - Single version source of truth: `VERSION` file and `core/shared/version.py` (`APP_VERSION`), synchronized across `installer.iss`, `build_deb.sh`, `build_rpm.sh`, `create_dmg.sh`, PyInstaller `.spec` bundles, and `QGuiApplication.setApplicationVersion`.
    - `test` job runs headless `pytest` on Python 3.12 (preventing Shiboken refcount decref issues on `None`) and resolves `outputs.version` and `outputs.tag` (`v<VERSION>`) once for all downstream build jobs.
