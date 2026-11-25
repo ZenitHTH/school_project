@@ -156,3 +156,88 @@ def test_lan_server_bad_json_returns_400():
     finally:
         server.stop()
         conn.close()
+
+
+def test_lan_client_keep_alive_and_operations():
+    from core.network.lan_client import BoothLanClient
+    from core.network.lan_server import BoothLanServer
+
+    conn = _make_seeded_conn()
+    server = BoothLanServer(conn, host="127.0.0.1", port=0, token="tok")
+    server.start()
+    client = BoothLanClient(host="127.0.0.1", port=server.port, token="tok")
+    try:
+        health = client.health()
+        assert health["ok"] is True
+        assert client.is_database_empty() is False
+
+        students = client.search_students("3001")
+        assert len(students) == 1
+        assert students[0]["student_id"] == 3001
+
+        copy_res = client.get_copy_by_barcode("BK-001")
+        assert copy_res["ok"] is True
+        assert copy_res["data"]["barcode"] == "BK-001"
+
+        co_res = client.checkout(3001, "BK-001")
+        assert co_res["ok"] is True
+        loan_id = co_res["data"]["loan_id"]
+
+        ret_res = client.return_by_barcode("BK-001")
+        assert ret_res["ok"] is True
+        assert ret_res["data"]["loan_id"] == loan_id
+
+        co_res2 = client.checkout(3001, "BK-001")
+        assert co_res2["ok"] is True
+        ret_res2 = client.return_book(co_res2["data"]["loan_id"])
+        assert ret_res2["ok"] is True
+    finally:
+        client.close()
+        server.stop()
+        conn.close()
+
+
+def test_lan_client_handles_offline_server_gracefully():
+    from core.network.lan_client import BoothLanClient
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        unused_port = s.getsockname()[1]
+
+    client = BoothLanClient(host="127.0.0.1", port=unused_port, token="tok", timeout=0.5)
+    try:
+        health = client.health()
+        assert health["ok"] is False
+        assert "error" in health and health["error"]
+        assert client.is_database_empty() is False
+        assert client.search_students("3001") == []
+        assert client.get_copy_by_barcode("BK-001")["ok"] is False
+        assert client.checkout(3001, "BK-001")["ok"] is False
+        assert client.return_by_barcode("BK-001")["ok"] is False
+    finally:
+        client.close()
+
+
+def test_lan_client_reconnects_after_server_restart():
+    from core.network.lan_client import BoothLanClient
+    from core.network.lan_server import BoothLanServer
+
+    conn = _make_seeded_conn()
+    server1 = BoothLanServer(conn, host="127.0.0.1", port=0, token="tok")
+    server1.start()
+    port = server1.port
+    client = BoothLanClient(host="127.0.0.1", port=port, token="tok")
+    try:
+        assert client.health()["ok"] is True
+        server1.stop()
+
+        server2 = BoothLanServer(conn, host="127.0.0.1", port=port, token="tok")
+        server2.start()
+        try:
+            assert client.health()["ok"] is True
+        finally:
+            server2.stop()
+    finally:
+        client.close()
+        conn.close()
