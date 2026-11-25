@@ -69,11 +69,12 @@ def _resource_dir(*parts: str) -> str:
 
 def _run_qt_app(adapter: BoothAdapter) -> int:
     from PySide6.QtQuickControls2 import QQuickStyle
-    from core.shared.mock_qt import register_bundled_fonts
+    from core.shared.mock_qt import apply_app_icon, register_bundled_fonts
 
     QQuickStyle.setStyle("Fusion")
     app = QGuiApplication(sys.argv)
     app.setApplicationVersion(APP_VERSION)
+    apply_app_icon(app, "boothapp")
     register_bundled_fonts()
 
     engine = QQmlApplicationEngine()

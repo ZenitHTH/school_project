@@ -44,6 +44,16 @@ chmod 755 "$INSTALL_DIR/$APP_BIN_NAME"
 ln -sf "/usr/lib/$PKG_NAME/$APP_BIN_NAME" "$BIN_DIR/$PKG_NAME"
 
 # Create .desktop file
+ICON_SRC="$SCRIPT_DIR/../../../assets/icons/$PKG_NAME.png"
+ICON_LINE=""
+if [ -f "$ICON_SRC" ]; then
+    ICON_DIR="$BUILD_ROOT/usr/share/icons/hicolor/256x256/apps"
+    mkdir -p "$ICON_DIR"
+    cp "$ICON_SRC" "$ICON_DIR/$PKG_NAME.png"
+    chmod 644 "$ICON_DIR/$PKG_NAME.png"
+    ICON_LINE="Icon=$PKG_NAME"
+fi
+
 cat <<EOF > "$DESKTOP_DIR/$PKG_NAME.desktop"
 [Desktop Entry]
 Version=1.0
@@ -54,6 +64,9 @@ Exec=/usr/bin/$PKG_NAME
 Terminal=false
 Categories=Education;Office;
 EOF
+if [ -n "$ICON_LINE" ]; then
+    echo "$ICON_LINE" >> "$DESKTOP_DIR/$PKG_NAME.desktop"
+fi
 chmod 644 "$DESKTOP_DIR/$PKG_NAME.desktop"
 
 # Create control file

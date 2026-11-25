@@ -176,3 +176,113 @@ def test_release_yml_enables_lan_firewall_only_for_librarian():
     assert len(lib_lines) == 1 and "/DEnableLanFirewall=1" in lib_lines[0]
     assert len(stu_lines) == 1 and "EnableLanFirewall" not in stu_lines[0]
     assert len(booth_lines) == 1 and "EnableLanFirewall" not in booth_lines[0]
+
+
+ICON_STEMS = ("boothapp", "librarianmanagement", "studentmanagement")
+
+
+def test_app_icons_exist_and_have_valid_formats():
+    icons_dir = REPO_ROOT / "assets" / "icons"
+    for stem in ICON_STEMS:
+        svg = icons_dir / f"{stem}.svg"
+        png = icons_dir / f"{stem}.png"
+        ico = icons_dir / f"{stem}.ico"
+        icns = icons_dir / f"{stem}.icns"
+        assert svg.is_file() and "<svg" in svg.read_text(encoding="utf-8")
+        png_bytes = png.read_bytes()
+        assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+        # IHDR width/height at bytes 16..24
+        width = int.from_bytes(png_bytes[16:20], "big")
+        height = int.from_bytes(png_bytes[20:24], "big")
+        assert (width, height) == (256, 256)
+        ico_bytes = ico.read_bytes()
+        assert ico_bytes[:4] == b"\x00\x00\x01\x00"
+        assert int.from_bytes(ico_bytes[4:6], "little") >= 5
+        icns_bytes = icns.read_bytes()
+        assert icns_bytes[:4] == b"icns"
+
+
+def test_deb_and_rpm_install_hicolor_icons_and_desktop_entry(tmp_path):
+    for app_name, stem in [
+        ("BoothApp", "boothapp"),
+        ("LibrarianManagement", "librarianmanagement"),
+        ("StudentManagement", "studentmanagement"),
+    ]:
+        deb_root = _run_deb_build(tmp_path, app_name)
+        icon_dest = deb_root / "usr" / "share" / "icons" / "hicolor" / "256x256" / "apps" / f"{stem}.png"
+        desktop = deb_root / "usr" / "share" / "applications" / f"{stem}.desktop"
+        assert icon_dest.is_file(), f"Missing DEB icon for {app_name}"
+        assert f"Icon={stem}" in desktop.read_text(encoding="utf-8")
+
+        spec_txt = _run_rpm_build(tmp_path, app_name)
+        assert f"/usr/share/icons/hicolor/256x256/apps/{stem}.png" in spec_txt
+        assert f"Icon={stem}" in spec_txt
+
+
+def test_pyinstaller_specs_wire_icons():
+    spec_map = [
+        ("packaging/booth_app.spec", "boothapp"),
+        ("packaging/librarian_management.spec", "librarianmanagement"),
+        ("packaging/student_management.spec", "studentmanagement"),
+    ]
+    for rel_path, stem in spec_map:
+        txt = (REPO_ROOT / rel_path).read_text(encoding="utf-8")
+        assert "assets/icons/*.png" in txt
+        assert f"assets/icons/{stem}.ico" in txt
+        assert f"assets/icons/{stem}.png" in txt
+        assert f"assets/icons/{stem}.icns" in txt
+        assert "icon=None" not in txt
+
+
+def test_windows_iss_and_release_yml_wire_app_icons():
+    iss = ISS_PATH.read_text(encoding="utf-8")
+    assert "#ifdef AppIcon" in iss
+    assert "SetupIconFile={#AppIcon}" in iss
+
+    yml = RELEASE_YML.read_text(encoding="utf-8")
+    iscc_lines = [line.strip() for line in yml.splitlines() if "iscc " in line]
+    assert len(iscc_lines) == 3
+    for app_name, stem in [
+        ("LibrarianManagement", "librarianmanagement"),
+        ("StudentManagement", "studentmanagement"),
+        ("BoothApp", "boothapp"),
+    ]:
+        matching = [l for l in iscc_lines if app_name in l]
+        assert len(matching) == 1
+        assert f"{stem}.ico" in matching[0]
+        assert "/DAppIcon=" in matching[0]
+
+
+def test_apply_app_icon_and_entrypoints(monkeypatch):
+    import sys
+    from PySide6.QtGui import QGuiApplication
+    from core.shared.mock_qt import apply_app_icon
+
+    # No-op cleanly for missing icon or None app
+    apply_app_icon(None, "nonexistent_icon_stem")
+
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    qapp = QGuiApplication.instance() or QGuiApplication(sys.argv[:1])
+
+    class _FakeApp:
+        def __init__(self):
+            self.icon = None
+
+        def setWindowIcon(self, icon):
+            self.icon = icon
+
+    fake = _FakeApp()
+    apply_app_icon(fake, "nonexistent_icon_stem")
+    assert fake.icon is None
+
+    apply_app_icon(fake, "boothapp")
+    assert fake.icon is not None and not fake.icon.isNull()
+    assert qapp is not None
+
+    for rel, stem in [
+        ("apps/booth_app/main.py", "boothapp"),
+        ("apps/librarian_management_app/main.py", "librarianmanagement"),
+        ("apps/student_management_app/main.py", "studentmanagement"),
+    ]:
+        txt = (REPO_ROOT / rel).read_text(encoding="utf-8")
+        assert f'apply_app_icon(app, "{stem}")' in txt

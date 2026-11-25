@@ -32,6 +32,15 @@ trap 'rm -rf "$RPM_TOPDIR"' EXIT
 mkdir -p "$RPM_TOPDIR"/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
 
 SPEC_FILE="$RPM_TOPDIR/SPECS/$PKG_NAME.spec"
+ICON_SRC="$SCRIPT_DIR/../../../assets/icons/$PKG_NAME.png"
+ABS_ICON_PATH=""
+ICON_DESKTOP_LINE=""
+ICON_FILE_ENTRY=""
+if [ -f "$ICON_SRC" ]; then
+    ABS_ICON_PATH="$(cd "$(dirname "$ICON_SRC")" && pwd)/$(basename "$ICON_SRC")"
+    ICON_DESKTOP_LINE="Icon=$PKG_NAME"
+    ICON_FILE_ENTRY="/usr/share/icons/hicolor/256x256/apps/$PKG_NAME.png"
+fi
 
 cat <<EOF > "$SPEC_FILE"
 Name:           $PKG_NAME
@@ -63,13 +72,26 @@ Comment=School Management System - $APP_NAME
 Exec=/usr/bin/$PKG_NAME
 Terminal=false
 Categories=Education;Office;
+$ICON_DESKTOP_LINE
 DESKTOP
 chmod 644 %{buildroot}/usr/share/applications/$PKG_NAME.desktop
+EOF
+
+if [ -n "$ABS_ICON_PATH" ]; then
+    cat <<EOF >> "$SPEC_FILE"
+mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
+cp "$ABS_ICON_PATH" %{buildroot}/usr/share/icons/hicolor/256x256/apps/$PKG_NAME.png
+chmod 644 %{buildroot}/usr/share/icons/hicolor/256x256/apps/$PKG_NAME.png
+EOF
+fi
+
+cat <<EOF >> "$SPEC_FILE"
 
 %files
 /usr/lib/$PKG_NAME/$APP_BIN_NAME
 /usr/bin/$PKG_NAME
 /usr/share/applications/$PKG_NAME.desktop
+$ICON_FILE_ENTRY
 EOF
 
 if [ "$PKG_NAME" = "librarianmanagement" ]; then

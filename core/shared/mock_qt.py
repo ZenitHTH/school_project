@@ -142,3 +142,21 @@ def apply_qt_app_font(family: str, pixel_size: int) -> None:
     except Exception:
         pass
 
+
+def apply_app_icon(app: Any, icon_stem: str) -> None:
+    """Set QGuiApplication window icon from bundled assets/icons/<icon_stem>.png."""
+    if not HAVE_QT or app is None or not icon_stem:
+        return
+    import os
+    base = sys._MEIPASS if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS") else os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    icon_path = os.path.join(base, "assets", "icons", f"{icon_stem}.png")
+    if not os.path.isfile(icon_path):
+        return
+    try:
+        from PySide6.QtGui import QGuiApplication, QIcon
+        if QGuiApplication.instance() is None:
+            return
+        app.setWindowIcon(QIcon(icon_path))
+    except Exception:
+        pass
+

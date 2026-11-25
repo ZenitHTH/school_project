@@ -39,6 +39,9 @@ AppPublisher=School Management System
 DefaultDirName={autopf}\{#AppName}
 DefaultGroupName={#AppName}
 AllowNoIcons=yes
+#ifdef AppIcon
+SetupIconFile={#AppIcon}
+#endif
 OutputDir={#OutputDir}
 OutputBaseFilename={#AppName}-Setup-{#AppVersion}
 Compression=lzma2/max

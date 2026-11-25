@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="stuBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="100%" stop-color="#4C1D95"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="48" fill="url(#stuBg)"/>
+  <!-- Graduation cap mortarboard -->
+  <polygon points="128,46 212,84 128,122 44,84" fill="#FFFFFF"/>
+  <!-- Cap base -->
+  <path d="M78 104 L78 136 C78 152 100 162 128 162 C156 162 178 152 178 136 L178 104 L128 127 Z" fill="#EDE9FE"/>
+  <!-- Tassel -->
+  <rect x="196" y="86" width="6" height="44" rx="3" fill="#FBBF24"/>
+  <circle cx="199" cy="134" r="8" fill="#FBBF24"/>
+  <!-- Student ID card / badge below -->
+  <rect x="64" y="172" width="128" height="36" rx="10" fill="#FFFFFF"/>
+  <circle cx="88" cy="190" r="10" fill="#7C3AED"/>
+  <rect x="108" y="182" width="66" height="6" rx="3" fill="#7C3AED" opacity="0.8"/>
+  <rect x="108" y="193" width="44" height="5" rx="2.5" fill="#A78BFA"/>
+</svg>

@@ -148,12 +148,14 @@ def _create_qml_engine(adapter: LibrarianAdminAdapter) -> Tuple[QQmlApplicationE
 
 def _run_gui_mode(conn) -> int:
     from PySide6.QtQuickControls2 import QQuickStyle
+    from core.shared.mock_qt import apply_app_icon
 
     QQuickStyle.setStyle("Fusion")
     lan_server, discovery = _start_lan_services(conn, threading.Lock())
     adapter = LibrarianAdminAdapter(conn, lan_server=lan_server)
     app = QGuiApplication(sys.argv)
     app.setApplicationVersion(APP_VERSION)
+    apply_app_icon(app, "librarianmanagement")
     engine, qml_file = _create_qml_engine(adapter)
     exit_code = -1
     try:

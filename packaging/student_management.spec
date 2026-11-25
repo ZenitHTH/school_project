@@ -17,6 +17,7 @@ datas = [
     ('../apps/common_qml/*.js', 'apps/common_qml'),
     ('../apps/common_qml/fonts/*', 'apps/common_qml/fonts'),
     ('../apps/common_qml/qmldir', 'apps/common_qml'),
+    ('../assets/icons/*.png', 'assets/icons'),
 ]
 binaries = []
 hiddenimports = ['sqlite3']
@@ -72,13 +73,14 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='../assets/icons/studentmanagement.ico' if sys.platform == 'win32' else '../assets/icons/studentmanagement.png',
 )
 
 if sys.platform == 'darwin':
     app = BUNDLE(
         exe,
         name='StudentManagement.app',
-        icon=None,
+        icon='../assets/icons/studentmanagement.icns',
         bundle_identifier='com.school.studentmanagement',
         version=APP_VERSION,
     )

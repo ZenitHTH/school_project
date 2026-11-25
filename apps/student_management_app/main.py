@@ -57,58 +57,56 @@ from data.paths import get_default_db_path
 from core.shared.app_logging import setup_app_logging
 
 
+def _run_cli_mode(conn, adapter: StudentAdminAdapter) -> None:
+    if adapter.isFirstLaunch():
+        if sys.stdin.isatty() and "--cli" in sys.argv:
+            run_cli_first_launch(adapter)
+        else:
+            adapter.initializeBlankDatabase("CLI")
+    print("[Student Management] Running in CLI mode.")
+    res = adapter.searchStudents("")
+    print(f"Students in database: {len(json.loads(res))}")
+    conn.close()
+
+
+def _run_gui_mode(conn, adapter: StudentAdminAdapter) -> int:
+    from PySide6.QtQuickControls2 import QQuickStyle
+    from core.shared.mock_qt import apply_app_icon, register_bundled_fonts
+
+    QQuickStyle.setStyle("Fusion")
+    app = QGuiApplication(sys.argv)
+    app.setApplicationVersion(APP_VERSION)
+    apply_app_icon(app, "studentmanagement")
+    register_bundled_fonts()
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("studentAdmin", adapter)
+    engine.rootContext().setContextProperty("searchStudents", adapter.searchStudents)
+    base = sys._MEIPASS if getattr(sys, "frozen", False) else os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    common_dir = os.path.join(base, "apps", "common_qml") if getattr(sys, "frozen", False) else os.path.join(base, "common_qml")
+    qml_dir = os.path.join(base, "apps", "student_management_app", "qml") if getattr(sys, "frozen", False) else os.path.join(os.path.dirname(__file__), "qml")
+    engine.addImportPath(common_dir)
+    engine.addImportPath(os.path.dirname(common_dir))
+    engine.load(os.path.join(qml_dir, "Main.qml"))
+    if not engine.rootObjects():
+        return -1
+    return app.exec()
+
+
 def main():
     setup_app_logging("SMTE-StudentManagement")
     default_path = str(get_default_db_path("SMTE-StudentManagement", "student.sqlite"))
     db_path = os.environ.get("STUDENT_DB_PATH", default_path)
     pin = os.environ.get("STUDENT_DB_PIN", "123456")
-
     conn = get_connection(db_path, pin=pin)
     apply_migrations(conn, db_path=db_path)
-
-
     adapter = StudentAdminAdapter(conn)
-
     if "--cli" in sys.argv or not HAVE_QT:
-        if adapter.isFirstLaunch():
-            if sys.stdin.isatty() and "--cli" in sys.argv:
-                run_cli_first_launch(adapter)
-            else:
-                adapter.initializeBlankDatabase("CLI")
-        if not HAVE_QT or "--cli" in sys.argv:
-            print("[Student Management] Running in CLI mode.")
-            res = adapter.searchStudents("")
-            print(f"Students in database: {len(json.loads(res))}")
-            conn.close()
-            return
-
-    from PySide6.QtQuickControls2 import QQuickStyle
-    QQuickStyle.setStyle("Fusion")
-
-    app = QGuiApplication(sys.argv)
-    app.setApplicationVersion(APP_VERSION)
-    from core.shared.mock_qt import register_bundled_fonts
-    register_bundled_fonts()
-    engine = QQmlApplicationEngine()
-    engine.rootContext().setContextProperty("studentAdmin", adapter)
-    engine.rootContext().setContextProperty("searchStudents", adapter.searchStudents)
-
-    common_qml_dir = os.path.join(sys._MEIPASS, "apps", "common_qml") \
-        if getattr(sys, "frozen", False) else os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "common_qml"))
-    engine.addImportPath(common_qml_dir)
-    engine.addImportPath(os.path.dirname(common_qml_dir))
-
-    qml_dir = os.path.join(sys._MEIPASS, "apps", "student_management_app", "qml") \
-        if getattr(sys, "frozen", False) else os.path.join(os.path.dirname(__file__), "qml")
-    qml_file = os.path.join(qml_dir, "Main.qml")
-    engine.load(qml_file)
-
-    if not engine.rootObjects():
-        sys.exit(-1)
-
-    exit_code = app.exec()
-    conn.close()
-    sys.exit(exit_code)
+        _run_cli_mode(conn, adapter)
+        return
+    try:
+        sys.exit(_run_gui_mode(conn, adapter))
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

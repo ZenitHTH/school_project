@@ -105,9 +105,9 @@ jobs:
       - name: Build Windows Installers (Inno Setup)
         run: |
           mkdir -Force dist\installers
-          iscc /DEnableLanFirewall=1 /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\LibrarianManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\StudentManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\BoothApp.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DEnableLanFirewall=1 /DAppIcon="${{ github.workspace }}\assets\icons\librarianmanagement.ico" /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\LibrarianManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppIcon="${{ github.workspace }}\assets\icons\studentmanagement.ico" /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\StudentManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppIcon="${{ github.workspace }}\assets\icons\boothapp.ico" /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\BoothApp.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
         working-directory: ${{ github.workspace }}
 
       - name: Upload Windows Installers
