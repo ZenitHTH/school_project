@@ -19,6 +19,7 @@ os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuick import QQuickItem
 from PySide6.QtCore import QMetaObject, Qt, QObject
 from data.db import get_connection
 from data.migrate import apply_migrations
@@ -447,4 +448,24 @@ def test_booth_warning_banner_visible_on_empty_db(qapp, tmp_path):
     conn.close()
     engine.deleteLater()
     qapp.processEvents()
+
+
+def test_lan_settings_dialog_height_wraps_content(booth_ui):
+    """StyledDialog grows vertically to wrap its content, header, and footer."""
+    window = booth_ui["window"]
+    dialog = find(window, "lanSettingsDialog")
+    assert dialog is not None
+
+    invoke(window, "openLanSettings")
+    process(booth_ui["app"])
+    process(booth_ui["app"])
+
+    content_item = dialog.property("contentItem")
+    children_h = content_item.property("childrenRect").height()
+    dialog_h = dialog.property("height")
+    assert dialog_h >= 250
+    assert dialog_h >= children_h
+    invoke(dialog, "close")
+    process(booth_ui["app"])
+
 
