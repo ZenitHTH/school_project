@@ -241,3 +241,38 @@ def test_lan_client_reconnects_after_server_restart():
     finally:
         client.close()
         conn.close()
+
+
+def test_udp_discovery_finds_responder():
+    from core.network.lan_discovery import LanDiscoveryResponder, discover_librarian
+
+    responder = LanDiscoveryResponder(
+        http_port=8765, discovery_port=0, bind_host="127.0.0.1"
+    )
+    responder.start()
+    try:
+        result = discover_librarian(
+            discovery_port=responder.discovery_port,
+            timeout=1.0,
+            broadcast_addr="127.0.0.1",
+        )
+        assert result is not None
+        assert result["host"] == "127.0.0.1"
+        assert result["port"] == 8765
+        assert isinstance(result["version"], str) and result["version"]
+    finally:
+        responder.stop()
+
+
+def test_udp_discovery_timeout_returns_none():
+    from core.network.lan_discovery import discover_librarian
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.bind(("127.0.0.1", 0))
+        unused_port = s.getsockname()[1]
+
+    result = discover_librarian(
+        discovery_port=unused_port, timeout=0.1, broadcast_addr="127.0.0.1"
+    )
+    assert result is None

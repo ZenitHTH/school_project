@@ -8,6 +8,11 @@ from core.network.booth_config import (
     save_booth_config,
 )
 from core.network.lan_client import BoothLanClient
+from core.network.lan_discovery import (
+    DISCOVERY_MAGIC,
+    LanDiscoveryResponder,
+    discover_librarian,
+)
 from core.network.lan_server import BoothLanServer
 
 __all__ = [
@@ -16,6 +21,9 @@ __all__ = [
     "DEFAULT_BOOTH_TOKEN",
     "DEFAULT_DISCOVERY_PORT",
     "DEFAULT_LAN_PORT",
+    "DISCOVERY_MAGIC",
+    "LanDiscoveryResponder",
+    "discover_librarian",
     "load_booth_config",
     "save_booth_config",
 ]
