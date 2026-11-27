@@ -23,6 +23,8 @@ Rectangle {
             font.bold: true
             font.pixelSize: 22
             color: Theme.textPrimary
+            Layout.fillWidth: true
+            elide: Text.ElideRight
         }
 
         ListView {
@@ -37,11 +39,14 @@ Rectangle {
             }
 
             Rectangle {
-                anchors.centerIn: parent
+                anchors.fill: parent
                 visible: logModel.count === 0
                 color: "transparent"
                 Text {
                     anchors.centerIn: parent
+                    width: Math.max(0, parent.width - 32)
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
                     text: "ยังไม่มีบันทึกประวัติกิจกรรม"
                     color: Theme.textFaint
                     font.pixelSize: 14
@@ -51,6 +56,7 @@ Rectangle {
             delegate: Rectangle {
                 id: logRow
                 width: logList.width
+                readonly property real uiScale: (typeof window !== "undefined" && window && window.fontScale) ? window.fontScale : (Typography.scale(12) / 12.0)
                 implicitHeight: Math.max(48, Math.round(rowContent.implicitHeight + 14))
                 height: implicitHeight
                 border.color: Theme.borderSubtle
@@ -66,23 +72,26 @@ Rectangle {
                     Text {
                         text: model.logged_at ? (model.logged_at.length > 19 ? model.logged_at.substring(0, 19) : model.logged_at) : ""
                         color: Theme.textMuted
-                        font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: Math.max(150, Math.round(150 * (window.fontScale || 1.0)))
+                        font.pixelSize: Math.max(10, Math.round(12 * logRow.uiScale))
+                        Layout.minimumWidth: 90
+                        Layout.preferredWidth: Math.min(Math.round(150 * logRow.uiScale), Math.max(90, Math.round(logRow.width * 0.28)))
+                        elide: Text.ElideRight
                     }
 
                     Text {
                         text: model.action || ""
                         font.bold: true
                         color: Theme.textStrong
-                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: Math.max(160, Math.round(160 * (window.fontScale || 1.0)))
+                        font.pixelSize: Math.max(10, Math.round(13 * logRow.uiScale))
+                        Layout.minimumWidth: 90
+                        Layout.preferredWidth: Math.min(Math.round(160 * logRow.uiScale), Math.max(90, Math.round(logRow.width * 0.30)))
                         elide: Text.ElideRight
                     }
 
                     Text {
                         text: model.detail || ""
                         color: Theme.textSecondary
-                        font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
+                        font.pixelSize: Math.max(10, Math.round(13 * logRow.uiScale))
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                     }

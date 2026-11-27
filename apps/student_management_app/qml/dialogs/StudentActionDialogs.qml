@@ -93,7 +93,7 @@ Item {
         width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
 
         ColumnLayout {
-            anchors.fill: parent
+            width: parent.width
             spacing: 10
             Label { text: "เลขห้องใหม่:" }
             StyledTextInput {
@@ -139,7 +139,7 @@ Item {
         width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
 
         ColumnLayout {
-            anchors.fill: parent
+            width: parent.width
             spacing: 10
             Label { text: "สถานะใหม่:" }
             StyledComboBox {
@@ -184,7 +184,7 @@ Item {
         width: Math.min(460, rootWindow ? rootWindow.width - 40 : 420)
 
         ColumnLayout {
-            anchors.fill: parent
+            width: parent.width
             spacing: 10
             Label { text: "คำนำหน้า:" }
             StyledTextInput {
@@ -248,7 +248,7 @@ Item {
         width: Math.min(420, rootWindow ? rootWindow.width - 40 : 380)
 
         ColumnLayout {
-            anchors.fill: parent
+            width: parent.width
             spacing: 10
             Label { text: "รหัสนักเรียนใหม่:*" }
             StyledTextInput {
@@ -295,7 +295,7 @@ Item {
         width: Math.min(520, rootWindow ? rootWindow.width - 40 : 500)
 
         ColumnLayout {
-            anchors.fill: parent
+            width: parent.width
             spacing: 12
             Text {
                 id: confirmImportMsg
@@ -308,6 +308,7 @@ Item {
                 Layout.fillWidth: true
                 implicitHeight: Math.max(120, Math.round(diffCol.implicitHeight + 24))
                 height: implicitHeight
+                clip: true
                 color: "#f8fafc"
                 border.color: "#cbd5e1"
                 radius: 6
@@ -316,18 +317,19 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 12
                     spacing: 6
-                    Text { id: diffNewText; text: "• นักเรียนใหม่: 0 คน"; color: "#059669"; font.bold: true }
-                    Text { id: diffPromoteText; text: "• นักเรียนที่เลื่อนชั้น/เปลี่ยนห้อง: 0 คน"; color: "#0284c7"; font.bold: true }
-                    Text { id: diffMissingText; text: "• นักเรียนที่ไม่มีในไฟล์ใหม่: 0 คน (คงสถานะเดิม)"; color: "#64748b" }
-                    Text { id: diffConflictText; text: "• รายชื่อที่สะกดต่างจากเดิม: 0 คน"; color: "#d97706" }
+                    Text { id: diffNewText; text: "• นักเรียนใหม่: 0 คน"; color: "#059669"; font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                    Text { id: diffPromoteText; text: "• นักเรียนที่เลื่อนชั้น/เปลี่ยนห้อง: 0 คน"; color: "#0284c7"; font.bold: true; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                    Text { id: diffMissingText; text: "• นักเรียนที่ไม่มีในไฟล์ใหม่: 0 คน (คงสถานะเดิม)"; color: "#64748b"; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                    Text { id: diffConflictText; text: "• รายชื่อที่สะกดต่างจากเดิม: 0 คน"; color: "#d97706"; wrapMode: Text.Wrap; Layout.fillWidth: true }
                 }
             }
-            RowLayout {
+            Flow {
+                Layout.fillWidth: true
                 spacing: 8
                 Text { text: "ปีการศึกษา:" }
-                StyledTextInput { id: diffYearInput; text: "2568"; Layout.preferredWidth: 80 }
+                StyledTextInput { id: diffYearInput; text: "2568"; width: 90 }
                 Text { text: "ภาคเรียน:" }
-                StyledTextInput { id: diffSemInput; text: "1"; Layout.preferredWidth: 60 }
+                StyledTextInput { id: diffSemInput; text: "1"; width: 70 }
             }
         }
 

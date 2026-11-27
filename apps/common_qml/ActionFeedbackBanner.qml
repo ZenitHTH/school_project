@@ -6,8 +6,9 @@ import QtQuick.Layouts 1.15
 Rectangle {
     id: root
     Layout.fillWidth: true
-    height: messageText.text !== "" ? 44 : 0
-    implicitHeight: height
+    implicitHeight: messageText.text !== "" ? Math.max(44, Math.round(messageText.implicitHeight + 16)) : 0
+    height: implicitHeight
+    clip: true
     color: isError ? Theme.errorBackground : Theme.successBackground
     border.color: isError ? Theme.errorBorder : Theme.successBorder
     border.width: messageText.text !== "" ? 1 : 0
@@ -37,10 +38,14 @@ Rectangle {
 
     Text {
         id: messageText
-        anchors.centerIn: parent
+        anchors.fill: parent
+        anchors.margins: 8
         text: ""
         color: root.isError ? Theme.errorText : Theme.successText
         font.pixelSize: 13
         font.bold: true
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        wrapMode: Text.Wrap
     }
 }

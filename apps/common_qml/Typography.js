@@ -82,12 +82,11 @@ function applyToNode(obj, config) {
     obj.font.family = resolveTargetFamily(obj, config.family);
     var base = baseSizes.get(obj) || 14;
     obj.font.pixelSize = Math.max(8, Math.round(base * config.factor));
-    applyHeightScale(obj, config.factor);
     applyPlaceholderDefaults(obj);
 }
 
 function visitProps(obj, ctx) {
-    var props = ["contentItem", "header", "footer", "background"];
+    var props = ["contentItem", "header", "footer", "background", "popup"];
     for (var i = 0; i < props.length; i++) {
         var p = props[i];
         if (obj[p] && typeof obj[p] === "object") traverseNode(obj[p], ctx);
@@ -104,9 +103,7 @@ function traverseNode(obj, ctx) {
     ctx.visited.add(obj);
     applyToNode(obj, ctx.config);
     visitProps(obj, ctx);
-    visitList(obj.children, ctx);
     visitList(obj.data, ctx);
-    visitList(obj.resources, ctx);
     visitList(obj.contentChildren, ctx);
     visitList(obj.contentData, ctx);
 }

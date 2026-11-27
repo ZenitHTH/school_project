@@ -17,6 +17,9 @@ from core.shared.version import APP_VERSION
 from core.student.services.student_service import StudentService
 
 
+_MAX_BODY_BYTES = 65536
+
+
 def _is_int(val: Any) -> bool:
     return isinstance(val, int) and not isinstance(val, bool)
 
@@ -56,6 +59,7 @@ class _LanHTTPServer(ThreadingHTTPServer):
 
 class _LanRequestHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    timeout = 10
 
     def log_message(self, format: str, *args: Any) -> None:
         return
@@ -75,18 +79,20 @@ class _LanRequestHandler(BaseHTTPRequestHandler):
         self._send_json(401, {"ok": False, "error": "Unauthorized"})
         return False
 
-    def _read_json_body(self) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    def _read_json_body(self) -> Tuple[Optional[Dict[str, Any]], Optional[str], int]:
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
-            return None, "Invalid Content-Length"
-        if length <= 0:
-            return None, "Empty request body"
+            return None, "Invalid Content-Length", 400
+        if length < 0 or length > _MAX_BODY_BYTES:
+            return None, f"Payload too large (max {_MAX_BODY_BYTES} bytes)", 413
+        if length == 0:
+            return None, "Empty request body", 400
         try:
             data = json.loads(self.rfile.read(length).decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError):
-            return None, "Malformed JSON payload"
-        return (data, None) if isinstance(data, dict) else (None, "JSON body must be an object")
+            return None, "Malformed JSON payload", 400
+        return (data, None, 200) if isinstance(data, dict) else (None, "JSON body must be an object", 400)
 
     def do_GET(self) -> None:
         if not self._check_auth():
@@ -118,9 +124,9 @@ class _LanRequestHandler(BaseHTTPRequestHandler):
         if path not in ("/api/checkout", "/api/return"):
             self._send_json(404, {"ok": False, "error": "Not found"})
             return
-        body, err = self._read_json_body()
+        body, err, err_status = self._read_json_body()
         if err or body is None:
-            self._send_json(400, {"ok": False, "error": err or "Invalid body"})
+            self._send_json(err_status, {"ok": False, "error": err or "Invalid body"})
             return
         ctx = self.server.ctx  # type: ignore[attr-defined]
         status, payload = ctx.handle_checkout(body) if path == "/api/checkout" else ctx.handle_return(body)
@@ -175,14 +181,23 @@ class BoothLanServer:
         with self.db_lock:
             try:
                 cur = self.conn.cursor()
-                empty = cur.execute("SELECT COUNT(*) FROM students;").fetchone()[0] == 0 or cur.execute("SELECT COUNT(*) FROM books;").fetchone()[0] == 0
+                has_students = cur.execute("SELECT EXISTS(SELECT 1 FROM students)").fetchone()[0]
+                has_books = cur.execute("SELECT EXISTS(SELECT 1 FROM books)").fetchone()[0]
+                empty = (has_students == 0 or has_books == 0)
             except Exception:
                 empty = True
         return {"ok": True, "empty": empty, "version": APP_VERSION}
 
     def handle_students(self, query: str) -> Dict[str, Any]:
         with self.db_lock:
-            return _list_payload(StudentService(self.conn).search(query=query))
+            res = StudentService(self.conn).search(query=query)
+        payload = _list_payload(res)
+        if payload["data"]:
+            payload["data"] = [
+                {k: v for k, v in row.items() if k != "national_id"}
+                for row in payload["data"]
+            ]
+        return payload
 
     def handle_categories(self) -> Dict[str, Any]:
         with self.db_lock:

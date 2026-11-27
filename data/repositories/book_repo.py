@@ -264,26 +264,36 @@ def get_book(conn: sqlite3.Connection, book_id: int) -> Optional[sqlite3.Row]:
     return conn.execute(sql, (book_id,)).fetchone()
 
 
+def _escape_like(val: str) -> str:
+    """Escape SQL LIKE wildcards and escape char."""
+    return val.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _build_book_query_clause(clean_query: str) -> Tuple[str, List[Any]]:
-    """Build FTS5/LIKE text, dash-less ISBN, and barcode match clause."""
+    """Build FTS5/LIKE text, indexed normalized ISBN, and barcode match clause."""
+    norm_isbn = clean_query.replace("-", "").replace(" ", "").upper()
+    norm_barcode = clean_query.lower().replace("-", "")
     if len(clean_query) < 3:
-        like_param = f"%{clean_query}%"
-        base_cond = "(b.title LIKE ? OR b.author LIKE ? OR b.isbn LIKE ?)"
-        params: List[Any] = [like_param, like_param, like_param]
-    else:
-        escaped = clean_query.replace('"', '""')
-        fts_query = f'"{escaped}"*' if " " not in escaped else f'"{escaped}"'
-        base_cond = "b.book_id IN (SELECT rowid FROM books_fts WHERE books_fts MATCH ?)"
-        params = [fts_query]
-    norm_query = clean_query.lower().replace("-", "")
+        like_param = f"%{_escape_like(clean_query)}%"
+        cond = (
+            "(b.title LIKE ? ESCAPE '\\' OR b.author LIKE ? ESCAPE '\\' OR b.isbn LIKE ? ESCAPE '\\' "
+            "OR UPPER(REPLACE(REPLACE(b.isbn, '-', ''), ' ', '')) = ? "
+            "OR b.book_id IN (SELECT bc.book_id FROM book_copies bc WHERE REPLACE(LOWER(bc.barcode), '-', '') = ?))"
+        )
+        return cond, [like_param, like_param, like_param, norm_isbn, norm_barcode]
+
+    escaped = clean_query.replace('"', '""')
+    fts_query = f'"{escaped}"*' if " " not in escaped else f'"{escaped}"'
     cond = (
-        f"({base_cond} "
-        "OR REPLACE(LOWER(b.isbn), '-', '') LIKE ? "
-        "OR EXISTS (SELECT 1 FROM book_copies bc "
-        "WHERE bc.book_id = b.book_id AND REPLACE(LOWER(bc.barcode), '-', '') = ?))"
+        "b.book_id IN ("
+        "SELECT rowid FROM books_fts WHERE books_fts MATCH ? "
+        "UNION "
+        "SELECT book_id FROM books WHERE UPPER(REPLACE(REPLACE(isbn, '-', ''), ' ', '')) = ? "
+        "UNION "
+        "SELECT bc.book_id FROM book_copies bc WHERE REPLACE(LOWER(bc.barcode), '-', '') = ?"
+        ")"
     )
-    params.extend([f"%{norm_query}%", norm_query])
-    return cond, params
+    return cond, [fts_query, norm_isbn, norm_barcode]
 
 
 def _build_book_search_where(query: str, category_id: Optional[int]) -> Tuple[str, List[Any]]:
@@ -412,13 +422,13 @@ def _find_removable_copies(conn: sqlite3.Connection, book_id: int, count: int) -
 
 def _delete_candidate_copies(conn: sqlite3.Connection, candidates: List[sqlite3.Row]) -> List[str]:
     """Delete candidate copy records and status logs, returning removed barcodes."""
-    removed_barcodes = []
-    for row in candidates:
-        cid = row["copy_id"]
-        conn.execute("DELETE FROM book_copy_status_log WHERE copy_id = ?", (cid,))
-        conn.execute("DELETE FROM book_copies WHERE copy_id = ?", (cid,))
-        removed_barcodes.append(row["barcode"])
-    return removed_barcodes
+    if not candidates:
+        return []
+    copy_ids = [row["copy_id"] for row in candidates]
+    placeholders = ",".join("?" for _ in copy_ids)
+    conn.execute(f"DELETE FROM book_copy_status_log WHERE copy_id IN ({placeholders})", copy_ids)
+    conn.execute(f"DELETE FROM book_copies WHERE copy_id IN ({placeholders})", copy_ids)
+    return [row["barcode"] for row in candidates]
 
 
 def _sync_book_total_copies_and_log(
@@ -537,15 +547,16 @@ def get_copy_by_barcode(conn: sqlite3.Connection, barcode: str) -> Optional[sqli
         return row
 
     # 3. ISBN fallback (find available copy first, or first copy)
+    norm_isbn = clean.replace("-", "").replace(" ", "").upper()
     sql_isbn = """
         SELECT bc.*, b.title, b.author, b.isbn, b.active
         FROM book_copies bc
         JOIN books b ON b.book_id = bc.book_id
-        WHERE REPLACE(LOWER(b.isbn), '-', '') = ?
+        WHERE UPPER(REPLACE(REPLACE(b.isbn, '-', ''), ' ', '')) = ?
         ORDER BY CASE WHEN bc.status = 'available' THEN 0 ELSE 1 END, bc.copy_id ASC
         LIMIT 1
     """
-    return conn.execute(sql_isbn, (norm,)).fetchone()
+    return conn.execute(sql_isbn, (norm_isbn,)).fetchone()
 
 
 def get_copies_for_book(conn: sqlite3.Connection, book_id: int) -> List[sqlite3.Row]:

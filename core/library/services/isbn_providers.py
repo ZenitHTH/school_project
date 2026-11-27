@@ -6,9 +6,10 @@ import logging
 import re
 import ssl
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("smte.isbn")
 
@@ -39,6 +40,48 @@ NAIIN_HEADERS = {
 }
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 UNKNOWN_PUBS = ("-ไม่ปรากฏสำนักพิมพ์", "ไม่ปรากฏสำนักพิมพ์", "ม.ป.พ.", "ม.ป.ท.")
+_SSL_CONTEXT = ssl.create_default_context()
+_MAX_HTTP_BYTES = 2_000_000
+_SAFE_PROVIDER_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Block HTTP 30x redirects to prevent SSRF to loopback/LAN endpoints."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise urllib.error.HTTPError(req.full_url, code, f"HTTP redirect blocked ({code})", headers, fp)
+
+
+_ORIG_URLOPEN = urllib.request.urlopen
+_NO_REDIRECT_OPENER = urllib.request.build_opener(
+    urllib.request.HTTPSHandler(context=_SSL_CONTEXT),
+    _NoRedirectHandler(),
+)
+
+
+def _open_url(req: urllib.request.Request, timeout: float) -> Any:
+    if urllib.request.urlopen is not _ORIG_URLOPEN:
+        return urllib.request.urlopen(req, timeout=timeout, context=_SSL_CONTEXT)
+    return _NO_REDIRECT_OPENER.open(req, timeout=timeout)
+
+
+def _read_capped(resp: Any, max_bytes: int = _MAX_HTTP_BYTES) -> bytes:
+    try:
+        raw = resp.read(max_bytes + 1)
+    except TypeError:
+        raw = resp.read()
+    if len(raw) > max_bytes:
+        raise ValueError(f"HTTP response exceeds {max_bytes} byte limit")
+    return raw
+
+
+def _validate_provider_id(raw_id: Any) -> Optional[str]:
+    if raw_id is None:
+        return None
+    s = str(raw_id).strip()
+    if not s or not _SAFE_PROVIDER_ID_RE.fullmatch(s):
+        return None
+    return urllib.parse.quote(s, safe="")
 
 __all__ = [
     "normalize_isbn",
@@ -114,9 +157,9 @@ def _fetch_json(url: str, timeout: float = 5.0, extra_headers: Optional[dict] = 
     req = urllib.request.Request(url, headers=headers)
     t0 = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ssl.create_default_context()) as resp:
+        with _open_url(req, timeout=timeout) as resp:
             charset = resp.headers.get_content_charset() or "utf-8"
-            data = json.loads(resp.read().decode(charset, errors="replace"))
+            data = json.loads(_read_capped(resp).decode(charset, errors="replace"))
     except Exception as exc:
         logger.warning(
             "http GET %s failed after %.2fs (timeout=%.1fs): %s: %s",
@@ -135,9 +178,9 @@ def _fetch_text(url: str, timeout: float = 5.0, extra_headers: Optional[dict] = 
     req = urllib.request.Request(url, headers=headers)
     t0 = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ssl.create_default_context()) as resp:
+        with _open_url(req, timeout=timeout) as resp:
             charset = resp.headers.get_content_charset() or "utf-8"
-            body = resp.read().decode(charset, errors="replace")
+            body = _read_capped(resp).decode(charset, errors="replace")
     except Exception as exc:
         logger.warning(
             "http GET %s failed after %.2fs (timeout=%.1fs): %s: %s",
@@ -253,15 +296,16 @@ def _fetch_chulabook(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
         return None
 
     try:
-        data = _get(f"{CHULABOOK_API}/products?search={isbn}&limit=5")
+        q_isbn = urllib.parse.quote(str(isbn), safe="")
+        data = _get(f"{CHULABOOK_API}/products?search={q_isbn}&limit=5")
         if not data:
             logger.debug("chulabook search for %s failed after retry, skip", isbn)
             return None
         rows = data.get("rows") or []
         logger.debug("chulabook search %s: %d row(s) returned", isbn, len(rows))
-        pid = parse_chulabook_products(data, isbn)
+        pid = _validate_provider_id(parse_chulabook_products(data, isbn))
         if not pid:
-            logger.debug("chulabook search %s: no exact barcode match, skip", isbn)
+            logger.debug("chulabook search %s: no exact/valid barcode match, skip", isbn)
             return None
         detail = _get(f"{CHULABOOK_API}/products/{pid}")
         if not detail:
@@ -275,7 +319,7 @@ def _fetch_chulabook(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
         return None
 
 
-NAIIN_ITEMS_RE = re.compile(r"<product-list[^>]*?:items='(.*?)'\s*:default-error=", re.S)
+NAIIN_ITEMS_RE = re.compile(r"<product-list[^>]{0,500}?:items='((?:[^']|'(?!\s*:default-error=))*)'\s*:default-error=", re.S)
 NAIIN_LD_RE = re.compile(r'<script type="application/ld\+json">(.*?)</script>', re.S)
 
 
@@ -380,7 +424,9 @@ def _fetch_nain(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
             return None
         candidates = items[:3]
         for it in candidates:
-            pid = it.get("ProductID")
+            pid = _validate_provider_id(it.get("ProductID"))
+            if not pid:
+                continue
             detail = _get(f"{NAIIN_BASE}/product/detail/{pid}")
             if not detail:
                 logger.debug("nain detail %s (ProductID=%s) failed after retry, skip", isbn, pid)
@@ -403,7 +449,8 @@ def _fetch_nain(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
 
 def _fetch_primo(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
     try:
-        url = f"{NLT_PRIMO_URL}?vid=66NLT_INST:66NLT&q=isbn,exact,{isbn}&offset=0&limit=1&lang=th"
+        q_isbn = urllib.parse.quote(str(isbn), safe="")
+        url = f"{NLT_PRIMO_URL}?vid=66NLT_INST:66NLT&q=isbn,exact,{q_isbn}&offset=0&limit=1&lang=th"
         data = _fetch_json(url, timeout)
         meta = parse_nlt_primo_json(data, isbn)
         if not meta:
@@ -416,14 +463,16 @@ def _fetch_primo(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
 
 def _fetch_seed_detail(prod_id: str, timeout: float) -> Optional[dict]:
     try:
-        return _fetch_json(f"{SEED_DETAIL_URL}/{prod_id}", timeout) if prod_id else None
+        safe_id = _validate_provider_id(prod_id)
+        return _fetch_json(f"{SEED_DETAIL_URL}/{safe_id}", timeout) if safe_id else None
     except Exception:
         return None
 
 
 def _fetch_seed(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
     try:
-        s_data = _fetch_json(f"{SEED_SEARCH_URL}?filter.keyword={isbn}&option.limit=1&option.skip=0", timeout)
+        q_isbn = urllib.parse.quote(str(isbn), safe="")
+        s_data = _fetch_json(f"{SEED_SEARCH_URL}?filter.keyword={q_isbn}&option.limit=1&option.skip=0", timeout)
         prods = s_data.get("products") or []
         if not prods or not isinstance(prods[0], dict):
             logger.debug("SE-ED %s: no product in search response", isbn)
@@ -441,7 +490,8 @@ def _fetch_seed(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
 
 def _fetch_openlibrary(isbn: str, timeout: float) -> Optional[Dict[str, str]]:
     try:
-        url = f"{OPENLIBRARY_URL}?bibkeys=ISBN:{isbn}&format=json&jscmd=data"
+        q_isbn = urllib.parse.quote(str(isbn), safe="")
+        url = f"{OPENLIBRARY_URL}?bibkeys=ISBN:{q_isbn}&format=json&jscmd=data"
         data = _fetch_json(url, timeout)
         meta = parse_openlibrary_json(data, isbn)
         if not meta:

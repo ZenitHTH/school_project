@@ -17,6 +17,7 @@ Rectangle {
     property var targetWindow: null
     property bool showLanServerCard: false
     property bool showLanClientCard: false
+    property bool _loadingSettings: false
 
     signal settingsChanged()
     signal resetRequested()
@@ -36,8 +37,8 @@ Rectangle {
     function refreshLanServerInfo() { if (showLanServerCard) lanServerCard.refreshFromAdapter() }
     function refreshLanClientInfo() { if (showLanClientCard) lanClientCard.refreshFromAdapter() }
 
-    BundledFonts { id: bundledFonts }
     Timer { id: statusTimer; interval: 4000; repeat: false; onTriggered: footerBar.saveStatusText.text = "" }
+    Timer { id: sliderDebounceTimer; interval: 60; repeat: false; onTriggered: settingsRoot.applySettingsToWindow() }
 
     function getActiveAdapter() {
         if (typeof librarianAdmin !== "undefined" && librarianAdmin) return librarianAdmin
@@ -69,14 +70,17 @@ Rectangle {
     function loadPersistedSettings() {
         var adapter = getActiveAdapter()
         if (!adapter || !adapter.loadSettings) return
+        _loadingSettings = true
         try {
             var raw = adapter.loadSettings()
             var res = JSON.parse(raw)
             _applySettingsPayload(res.data || res)
-            applySettingsToWindow()
         } catch (e) {
             console.warn("Failed to load persisted settings:", e)
+        } finally {
+            _loadingSettings = false
         }
+        applySettingsToWindow()
     }
 
     function saveSettings() {
@@ -105,6 +109,7 @@ Rectangle {
                 console.warn("Failed to reset settings via adapter:", e)
             }
         }
+        _loadingSettings = true
         fontFamilyCombo.currentIndex = 0
         fontSizeSlider.value = 14
         scaleSlider.value = 100
@@ -112,6 +117,7 @@ Rectangle {
         activeFontFamily = ""
         currentFontSize = 14
         currentUiScale = 1.0
+        _loadingSettings = false
         footerBar.saveStatusText.text = ""
         resetRequested()
         settingsChanged()
@@ -128,12 +134,38 @@ Rectangle {
 
     Component.onCompleted: loadPersistedSettings()
     onSettingsChanged: {
-        applySettingsToWindow()
+        if (_loadingSettings) return
+        if (controlsCard.fontSizeSlider.pressed || controlsCard.scaleSlider.pressed) {
+            sliderDebounceTimer.restart()
+        } else {
+            sliderDebounceTimer.stop()
+            applySettingsToWindow()
+        }
         if (footerBar.saveStatusText.text !== "") {
             footerBar.saveStatusText.text = ""
         }
     }
     onTargetWindowChanged: applySettingsToWindow()
+
+    Connections {
+        target: controlsCard.fontSizeSlider
+        function onPressedChanged() {
+            if (!controlsCard.fontSizeSlider.pressed && sliderDebounceTimer.running) {
+                sliderDebounceTimer.stop()
+                settingsRoot.applySettingsToWindow()
+            }
+        }
+    }
+
+    Connections {
+        target: controlsCard.scaleSlider
+        function onPressedChanged() {
+            if (!controlsCard.scaleSlider.pressed && sliderDebounceTimer.running) {
+                sliderDebounceTimer.stop()
+                settingsRoot.applySettingsToWindow()
+            }
+        }
+    }
 
     ScrollView {
         id: scrollPane
@@ -142,7 +174,7 @@ Rectangle {
         clip: true
 
         ColumnLayout {
-            width: Math.max(500, scrollPane.availableWidth)
+            width: scrollPane.availableWidth
             spacing: 16
 
             SettingsHeader {}
@@ -150,15 +182,18 @@ Rectangle {
             SettingsControlsCard {
                 id: controlsCard
                 onFontChanged: (family) => {
+                    if (settingsRoot._loadingSettings) return
                     settingsRoot.currentFontFamily = family
                     settingsRoot.activeFontFamily = (family === "System Default") ? "" : family
                     settingsRoot.settingsChanged()
                 }
                 onFontSizeChanged: (size) => {
+                    if (settingsRoot._loadingSettings) return
                     settingsRoot.currentFontSize = size
                     settingsRoot.settingsChanged()
                 }
                 onUiScaleChanged: (scale) => {
+                    if (settingsRoot._loadingSettings) return
                     settingsRoot.currentUiScale = scale
                     settingsRoot.settingsChanged()
                 }

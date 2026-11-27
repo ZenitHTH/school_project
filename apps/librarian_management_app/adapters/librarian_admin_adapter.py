@@ -2,7 +2,8 @@ import os
 import json
 import sqlite3
 import datetime
-from typing import Any, Dict, List, Optional
+import tempfile
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.shared.mock_qt import (
     QObject, Signal, Slot, HAVE_QT,
@@ -22,6 +23,72 @@ from core.student.services.student_service import StudentService
 from data.repositories import book_repo, log_repo
 from data.sync.diff import compute_diff
 from data.sync.apply import apply_sync
+
+
+class _IsbnWorkerSignals(QObject):
+    done = Signal(str, object)
+
+
+def _active_db_realpath(conn: sqlite3.Connection) -> Optional[str]:
+    """Return canonical path of the main file-backed SQLite database, or None if in-memory."""
+    try:
+        for _seq, name, db_file in conn.execute("PRAGMA database_list;").fetchall():
+            if name == "main" and db_file:
+                return os.path.realpath(db_file)
+    except Exception:
+        pass
+    return None
+
+
+def _validate_input_path(
+    raw_path: str,
+    allowed_exts: Tuple[str, ...],
+    conn: sqlite3.Connection,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Normalize and validate an input file path (regular file, allowed extension, not active DB)."""
+    clean = normalize_file_path(raw_path)
+    if not clean or "\x00" in clean:
+        return None, "Invalid file path."
+    if os.path.splitext(clean)[1].lower() not in allowed_exts:
+        return None, f"Unsupported file format. Please select {', '.join(allowed_exts)}."
+    if os.path.islink(clean):
+        return None, "Symbolic links are not allowed."
+    real_path = os.path.realpath(clean)
+    if os.path.splitext(real_path)[1].lower() not in allowed_exts:
+        return None, f"Unsupported target file format. Allowed: {', '.join(allowed_exts)}"
+    if not os.path.isfile(real_path):
+        return None, f"File not found: {clean}"
+    active_db = _active_db_realpath(conn)
+    if active_db and real_path == active_db:
+        return None, "Refusing to open the active application database."
+    return real_path, None
+
+
+def _validate_output_path(
+    raw_path: str,
+    allowed_exts: Tuple[str, ...],
+    conn: sqlite3.Connection,
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Normalize and validate an output path. Returns (normalized_path, real_path, error)."""
+    clean = normalize_file_path(raw_path)
+    if not clean or "\x00" in clean:
+        return None, None, "Invalid output file path."
+    if os.path.splitext(clean)[1].lower() not in allowed_exts:
+        return None, None, f"Unsupported output extension. Expected: {', '.join(allowed_exts)}"
+    if os.path.islink(clean):
+        return None, None, "Refusing to write to a symbolic link."
+    real_path = os.path.realpath(clean)
+    if os.path.splitext(real_path)[1].lower() not in allowed_exts:
+        return None, None, "Invalid resolved output extension."
+    if os.path.isdir(real_path):
+        return None, None, "Output path refers to a directory."
+    parent_dir = os.path.dirname(real_path)
+    if not parent_dir or not os.path.isdir(parent_dir):
+        return None, None, f"Output directory does not exist: {os.path.dirname(clean)}"
+    active_db = _active_db_realpath(conn)
+    if active_db and real_path == active_db:
+        return None, None, "Refusing to overwrite the active application database."
+    return clean, real_path, None
 
 
 class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
@@ -54,6 +121,7 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
         self.loan_svc = LoanService(conn, fine_service=self.fine_svc, reservation_service=self.res_svc, student_service=self.student_svc)
         self.isbn_svc = IsbnLookupService(conn)
         self.settings_svc = settings_service or SettingsService()
+        self._isbn_workers: List[Any] = []
 
     @Slot(result=bool)
     def isFirstLaunch(self) -> bool:
@@ -93,30 +161,31 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
     @Slot(str, str, result=str)
     def importRoster(self, file_path: str, actor: str = "Librarian") -> str:
         """Import or sync student records from .sqlite snapshot or .xlsx roster."""
-        file_path = normalize_file_path(file_path)
+        clean_path, err = _validate_input_path(
+            file_path, (".sqlite", ".db", ".xlsx", ".xls"), self.conn
+        )
+        if err or not clean_path:
+            return json.dumps({"ok": False, "error": err or "Invalid file path."})
 
-        if file_path.endswith(".sqlite") or file_path.endswith(".db"):
-            res = apply_sync(file_path, self.conn)
+        if clean_path.lower().endswith((".sqlite", ".db")):
+            res = apply_sync(clean_path, self.conn)
             if res.ok:
                 self._mark_first_launch_done()
             return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
-        elif file_path.endswith(".xlsx") or file_path.endswith(".xls"):
-            from core.importers.build_db import import_roster
-            res = import_roster(file_path, conn=self.conn)
-            if res.ok:
-                self._mark_first_launch_done()
-                from core.shared.log_service import record_activity
-                record_activity(
-                    self.conn,
-                    action="library.import_roster_xlsx",
-                    entity_type="system",
-                    entity_id=0,
-                    detail=f"Imported roster xlsx: {file_path}",
-                    actor=actor,
-                )
-            return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
-        else:
-            return json.dumps({"ok": False, "error": "Unsupported file format. Please select .sqlite snapshot or .xlsx file."})
+        from core.importers.build_db import import_roster
+        res = import_roster(clean_path, conn=self.conn)
+        if res.ok:
+            self._mark_first_launch_done()
+            from core.shared.log_service import record_activity
+            record_activity(
+                self.conn,
+                action="library.import_roster_xlsx",
+                entity_type="system",
+                entity_id=0,
+                detail=f"Imported roster xlsx: {clean_path}",
+                actor=actor,
+            )
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
     def _mark_first_launch_done(self) -> None:
         try:
@@ -258,19 +327,44 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
         return enriched
 
     @Slot(str, str, result=str)
-    def exportLabelsPdf(self, barcodes_json: str, output_path: str) -> str:
+    def exportLabelsPdf(self, barcodes_json: str, output_path: str = "") -> str:
         """Export barcode labels to printable A4 PDF."""
+        created_temp = False
+        temp_path = ""
         try:
             from core.library.services.label_service import export_label_sheet_pdf
             items = self._attach_book_titles(json.loads(barcodes_json))
-            output_path = normalize_file_path(output_path)
-            if output_path.replace("\\", "/").startswith("/tmp/") and not os.path.exists("/tmp"):
-                import tempfile
-                output_path = os.path.join(tempfile.gettempdir(), os.path.basename(output_path))
-            export_label_sheet_pdf(items, output_path)
-            return json.dumps({"ok": True, "data": {"output_path": output_path}})
+            if not (output_path or "").strip():
+                with tempfile.NamedTemporaryFile(
+                    prefix="library_labels_", suffix=".pdf", delete=False
+                ) as tf:
+                    temp_path = tf.name
+                created_temp = True
+                normalized = temp_path
+                real_path = os.path.realpath(temp_path)
+            else:
+                normalized, real_path, err = _validate_output_path(output_path, (".pdf",), self.conn)
+                if err or not real_path or not normalized:
+                    return json.dumps({"ok": False, "error": err or "Invalid PDF output path."})
+            export_label_sheet_pdf(items, real_path)
+            return json.dumps({"ok": True, "data": {"output_path": normalized}})
         except Exception as e:
+            if created_temp and temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
             return json.dumps({"ok": False, "error": str(e)})
+
+    @Slot(str, result=bool)
+    def openLocalFile(self, file_path: str) -> bool:
+        """Open a validated local PDF file with the OS handler via QUrl.fromLocalFile."""
+        real_path, err = _validate_input_path(file_path, (".pdf",), self.conn)
+        if err or not real_path or not HAVE_QT:
+            return False
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        return bool(QDesktopServices.openUrl(QUrl.fromLocalFile(real_path)))
 
     def _resolve_next_book_id(self) -> int:
         """Query next book_id from sqlite_sequence or fallback to MAX(book_id)."""
@@ -334,6 +428,21 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
     def returnBook(self, loan_id: int) -> str:
         """Return book copy."""
         res = self.loan_svc.return_book(loan_id)
+        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+
+    @Slot(str, result=str)
+    def returnByBarcode(self, barcode: str) -> str:
+        """Return book copy directly by barcode without loading all active loans."""
+        copy_res = self.catalog_svc.get_copy_by_barcode(barcode)
+        if not copy_res.ok or not copy_res.data:
+            return json.dumps({"ok": False, "error": copy_res.error})
+        row = self.conn.execute(
+            "SELECT loan_id FROM loans WHERE copy_id = ? AND status IN ('active', 'overdue')",
+            (copy_res.data["copy_id"],),
+        ).fetchone()
+        if not row:
+            return json.dumps({"ok": False, "error": "ไม่พบรายการยืมที่ค้างอยู่สำหรับบาร์โค้ดนี้"})
+        res = self.loan_svc.return_book(row[0])
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
     @Slot(int, result=str)
@@ -406,15 +515,19 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
     @Slot(str, result=str)
     def previewSync(self, snapshot_path: str) -> str:
         """Calculate and return diff preview from incoming snapshot."""
-        snapshot_path = normalize_file_path(snapshot_path)
-        res = compute_diff(snapshot_path, self.conn)
+        clean_path, err = _validate_input_path(snapshot_path, (".sqlite", ".db"), self.conn)
+        if err or not clean_path:
+            return json.dumps({"ok": False, "error": err or "Invalid snapshot path.", "data": None})
+        res = compute_diff(clean_path, self.conn)
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
     @Slot(str, result=str)
     def applySync(self, snapshot_path: str) -> str:
         """Apply snapshot into local mirror."""
-        snapshot_path = normalize_file_path(snapshot_path)
-        res = apply_sync(snapshot_path, self.conn)
+        clean_path, err = _validate_input_path(snapshot_path, (".sqlite", ".db"), self.conn)
+        if err or not clean_path:
+            return json.dumps({"ok": False, "error": err or "Invalid snapshot path.", "data": None})
+        res = apply_sync(clean_path, self.conn)
         if res.ok:
             self._mark_first_launch_done()
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
@@ -476,6 +589,70 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
         payload = json.dumps({"ok": res.ok, "error": res.error, "data": data})
         self.isbnLookupCompleted.emit(payload)
         return payload
+
+    @Slot(str)
+    def fetchIsbnMetadataAsync(self, isbn: str) -> None:
+        """Fetch ISBN metadata without blocking the UI thread on remote HTTP providers."""
+        self.isbnLookupStarted.emit()
+        from core.library.services.isbn_service import (
+            fetch_remote_providers,
+            is_arabic_isbn,
+            is_valid_isbn,
+            normalize_isbn,
+        )
+
+        clean_raw = (isbn or "").strip()
+        if clean_raw and not is_arabic_isbn(clean_raw):
+            self.isbnLookupCompleted.emit(json.dumps({"ok": False, "error": "ลืมเปลี่ยนภาษา", "data": None}))
+            return
+        norm = normalize_isbn(clean_raw)
+        if not is_valid_isbn(norm):
+            self.isbnLookupCompleted.emit(json.dumps({"ok": False, "error": "cannot fetch data", "data": None}))
+            return
+        local_data = self.isbn_svc._lookup_local(norm)
+        if local_data:
+            payload = json.dumps({"ok": True, "error": None, "data": _sanitize_for_qml(local_data)})
+            self.isbnLookupCompleted.emit(payload)
+            return
+        if not HAVE_QT:
+            self.fetchIsbnMetadata(isbn)
+            return
+
+        from PySide6.QtCore import QRunnable, QThreadPool
+
+        class _IsbnWorker(QRunnable):
+            def __init__(self, target_isbn: str, timeout: float):
+                super().__init__()
+                self.setAutoDelete(False)
+                self.target_isbn = target_isbn
+                self.timeout = timeout
+                self.signals = _IsbnWorkerSignals()
+
+            def run(self) -> None:
+                try:
+                    remote = fetch_remote_providers(self.target_isbn, timeout=self.timeout)
+                except Exception:
+                    remote = None
+                self.signals.done.emit(self.target_isbn, remote)
+
+        worker = _IsbnWorker(norm, self.isbn_svc.timeout)
+        self._isbn_workers.append(worker)
+
+        def _on_done(done_isbn: str, remote: Any) -> None:
+            if worker in self._isbn_workers:
+                self._isbn_workers.remove(worker)
+            if remote:
+                try:
+                    self.isbn_svc._save_metadata(remote)
+                except Exception:
+                    pass
+                payload = json.dumps({"ok": True, "error": None, "data": _sanitize_for_qml(remote)})
+            else:
+                payload = json.dumps({"ok": False, "error": "cannot fetch data", "data": None})
+            self.isbnLookupCompleted.emit(payload)
+
+        worker.signals.done.connect(_on_done)
+        QThreadPool.globalInstance().start(worker)
 
     @Slot(result=str)
     def detectChulabookBooks(self) -> str:

@@ -1,11 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 import sys
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 _ver_file = os.path.join(SPECPATH, '..', 'VERSION')
 APP_VERSION = open(_ver_file, encoding='utf-8').read().strip() if os.path.exists(_ver_file) else '0.0.0'
+_strip_binaries = not sys.platform.startswith('win')
 
 datas = [
     ('../VERSION', '.'),
@@ -18,15 +19,9 @@ datas = [
     ('../apps/common_qml/fonts/*', 'apps/common_qml/fonts'),
     ('../apps/common_qml/qmldir', 'apps/common_qml'),
     ('../assets/icons/*.png', 'assets/icons'),
-]
+] + collect_data_files('pythainlp.corpus', includes=['words_th.txt'])
 binaries = []
-hiddenimports = ['sqlite3']
-
-for pkg in ['core', 'data', 'apps', 'pythainlp']:
-    d, b, h = collect_all(pkg)
-    datas += d
-    binaries += b
-    hiddenimports += h
+hiddenimports = ['sqlite3'] + collect_submodules('pythainlp.tokenize')
 
 a = Analysis(
     ['../apps/librarian_management_app/main.py'],
@@ -37,7 +32,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['pytest', 'tkinter', 'unittest'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -56,17 +51,13 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='LibrarianManagement',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    strip=_strip_binaries,
     upx=False,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -76,9 +67,20 @@ exe = EXE(
     icon='../assets/icons/librarianmanagement.ico' if sys.platform == 'win32' else '../assets/icons/librarianmanagement.png',
 )
 
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=_strip_binaries,
+    upx=False,
+    upx_exclude=[],
+    name='LibrarianManagement',
+)
+
 if sys.platform == 'darwin':
     app = BUNDLE(
-        exe,
+        coll,
         name='LibrarianManagement.app',
         icon='../assets/icons/librarianmanagement.icns',
         bundle_identifier='com.school.librarianmanagement',

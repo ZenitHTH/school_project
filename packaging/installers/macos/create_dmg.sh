@@ -9,6 +9,15 @@ DEFAULT_VERSION=$( [ -f "$REPO_VERSION_FILE" ] && tr -d '[:space:]' < "$REPO_VER
 VERSION="${3:-$DEFAULT_VERSION}"
 OUTPUT_DIR="${4:-dist/installers}"
 
+if [[ ! "$APP_NAME" =~ ^[A-Za-z0-9_.-]+$ ]] || [[ "$APP_NAME" == *".."* ]]; then
+    echo "Error: Invalid APP_NAME '$APP_NAME'" >&2
+    exit 1
+fi
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.~+-][A-Za-z0-9._-]+)?$ ]] || [[ "$VERSION" == *".."* ]]; then
+    echo "Error: Invalid VERSION '$VERSION'" >&2
+    exit 1
+fi
+
 if [ ! -d "$APP_BUNDLE" ]; then
     echo "Error: App bundle not found at $APP_BUNDLE"
     exit 1

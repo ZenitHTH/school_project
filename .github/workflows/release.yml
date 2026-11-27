@@ -33,15 +33,21 @@ jobs:
 
       - name: Resolve Release Version
         id: meta
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [[ -n "${{ inputs.version }}" ]]; then
-            VER="${{ inputs.version }}"
+          if [[ -n "$INPUT_VERSION" ]]; then
+            VER="$INPUT_VERSION"
           elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             VER="${GITHUB_REF_NAME#v}"
           else
             VER="$(tr -d '[:space:]' < VERSION)"
           fi
           VER="${VER#v}"
+          if [[ ! "$VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid release version: '$VER'" >&2
+            exit 1
+          fi
           echo "version=${VER}" >> "$GITHUB_OUTPUT"
           echo "tag=v${VER}" >> "$GITHUB_OUTPUT"
           echo "Resolved release version: ${VER} (tag: v${VER})"
@@ -105,9 +111,9 @@ jobs:
       - name: Build Windows Installers (Inno Setup)
         run: |
           mkdir -Force dist\installers
-          iscc /DEnableLanFirewall=1 /DAppIcon="${{ github.workspace }}\assets\icons\librarianmanagement.ico" /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\LibrarianManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppIcon="${{ github.workspace }}\assets\icons\studentmanagement.ico" /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\StudentManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppIcon="${{ github.workspace }}\assets\icons\boothapp.ico" /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\BoothApp.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DEnableLanFirewall=1 /DAppIcon="${{ github.workspace }}\assets\icons\librarianmanagement.ico" /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceDir="${{ github.workspace }}\dist\LibrarianManagement" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppIcon="${{ github.workspace }}\assets\icons\studentmanagement.ico" /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceDir="${{ github.workspace }}\dist\StudentManagement" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppIcon="${{ github.workspace }}\assets\icons\boothapp.ico" /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="${{ env.VERSION }}" /DSourceDir="${{ github.workspace }}\dist\BoothApp" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
         working-directory: ${{ github.workspace }}
 
       - name: Upload Windows Installers
@@ -273,6 +279,11 @@ jobs:
       - name: Generate Checksums & Release Notes
         run: |
           cd release-assets
+          for f in *; do
+            case "$f" in
+              -*) echo "Refusing option-like artifact filename: $f" >&2; exit 1 ;;
+            esac
+          done
           sha256sum * > ../SHA256SUMS.txt
           mv ../SHA256SUMS.txt .
           cd ..

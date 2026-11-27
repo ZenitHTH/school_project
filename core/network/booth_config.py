@@ -56,3 +56,5 @@ def save_booth_config(path: str, config: Dict[str, Any]) -> None:
     normalized = _normalize_config(config)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(normalized, fh, indent=2, ensure_ascii=False)
+    if os.name == "posix":
+        os.chmod(path, 0o600)

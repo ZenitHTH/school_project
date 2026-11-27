@@ -90,6 +90,7 @@ ApplicationWindow {
             Layout.fillHeight: true
             Layout.preferredWidth: Math.max(260, Math.min(340, Math.round(260 * Math.max(1.0, (settingsView ? (settingsView.currentFontSize / 14.0) * settingsView.currentUiScale : 1.0)))))
             color: "#1e293b"
+            clip: true
 
             ColumnLayout {
                 anchors.fill: parent
@@ -133,7 +134,7 @@ ApplicationWindow {
                         implicitHeight: Math.max(38, Math.round(navText.implicitHeight + 12))
                         height: implicitHeight
                         radius: 8
-                        color: stackLayout.currentIndex === modelData.index ? "#2563eb" : (sideMouse.containsMouse ? "#1e293b" : "transparent")
+                        color: stackLayout.currentIndex === modelData.index ? "#2563eb" : (sideMouse.containsMouse ? "#334155" : "transparent")
 
                         RowLayout {
                             anchors.fill: parent
@@ -181,7 +182,9 @@ ApplicationWindow {
                     text: "สถานะ: เชื่อมต่อฐานข้อมูลแล้ว"
                     color: "#94a3b8"
                     font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0)))
-                    Layout.alignment: Qt.AlignHCenter
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
                 }
             }
         }
@@ -193,7 +196,6 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: 0
-            onCurrentIndexChanged: settingsView.applySettingsToWindow()
 
             // 0. Search Screen
             StudentSearchView {
@@ -300,9 +302,6 @@ ApplicationWindow {
         nameFilters: ["Excel files (*.xlsx *.xls)", "All files (*)"]
         onAccepted: {
             var path = selectedFile.toString()
-            if (path.indexOf("file://") === 0) {
-                path = decodeURIComponent(path.substring(7))
-            }
             firstLaunchDialog.statusText = "กำลังนำเข้าข้อมูลจาก: " + path + "..."
             var res = JSON.parse(studentAdmin.importXlsx(path, false, "Admin"))
             if (res.need_confirm) {
@@ -337,11 +336,7 @@ ApplicationWindow {
         title: "เลือกไฟล์บัญชีรายชื่อนักเรียน (.xlsx)"
         nameFilters: ["Excel files (*.xlsx *.xls)", "All files (*)"]
         onAccepted: {
-            var path = selectedFile.toString()
-            if (path.indexOf("file://") === 0) {
-                path = decodeURIComponent(path.substring(7))
-            }
-            window.selectedXlsxPath = path
+            window.selectedXlsxPath = selectedFile.toString()
         }
     }
 

@@ -37,6 +37,7 @@ Rectangle {
                 width: fineList.width
                 implicitHeight: Math.max(54, Math.round(rowContent.implicitHeight + 16))
                 height: implicitHeight
+                clip: true
                 border.color: "#e2e8f0"
                 color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
                 Component.onCompleted: Typography.applyToItem(this)
@@ -50,13 +51,15 @@ Rectangle {
                         text: model.full_name
                         font.bold: true
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: Math.max(180, Math.round(180 * (window.fontScale || 1.0)))
+                        Layout.minimumWidth: 80
+                        Layout.preferredWidth: Math.max(130, Math.round(150 * (window.fontScale || 1.0)))
+                        elide: Text.ElideRight
                         color: "#1e293b"
                     }
                     Text {
                         text: model.title
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: 260
+                        Layout.minimumWidth: 100
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         color: "#334155"
@@ -66,12 +69,16 @@ Rectangle {
                         color: "#dc2626"
                         font.bold: true
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: Math.max(160, Math.round(160 * (window.fontScale || 1.0)))
+                        Layout.minimumWidth: 85
+                        Layout.preferredWidth: Math.max(125, Math.round(145 * (window.fontScale || 1.0)))
+                        elide: Text.ElideRight
                     }
                     Text {
                         text: model.paid ? "ชำระแล้ว" : "ค้างชำระ"
                         color: model.paid ? "#166534" : "#991b1b"
-                        Layout.fillWidth: true
+                        Layout.minimumWidth: 55
+                        Layout.preferredWidth: Math.max(70, Math.round(80 * (window.fontScale || 1.0)))
+                        elide: Text.ElideRight
                         font.bold: true
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                     }

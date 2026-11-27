@@ -3,26 +3,41 @@ set -euo pipefail
 
 APP_NAME="${1:-StudentManagement}"
 APP_BIN_NAME="${2:-StudentManagement}"
+if [[ ! "$APP_NAME" =~ ^[A-Za-z0-9_-]+$ ]] || [[ ! "$APP_BIN_NAME" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    echo "Error: Invalid APP_NAME or APP_BIN_NAME" >&2
+    exit 1
+fi
 PKG_NAME=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_VERSION_FILE="$SCRIPT_DIR/../../../VERSION"
 DEFAULT_VERSION=$( [ -f "$REPO_VERSION_FILE" ] && tr -d '[:space:]' < "$REPO_VERSION_FILE" || echo "0.0.0" )
 VERSION="${3:-$DEFAULT_VERSION}"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.~+-][A-Za-z0-9._-]+)?$ ]]; then
+    echo "Error: Invalid VERSION '$VERSION'" >&2
+    exit 1
+fi
 RPM_VERSION="${VERSION//-/~}"
 DIST_BIN_PATH="${4:-dist/$APP_BIN_NAME}"
 OUTPUT_DIR="${5:-dist/installers}"
 
-if [ ! -f "$DIST_BIN_PATH" ]; then
-    echo "Error: Binary not found at $DIST_BIN_PATH"
+if [ ! -e "$DIST_BIN_PATH" ]; then
+    echo "Error: Binary or bundle directory not found at $DIST_BIN_PATH"
     exit 1
 fi
 ABS_DIST_BIN_PATH="$(cd "$(dirname "$DIST_BIN_PATH")" && pwd)/$(basename "$DIST_BIN_PATH")"
+case "$ABS_DIST_BIN_PATH" in
+    *$'\n'*|*$'\r'*|*\"*|*\'*|*\`*|*\$*) echo "Error: Unsafe characters in DIST_BIN_PATH" >&2; exit 1 ;;
+esac
 
 ARCH="${6:-$(uname -m)}"
 case "$ARCH" in
     x86_64|amd64) ARCH="x86_64" ;;
     aarch64|arm64) ARCH="aarch64" ;;
 esac
+if [[ ! "$ARCH" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "Error: Invalid ARCH '$ARCH'" >&2
+    exit 1
+fi
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -38,6 +53,9 @@ ICON_DESKTOP_LINE=""
 ICON_FILE_ENTRY=""
 if [ -f "$ICON_SRC" ]; then
     ABS_ICON_PATH="$(cd "$(dirname "$ICON_SRC")" && pwd)/$(basename "$ICON_SRC")"
+    case "$ABS_ICON_PATH" in
+        *$'\n'*|*$'\r'*|*\"*|*\'*|*\`*|*\$*) echo "Error: Unsafe characters in ICON_SRC" >&2; exit 1 ;;
+    esac
     ICON_DESKTOP_LINE="Icon=$PKG_NAME"
     ICON_FILE_ENTRY="/usr/share/icons/hicolor/256x256/apps/$PKG_NAME.png"
 fi
@@ -54,16 +72,21 @@ BuildArch:      $ARCH
 $APP_NAME desktop application for SMTE School System.
 
 %install
-rm -rf %{buildroot}
-mkdir -p %{buildroot}/usr/lib/$PKG_NAME
-mkdir -p %{buildroot}/usr/bin
-mkdir -p %{buildroot}/usr/share/applications
+rm -rf "%{buildroot}"
+mkdir -p "%{buildroot}/usr/lib/$PKG_NAME"
+mkdir -p "%{buildroot}/usr/bin"
+mkdir -p "%{buildroot}/usr/share/applications"
 
-cp "$ABS_DIST_BIN_PATH" %{buildroot}/usr/lib/$PKG_NAME/$APP_BIN_NAME
-chmod 755 %{buildroot}/usr/lib/$PKG_NAME/$APP_BIN_NAME
-ln -sf /usr/lib/$PKG_NAME/$APP_BIN_NAME %{buildroot}/usr/bin/$PKG_NAME
+if [ -d "$ABS_DIST_BIN_PATH" ]; then
+    cp -a "$ABS_DIST_BIN_PATH/." "%{buildroot}/usr/lib/$PKG_NAME/"
+else
+    cp "$ABS_DIST_BIN_PATH" "%{buildroot}/usr/lib/$PKG_NAME/$APP_BIN_NAME"
+fi
+chmod -R a+rX,go-w "%{buildroot}/usr/lib/$PKG_NAME"
+chmod 755 "%{buildroot}/usr/lib/$PKG_NAME/$APP_BIN_NAME"
+ln -sf "/usr/lib/$PKG_NAME/$APP_BIN_NAME" "%{buildroot}/usr/bin/$PKG_NAME"
 
-cat <<DESKTOP > %{buildroot}/usr/share/applications/$PKG_NAME.desktop
+cat <<DESKTOP > "%{buildroot}/usr/share/applications/$PKG_NAME.desktop"
 [Desktop Entry]
 Version=1.0
 Type=Application
@@ -74,21 +97,21 @@ Terminal=false
 Categories=Education;Office;
 $ICON_DESKTOP_LINE
 DESKTOP
-chmod 644 %{buildroot}/usr/share/applications/$PKG_NAME.desktop
+chmod 644 "%{buildroot}/usr/share/applications/$PKG_NAME.desktop"
 EOF
 
 if [ -n "$ABS_ICON_PATH" ]; then
     cat <<EOF >> "$SPEC_FILE"
-mkdir -p %{buildroot}/usr/share/icons/hicolor/256x256/apps
-cp "$ABS_ICON_PATH" %{buildroot}/usr/share/icons/hicolor/256x256/apps/$PKG_NAME.png
-chmod 644 %{buildroot}/usr/share/icons/hicolor/256x256/apps/$PKG_NAME.png
+mkdir -p "%{buildroot}/usr/share/icons/hicolor/256x256/apps"
+cp "$ABS_ICON_PATH" "%{buildroot}/usr/share/icons/hicolor/256x256/apps/$PKG_NAME.png"
+chmod 644 "%{buildroot}/usr/share/icons/hicolor/256x256/apps/$PKG_NAME.png"
 EOF
 fi
 
 cat <<EOF >> "$SPEC_FILE"
 
 %files
-/usr/lib/$PKG_NAME/$APP_BIN_NAME
+/usr/lib/$PKG_NAME
 /usr/bin/$PKG_NAME
 /usr/share/applications/$PKG_NAME.desktop
 $ICON_FILE_ENTRY

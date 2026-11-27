@@ -35,14 +35,18 @@ Rectangle {
         Text {
             text: "นำเข้าข้อมูลทะเบียนนักเรียนจากไฟล์ Excel (.xlsx)"
             font.bold: true
-            font.pixelSize: 22
+            font.pixelSize: Math.max(18, Math.round(22 * (window.fontScale || 1.0)))
             color: "#0f172a"
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         Text {
             text: "คลิกปุ่มเพื่อเลือกไฟล์ Excel บัญชีรายชื่อนักเรียนจากเครื่องคอมพิวเตอร์ (ต้องมีชีต ม.1 - ม.6 ตามโครงสร้างมาตรฐาน)"
             color: "#64748b"
             font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         // File selection component
@@ -50,65 +54,78 @@ Rectangle {
             Layout.fillWidth: true
             implicitHeight: Math.max(88, Math.round(fileCardContent.implicitHeight + 32))
             height: implicitHeight
+            clip: true
             color: "#f8fafc"
             border.color: root.selectedXlsxPath ? "#3b82f6" : "#cbd5e1"
             border.width: root.selectedXlsxPath ? 2 : 1
             radius: 8
 
-            RowLayout {
+            ColumnLayout {
                 id: fileCardContent
                 anchors.fill: parent
                 anchors.margins: 16
-                spacing: 16
+                spacing: 12
 
-                StyledButton {
-                    id: selectFileButton
-                    objectName: "selectFileButton"
-                    variant: StyledButton.Primary
-                    text: "📁 เลือกไฟล์ Excel (.xlsx)..."
-                    font.pixelSize: Math.max(13, root.baseFontSize)
-                    font.bold: true
-                    highlighted: !root.selectedXlsxPath
-                    onClicked: root.selectFileClicked()
-                }
-
-                ColumnLayout {
+                RowLayout {
                     Layout.fillWidth: true
-                    spacing: 4
-                    Text {
-                        text: root.selectedXlsxPath ? "ไฟล์ที่เลือกพร้อมนำเข้า:" : "ยังไม่ได้เลือกไฟล์"
-                        color: root.selectedXlsxPath ? "#059669" : "#64748b"
+                    spacing: 14
+
+                    StyledButton {
+                        id: selectFileButton
+                        objectName: "selectFileButton"
+                        variant: StyledButton.Primary
+                        text: "📁 เลือกไฟล์ Excel (.xlsx)..."
+                        font.pixelSize: Math.max(13, root.baseFontSize)
                         font.bold: true
+                        highlighted: !root.selectedXlsxPath
+                        onClicked: root.selectFileClicked()
                     }
-                    Text {
-                        id: selectedFilePath
-                        objectName: "selectedFilePath"
-                        text: root.selectedXlsxPath ? root.selectedXlsxPath : "กรุณากดปุ่ม 'เลือกไฟล์ Excel' เพื่อเปิดหน้าต่างเลือกไฟล์"
-                        color: "#1e293b"
-                        font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
-                        elide: Text.ElideMiddle
+
+                    ColumnLayout {
                         Layout.fillWidth: true
+                        spacing: 4
+                        Text {
+                            text: root.selectedXlsxPath ? "ไฟล์ที่เลือกพร้อมนำเข้า:" : "ยังไม่ได้เลือกไฟล์"
+                            color: root.selectedXlsxPath ? "#059669" : "#64748b"
+                            font.bold: true
+                            wrapMode: Text.Wrap
+                            Layout.fillWidth: true
+                        }
+                        Text {
+                            id: selectedFilePath
+                            objectName: "selectedFilePath"
+                            text: root.selectedXlsxPath ? root.selectedXlsxPath : "กรุณากดปุ่ม 'เลือกไฟล์ Excel' เพื่อเปิดหน้าต่างเลือกไฟล์"
+                            color: "#1e293b"
+                            font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
+                            elide: Text.ElideMiddle
+                            Layout.fillWidth: true
+                        }
                     }
                 }
 
-                StyledButton {
-                    id: btnPreviewDiff
-                    objectName: "btnPreviewDiff"
-                    variant: StyledButton.Primary
-                    text: "🔍 ตรวจสอบความเปลี่ยนแปลง (Preview Diff)"
-                    highlighted: true
-                    enabled: root.selectedXlsxPath !== ""
-                    onClicked: root.previewDiffClicked()
-                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 10
 
-                StyledButton {
-                    id: importButton
-                    objectName: "importButton"
-                    variant: StyledButton.Primary
-                    text: "⚡ เริ่มนำเข้าข้อมูลทันที"
-                    highlighted: true
-                    enabled: root.selectedXlsxPath !== ""
-                    onClicked: root.importClicked()
+                    StyledButton {
+                        id: btnPreviewDiff
+                        objectName: "btnPreviewDiff"
+                        variant: StyledButton.Primary
+                        text: "🔍 ตรวจสอบความเปลี่ยนแปลง (Preview Diff)"
+                        highlighted: true
+                        enabled: root.selectedXlsxPath !== ""
+                        onClicked: root.previewDiffClicked()
+                    }
+
+                    StyledButton {
+                        id: importButton
+                        objectName: "importButton"
+                        variant: StyledButton.Primary
+                        text: "⚡ เริ่มนำเข้าข้อมูลทันที"
+                        highlighted: true
+                        enabled: root.selectedXlsxPath !== ""
+                        onClicked: root.importClicked()
+                    }
                 }
             }
         }
@@ -117,6 +134,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            clip: true
             color: "#f8fafc"
             border.color: "#e2e8f0"
             radius: 6
@@ -134,14 +152,15 @@ Rectangle {
                         font.bold: true
                         font.pixelSize: Math.max(13, Math.round(15 * (window.fontScale || 1.0)))
                         color: "#1e293b"
+                        wrapMode: Text.Wrap
                         Layout.fillWidth: true
                     }
                 }
 
                 // Diff Summary Statistics Badges
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: 10
                     visible: diffModel.count > 0
 
                     Rectangle {
@@ -235,7 +254,6 @@ Rectangle {
                             }
                         }
                     }
-                    Item { Layout.fillWidth: true }
                 }
 
                 // Diff Items ListView
@@ -252,6 +270,7 @@ Rectangle {
                         width: diffListView.width
                         implicitHeight: Math.max(36, Math.round(diffRowContent.implicitHeight + 10))
                         height: implicitHeight
+                        clip: true
                         color: model.category === "conflict" ? "#fffbeb" : (model.category === "new" ? "#ecfdf5" : (model.category === "promo" ? "#f0f9ff" : "#ffffff"))
                         border.color: "#e2e8f0"
                         radius: 4
@@ -267,6 +286,7 @@ Rectangle {
                                 color: model.category === "conflict" ? "#b45309" : (model.category === "new" ? "#047857" : (model.category === "promo" ? "#0369a1" : "#475569"))
                                 font.bold: model.category === "conflict" || model.category === "new"
                                 font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
+                                wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
                         }

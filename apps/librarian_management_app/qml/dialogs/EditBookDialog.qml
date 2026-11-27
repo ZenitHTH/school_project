@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../../common_qml"
+import "../../../common_qml/Typography.js" as Typography
 
 StyledDialog {
     id: editDialog
@@ -81,7 +82,8 @@ StyledDialog {
         // Custom Header
         Rectangle {
             Layout.fillWidth: true
-            height: 56
+            implicitHeight: Math.max(48, headerRow.implicitHeight + 16)
+            Layout.preferredHeight: implicitHeight
             color: "#0f172a"
             radius: 12
             Rectangle {
@@ -92,6 +94,7 @@ StyledDialog {
             }
 
             RowLayout {
+                id: headerRow
                 anchors.fill: parent
                 anchors.leftMargin: 16
                 anchors.rightMargin: 16
@@ -109,18 +112,24 @@ StyledDialog {
                 }
 
                 ColumnLayout {
+                    Layout.fillWidth: true
                     spacing: 1
                     RowLayout {
+                        Layout.fillWidth: true
                         spacing: 8
                         Text {
                             text: "แก้ไขข้อมูลหนังสือ & ปรับแก้จำนวนเล่ม"
                             color: "#ffffff"
                             font.bold: true
                             font.pixelSize: 14
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
                         }
                         Rectangle {
-                            height: 18
-                            width: bookIdText.contentWidth + 10
+                            implicitHeight: Math.max(18, Math.round(bookIdText.implicitHeight + 6))
+                            implicitWidth: Math.round(bookIdText.implicitWidth + 10)
+                            Layout.preferredHeight: implicitHeight
+                            Layout.preferredWidth: implicitWidth
                             radius: 9
                             color: "#0284c7"
                             Text {
@@ -137,22 +146,24 @@ StyledDialog {
                         text: "แก้ไขรายละเอียดบรรณานุกรม และปรับแก้จำนวนเล่มเมื่อกรอกผิดพลาด"
                         color: "#94a3b8"
                         font.pixelSize: 11
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
                     }
                 }
-
-                Item { Layout.fillWidth: true }
 
                 StyledButton {
                     variant: StyledButton.Ghost
                     text: "✕"
                     flat: true
                     font.pixelSize: 13
-                    Layout.preferredWidth: 32
+                    implicitWidth: Math.max(32, Math.round(contentItem.implicitWidth + 14))
+                    Layout.preferredWidth: implicitWidth
                     contentItem: Text {
                         text: "✕"
                         color: "#94a3b8"
                         font.bold: true
                         horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                     onClicked: editDialog.close()
                 }
@@ -160,13 +171,13 @@ StyledDialog {
         }
 
         ScrollView {
+            id: editScroll
             Layout.fillWidth: true
-            Layout.maximumHeight: 520
+            Layout.maximumHeight: Math.max(220, (editDialog.rootWindow ? editDialog.rootWindow.height : 600) - 180)
             clip: true
 
             ColumnLayout {
-                width: editDialog.width - 32
-                anchors.horizontalCenter: parent.horizontalCenter
+                width: editScroll.availableWidth
                 spacing: 12
 
                 Item { height: 4 }
@@ -309,12 +320,20 @@ StyledDialog {
                             RowLayout {
                                 spacing: 6
                                 Rectangle {
-                                    height: 18; width: availText.contentWidth + 10; radius: 4
+                                    implicitHeight: Math.max(20, Math.round(availText.implicitHeight + 6))
+                                    implicitWidth: Math.round(availText.implicitWidth + 12)
+                                    Layout.preferredHeight: implicitHeight
+                                    Layout.preferredWidth: implicitWidth
+                                    radius: 4
                                     color: "#dcfce7"; border.color: "#86efac"
                                     Text { id: availText; anchors.centerIn: parent; text: "พร้อมยืม: " + editDialog.availableCopies; font.pixelSize: 9; font.bold: true; color: "#166534" }
                                 }
                                 Rectangle {
-                                    height: 18; width: loanText.contentWidth + 10; radius: 4
+                                    implicitHeight: Math.max(20, Math.round(loanText.implicitHeight + 6))
+                                    implicitWidth: Math.round(loanText.implicitWidth + 12)
+                                    Layout.preferredHeight: implicitHeight
+                                    Layout.preferredWidth: implicitWidth
+                                    radius: 4
                                     color: "#e0f2fe"; border.color: "#7dd3fc"
                                     Text { id: loanText; anchors.centerIn: parent; text: "กำลังยืม: " + editDialog.onLoanCopies; font.pixelSize: 9; font.bold: true; color: "#0369a1" }
                                 }
@@ -340,8 +359,10 @@ StyledDialog {
                                 StyledButton {
                                     variant: StyledButton.Neutral
                                     text: "−"
-                                    Layout.preferredWidth: Math.max(32, Math.round(font.pixelSize * 2.2))
-                                    Layout.preferredHeight: Math.max(32, Math.round(font.pixelSize * 2.0))
+                                    implicitWidth: Math.max(32, Math.round(contentItem.implicitWidth + 16))
+                                    implicitHeight: Math.max(32, Math.round(contentItem.implicitHeight + 10))
+                                    Layout.preferredWidth: implicitWidth
+                                    Layout.preferredHeight: implicitHeight
                                     font.bold: true
                                     font.pixelSize: 14
                                     onClicked: editDialog.stepCopies(-1)
@@ -351,16 +372,16 @@ StyledDialog {
                                     id: copiesInput
                                     objectName: "editBookCopiesInput"
                                     Layout.preferredWidth: Math.max(64, Math.round(font.pixelSize * 4.0))
-                                    Layout.preferredHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 13)) * 2.2))
+                                    Layout.preferredHeight: implicitHeight
                                     text: "1"
-                                    horizontalAlignment: Text.AlignHCenter
+                                    horizontalAlignment: TextInput.AlignLeft
                                     font.bold: true
                                     font.pixelSize: 13
                                     validator: IntValidator { bottom: 1; top: 99 }
                                     selectByMouse: true
                                     background: Rectangle {
-                                        implicitHeight: parent.implicitHeight
-                                        border.color: editDialog.isBelowOnLoan() ? "#ef4444" : (parent.activeFocus ? "#2563eb" : "#cbd5e1")
+                                        implicitHeight: copiesInput.implicitHeight
+                                        border.color: editDialog.isBelowOnLoan() ? "#ef4444" : (copiesInput.activeFocus ? "#2563eb" : "#cbd5e1")
                                         border.width: editDialog.isBelowOnLoan() ? 2 : 1
                                         radius: 6
                                         color: "#ffffff"
@@ -370,8 +391,10 @@ StyledDialog {
                                 StyledButton {
                                     variant: StyledButton.Neutral
                                     text: "+"
-                                    Layout.preferredWidth: Math.max(32, Math.round(font.pixelSize * 2.2))
-                                    Layout.preferredHeight: Math.max(32, Math.round(font.pixelSize * 2.0))
+                                    implicitWidth: Math.max(32, Math.round(contentItem.implicitWidth + 16))
+                                    implicitHeight: Math.max(32, Math.round(contentItem.implicitHeight + 10))
+                                    Layout.preferredWidth: implicitWidth
+                                    Layout.preferredHeight: implicitHeight
                                     font.bold: true
                                     font.pixelSize: 14
                                     onClicked: editDialog.stepCopies(1)
@@ -382,24 +405,30 @@ StyledDialog {
                                 StyledButton {
                                     variant: StyledButton.Neutral
                                     text: "+1"
-                                    Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
-                                    Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
+                                    implicitWidth: Math.max(36, Math.round(contentItem.implicitWidth + 14))
+                                    implicitHeight: Math.max(28, Math.round(contentItem.implicitHeight + 10))
+                                    Layout.preferredWidth: implicitWidth
+                                    Layout.preferredHeight: implicitHeight
                                     font.pixelSize: 10
                                     onClicked: editDialog.stepCopies(1)
                                 }
                                 StyledButton {
                                     variant: StyledButton.Neutral
                                     text: "+5"
-                                    Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
-                                    Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
+                                    implicitWidth: Math.max(36, Math.round(contentItem.implicitWidth + 14))
+                                    implicitHeight: Math.max(28, Math.round(contentItem.implicitHeight + 10))
+                                    Layout.preferredWidth: implicitWidth
+                                    Layout.preferredHeight: implicitHeight
                                     font.pixelSize: 10
                                     onClicked: editDialog.stepCopies(5)
                                 }
                                 StyledButton {
                                     variant: StyledButton.Neutral
                                     text: "-1"
-                                    Layout.preferredWidth: Math.max(36, Math.round(font.pixelSize * 2.4))
-                                    Layout.preferredHeight: Math.max(28, Math.round(font.pixelSize * 1.8))
+                                    implicitWidth: Math.max(36, Math.round(contentItem.implicitWidth + 14))
+                                    implicitHeight: Math.max(28, Math.round(contentItem.implicitHeight + 10))
+                                    Layout.preferredWidth: implicitWidth
+                                    Layout.preferredHeight: implicitHeight
                                     font.pixelSize: 10
                                     enabled: (parseInt(copiesInput.text) || 1) > 1
                                     onClicked: editDialog.stepCopies(-1)
@@ -487,9 +516,12 @@ StyledDialog {
                             Repeater {
                                 model: ListModel { id: copiesListModel }
                                 delegate: Rectangle {
-                                    height: 24
-                                    width: bcRow.width + 10
+                                    implicitHeight: Math.max(24, Math.round(bcRow.implicitHeight + 6))
+                                    height: implicitHeight
+                                    implicitWidth: Math.round(bcRow.implicitWidth + 12)
+                                    width: implicitWidth
                                     radius: 4
+                                    Component.onCompleted: Typography.applyToItem(this)
                                     property bool willBeRemoved: {
                                         var d = editDialog.calculateDiff()
                                         if (d >= 0) return false
@@ -504,14 +536,14 @@ StyledDialog {
                                         spacing: 4
                                         Text {
                                             text: model.barcode
-                                            font.pixelSize: 10
+                                            font.pixelSize: Math.max(9, Math.round(10 * (typeof window !== "undefined" && window.fontScale ? window.fontScale : 1.0)))
                                             font.family: "monospace"
                                             font.strikeout: willBeRemoved
                                             color: willBeRemoved ? "#b91c1c" : (model.status === "available" ? "#0f766e" : "#0369a1")
                                         }
                                         Text {
                                             text: willBeRemoved ? "ลบ" : (model.status === "available" ? "ว่าง" : "ยืม")
-                                            font.pixelSize: 8
+                                            font.pixelSize: Math.max(8, Math.round(8 * (typeof window !== "undefined" && window.fontScale ? window.fontScale : 1.0)))
                                             font.bold: true
                                             color: willBeRemoved ? "#991b1b" : "#64748b"
                                         }
@@ -542,7 +574,8 @@ StyledDialog {
         // Dialog Footer Actions
         Rectangle {
             Layout.fillWidth: true
-            height: 52
+            implicitHeight: Math.max(48, footerRow.implicitHeight + 16)
+            Layout.preferredHeight: implicitHeight
             color: "#f8fafc"
             border.color: "#e2e8f0"
             radius: 12
@@ -554,6 +587,7 @@ StyledDialog {
             }
 
             RowLayout {
+                id: footerRow
                 anchors.fill: parent
                 anchors.leftMargin: 16
                 anchors.rightMargin: 16

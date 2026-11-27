@@ -3,17 +3,25 @@ set -euo pipefail
 
 APP_NAME="${1:-StudentManagement}"
 APP_BIN_NAME="${2:-StudentManagement}"
+if [[ ! "$APP_NAME" =~ ^[A-Za-z0-9_-]+$ ]] || [[ ! "$APP_BIN_NAME" =~ ^[A-Za-z0-9_-]+$ ]]; then
+    echo "Error: Invalid APP_NAME or APP_BIN_NAME" >&2
+    exit 1
+fi
 PKG_NAME=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_VERSION_FILE="$SCRIPT_DIR/../../../VERSION"
 DEFAULT_VERSION=$( [ -f "$REPO_VERSION_FILE" ] && tr -d '[:space:]' < "$REPO_VERSION_FILE" || echo "0.0.0" )
 VERSION="${3:-$DEFAULT_VERSION}"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.~+-][A-Za-z0-9._-]+)?$ ]]; then
+    echo "Error: Invalid VERSION '$VERSION'" >&2
+    exit 1
+fi
 DEB_VERSION="${VERSION//-/~}"
 DIST_BIN_PATH="${4:-dist/$APP_BIN_NAME}"
 OUTPUT_DIR="${5:-dist/installers}"
 
-if [ ! -f "$DIST_BIN_PATH" ]; then
-    echo "Error: Binary not found at $DIST_BIN_PATH"
+if [ ! -e "$DIST_BIN_PATH" ]; then
+    echo "Error: Binary or bundle directory not found at $DIST_BIN_PATH"
     exit 1
 fi
 
@@ -22,6 +30,10 @@ case "$ARCH" in
     x86_64) ARCH="amd64" ;;
     aarch64) ARCH="arm64" ;;
 esac
+if [[ ! "$ARCH" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo "Error: Invalid ARCH '$ARCH'" >&2
+    exit 1
+fi
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -36,8 +48,13 @@ CONTROL_DIR="$BUILD_ROOT/DEBIAN"
 
 mkdir -p "$INSTALL_DIR" "$BIN_DIR" "$DESKTOP_DIR" "$CONTROL_DIR"
 
-# Copy binary
-cp "$DIST_BIN_PATH" "$INSTALL_DIR/$APP_BIN_NAME"
+# Copy binary or onedir bundle
+if [ -d "$DIST_BIN_PATH" ]; then
+    cp -a "$DIST_BIN_PATH/." "$INSTALL_DIR/"
+else
+    cp "$DIST_BIN_PATH" "$INSTALL_DIR/$APP_BIN_NAME"
+fi
+chmod -R a+rX,go-w "$INSTALL_DIR"
 chmod 755 "$INSTALL_DIR/$APP_BIN_NAME"
 
 # Create symlink in /usr/bin

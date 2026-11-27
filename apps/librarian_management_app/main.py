@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import sys
 
@@ -7,8 +8,6 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from apps.common_linux_env import setup_linux_runtime_env
-
-setup_linux_runtime_env()
 
 import json
 import threading
@@ -21,12 +20,7 @@ from data.db import get_connection
 from data.migrate import apply_migrations
 from apps.librarian_management_app.adapters.librarian_admin_adapter import LibrarianAdminAdapter
 
-try:
-    from PySide6.QtGui import QGuiApplication
-    from PySide6.QtQml import QQmlApplicationEngine
-    HAVE_QT = True
-except ImportError:
-    HAVE_QT = False
+HAVE_QT = importlib.util.find_spec("PySide6") is not None
 
 
 def run_cli_first_launch(adapter: LibrarianAdminAdapter) -> None:
@@ -106,10 +100,11 @@ def _resolve_qml_paths() -> Tuple[str, str]:
     return common_dir, os.path.join(qml_dir, "Main.qml")
 
 
-def _create_qml_engine(adapter: LibrarianAdminAdapter) -> Tuple[QQmlApplicationEngine, str]:
-    from core.shared.mock_qt import register_bundled_fonts
+def _create_qml_engine(adapter: LibrarianAdminAdapter):
+    from PySide6.QtQml import QQmlApplicationEngine
+    from core.shared.mock_qt import register_startup_fonts
 
-    register_bundled_fonts()
+    register_startup_fonts()
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("librarianAdmin", adapter)
     common_dir, qml_file = _resolve_qml_paths()
@@ -129,6 +124,7 @@ def _create_lan_manager(conn) -> LanServiceManager:
 
 
 def _create_qt_app():
+    from PySide6.QtGui import QGuiApplication
     from PySide6.QtQuickControls2 import QQuickStyle
     from core.shared.mock_qt import apply_app_icon
 
@@ -140,6 +136,7 @@ def _create_qt_app():
 
 
 def _run_gui_mode(conn) -> int:
+    setup_linux_runtime_env()
     lan_manager = _create_lan_manager(conn)
     adapter = LibrarianAdminAdapter(conn, lan_server=lan_manager.lan_server, lan_manager=lan_manager)
     app = _create_qt_app()

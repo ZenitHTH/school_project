@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../../common_qml"
+import "../../../common_qml/Typography.js" as Typography
 
 Item {
     id: root
@@ -247,22 +248,35 @@ Item {
                     clip: true
                     spacing: 6
                     model: ListModel { id: reassignBooksModel; objectName: "reassignBooksModel" }
-                    delegate: RowLayout {
+                    delegate: Item {
                         width: reassignBooksList.width
-                        spacing: 8
-                        Text { text: "📖"; font.pixelSize: 12 }
-                        Text {
-                            text: model.title
-                            font.bold: true
-                            font.pixelSize: 12
-                            color: "#1e293b"
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            text: model.author ? ("โดย " + model.author) : ""
-                            font.pixelSize: 11
-                            color: "#64748b"
+                        implicitHeight: Math.max(26, Math.round(reassignRow.implicitHeight + 6))
+                        height: implicitHeight
+                        clip: true
+                        Component.onCompleted: Typography.applyToItem(this)
+                        RowLayout {
+                            id: reassignRow
+                            anchors.fill: parent
+                            spacing: 8
+                            Text {
+                                text: "📖"
+                                font.pixelSize: Math.max(10, Math.round(12 * (typeof window !== "undefined" && window.fontScale ? window.fontScale : 1.0)))
+                            }
+                            Text {
+                                text: model.title
+                                font.bold: true
+                                font.pixelSize: Math.max(10, Math.round(12 * (typeof window !== "undefined" && window.fontScale ? window.fontScale : 1.0)))
+                                color: "#1e293b"
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                text: model.author ? ("โดย " + model.author) : ""
+                                font.pixelSize: Math.max(9, Math.round(11 * (typeof window !== "undefined" && window.fontScale ? window.fontScale : 1.0)))
+                                color: "#64748b"
+                                Layout.maximumWidth: Math.round(reassignBooksList.width * 0.4)
+                                elide: Text.ElideRight
+                            }
                         }
                     }
                 }

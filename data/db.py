@@ -145,7 +145,11 @@ def get_connection(
     else:
         conn.execute("PRAGMA foreign_keys = OFF;")
 
-    conn.execute("PRAGMA journal_mode = WAL;")
+    if db_path != ":memory:":
+        conn.execute("PRAGMA journal_mode = WAL;")
+        conn.execute("PRAGMA synchronous = NORMAL;")
+    conn.execute("PRAGMA cache_size = -16000;")
+    conn.execute("PRAGMA temp_store = MEMORY;")
     conn.row_factory = sqlite3.Row
     return conn
 

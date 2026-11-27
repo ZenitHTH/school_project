@@ -32,6 +32,7 @@ ApplicationWindow {
     property var lastGeneratedBarcodes: []
     property int selectedBookId: 0
     property string selectedBookTitle: ""
+    property bool _printableBooksLoaded: false
 
     // Reactive typography properties for views and delegates
     property real fontScale: (typeof settingsView !== "undefined" && settingsView && settingsView.currentUiScale) ? (settingsView.currentFontSize / 14.0) * settingsView.currentUiScale : 1.0
@@ -244,7 +245,7 @@ ApplicationWindow {
                     text: "🏷️ พิมพ์สติกเกอร์บาร์โค้ด"
                     active: stackLayout.currentIndex === 7
                     onClicked: {
-                        categoryView.loadPrintableBooks()
+                        window.loadPrintableBooks()
                         stackLayout.currentIndex = 7
                     }
                 }
@@ -314,6 +315,7 @@ ApplicationWindow {
                         font: openWizardBtn.font
                         color: "#94a3b8"
                         horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
                     }
                     onClicked: firstLaunchDialog.open()
                 }
@@ -334,7 +336,6 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: 0
-            onCurrentIndexChanged: settingsView.applySettingsToWindow()
 
             // 0. Book Catalog View
             BookCatalogView {
@@ -347,7 +348,7 @@ ApplicationWindow {
                     stackLayout.currentIndex = 6
                 }
                 onOpenPrintPageRequested: {
-                    categoryView.loadPrintableBooks()
+                    window.loadPrintableBooks()
                     stackLayout.currentIndex = 7
                 }
                 onAddCopiesRequested: function(bookId, title) {
@@ -401,7 +402,9 @@ ApplicationWindow {
                 onBackToCatalogRequested: stackLayout.currentIndex = 0
                 onBookSaved: {
                     window.searchBooks()
-                    categoryView.loadPrintableBooks()
+                    if (window._printableBooksLoaded || stackLayout.currentIndex === 7) {
+                        window.loadPrintableBooks()
+                    }
                 }
                 onEditCategoryRequested: function(catId, catName) {
                     categoryDialogs.openRenameCategoryDialog(catId, catName)
@@ -413,7 +416,7 @@ ApplicationWindow {
                     barcodeGenView.loadCategoriesList()
                 }
                 onGoToPrintPageRequested: {
-                    categoryView.loadPrintableBooks()
+                    window.loadPrintableBooks()
                     stackLayout.currentIndex = 7
                 }
                 onAddCopiesRequested: function(bookId, title) {
@@ -465,9 +468,6 @@ ApplicationWindow {
         nameFilters: ["Student Data (*.sqlite *.xlsx *.xls *.db)", "All files (*)"]
         onAccepted: {
             var path = selectedFile.toString()
-            if (path.indexOf("file://") === 0) {
-                path = decodeURIComponent(path.substring(7))
-            }
             firstLaunchDialog.statusText = "กำลังนำเข้าข้อมูลจาก: " + path + "..."
             var res = JSON.parse(librarianAdmin.importRoster(path, "Librarian"))
             if (res.ok) {
@@ -567,26 +567,9 @@ ApplicationWindow {
             deskStatusText.text = "กรุณากรอกหรือสแกนบาร์โค้ดเล่มที่ต้องการคืน"
             return
         }
-        var copyRes = JSON.parse(librarianAdmin.getCopyByBarcode(barcodeInput.text))
-        if (!copyRes.ok) {
-            deskStatusText.text = copyRes.error
-            return
-        }
-        var activeLoans = JSON.parse(librarianAdmin.getActiveLoans())
-        var loanId = null
-        for (var i = 0; i < activeLoans.length; i++) {
-            if (activeLoans[i].copy_id === copyRes.data.copy_id) {
-                loanId = activeLoans[i].loan_id
-                break
-            }
-        }
-        if (!loanId) {
-            deskStatusText.text = "ไม่พบรายการยืมที่ค้างอยู่สำหรับบาร์โค้ดนี้"
-            return
-        }
-        var retRes = JSON.parse(librarianAdmin.returnBook(loanId))
+        var retRes = JSON.parse(librarianAdmin.returnByBarcode(barcodeInput.text))
         deskStatusText.text = retRes.ok ? "คืนหนังสือสำเร็จเรียบร้อย" : ("คืนหนังสือไม่สำเร็จ: " + retRes.error)
-        barcodeInput.text = ""
+        if (retRes.ok) barcodeInput.text = ""
     }
 
     function loadActiveLoans() {
@@ -665,6 +648,7 @@ ApplicationWindow {
 
     // Forwarding to Dedicated Barcode Printout Generator View
     function loadPrintableBooks(query) {
+        window._printableBooksLoaded = true
         categoryView.loadPrintableBooks(query || "")
     }
 
@@ -741,7 +725,6 @@ ApplicationWindow {
     Component.onCompleted: {
         if (typeof librarianAdmin !== "undefined" && librarianAdmin !== null) {
             searchBooks()
-            categoryView.loadPrintableBooks()
             if (librarianAdmin.isFirstLaunch()) {
                 firstLaunchDialog.open()
             }

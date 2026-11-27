@@ -90,9 +90,9 @@ jobs:
       - name: Build Windows Installers (Inno Setup)
         run: |
           mkdir -Force dist\installers
-          iscc /DEnableLanFirewall=1 /DAppIcon="${{ github.workspace }}\assets\icons\librarianmanagement.ico" /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\LibrarianManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppIcon="${{ github.workspace }}\assets\icons\studentmanagement.ico" /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\StudentManagement.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
-          iscc /DAppIcon="${{ github.workspace }}\assets\icons\boothapp.ico" /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="${{ env.VERSION }}" /DSourceExe="${{ github.workspace }}\dist\BoothApp.exe" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DEnableLanFirewall=1 /DAppIcon="${{ github.workspace }}\assets\icons\librarianmanagement.ico" /DAppName="LibrarianManagement" /DAppExe="LibrarianManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceDir="${{ github.workspace }}\dist\LibrarianManagement" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppIcon="${{ github.workspace }}\assets\icons\studentmanagement.ico" /DAppName="StudentManagement" /DAppExe="StudentManagement.exe" /DAppVersion="${{ env.VERSION }}" /DSourceDir="${{ github.workspace }}\dist\StudentManagement" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
+          iscc /DAppIcon="${{ github.workspace }}\assets\icons\boothapp.ico" /DAppName="BoothApp" /DAppExe="BoothApp.exe" /DAppVersion="${{ env.VERSION }}" /DSourceDir="${{ github.workspace }}\dist\BoothApp" /DOutputDir="${{ github.workspace }}\dist\installers" packaging\installers\windows\installer.iss
         working-directory: ${{ github.workspace }}
 
       - name: Test LibrarianManagement Installer & Firewall Rules
@@ -180,12 +180,14 @@ jobs:
       - name: Verify LibrarianManagement .deb Metadata & Contents
         run: |
           DEB_FILE=$(ls dist/installers/librarianmanagement_*.deb)
-          dpkg -I "$DEB_FILE" | tee /tmp/deb_info.txt
-          grep -q "postinst" /tmp/deb_info.txt
-          grep -q "prerm" /tmp/deb_info.txt
-          dpkg -c "$DEB_FILE" | tee /tmp/deb_contents.txt
-          grep -q "usr/share/icons/hicolor/256x256/apps/librarianmanagement.png" /tmp/deb_contents.txt
-          grep -q "usr/share/applications/librarianmanagement.desktop" /tmp/deb_contents.txt
+          DEB_INFO="$(dpkg -I "$DEB_FILE")"
+          printf '%s\n' "$DEB_INFO"
+          grep -q "postinst" <<< "$DEB_INFO"
+          grep -q "prerm" <<< "$DEB_INFO"
+          DEB_CONTENTS="$(dpkg -c "$DEB_FILE")"
+          printf '%s\n' "$DEB_CONTENTS"
+          grep -q "usr/share/icons/hicolor/256x256/apps/librarianmanagement.png" <<< "$DEB_CONTENTS"
+          grep -q "usr/share/applications/librarianmanagement.desktop" <<< "$DEB_CONTENTS"
 
       - name: Upload Debian Installers
         uses: actions/upload-artifact@v4

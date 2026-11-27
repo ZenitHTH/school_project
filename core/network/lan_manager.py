@@ -117,6 +117,7 @@ class LanServiceManager:
         responder = LanDiscoveryResponder(
             http_port=server.port,
             discovery_port=int(self.config["discovery_port"]),
+            token=server.token,
         )
         try:
             responder.start()

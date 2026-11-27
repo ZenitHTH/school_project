@@ -31,6 +31,8 @@ Rectangle {
             font.bold: true
             font.pixelSize: 22
             color: "#1e293b"
+            Layout.fillWidth: true
+            elide: Text.ElideRight
         }
 
         // Student lookup section
@@ -53,7 +55,9 @@ Rectangle {
                         id: studentLookupInput
                         objectName: "studentLookupInput"
                         placeholderText: "พิมพ์รหัสนักเรียน หรือชื่อ..."
-                        Layout.preferredWidth: 260
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 120
+                        Layout.maximumWidth: 260
                         selectByMouse: true
                         onAccepted: root.lookupStudentRequested()
                     }
@@ -92,11 +96,15 @@ Rectangle {
                 spacing: 8
                 Text { text: "2. สแกนบาร์โค้ดประจำเล่มหนังสือ (Tracking Barcode):"; font.bold: true; color: "#1e293b" }
                 RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
                     StyledTextInput {
                         id: barcodeInput
                         objectName: "barcodeInput"
                         placeholderText: "สแกนบาร์โค้ด..."
-                        Layout.preferredWidth: 260
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 120
+                        Layout.maximumWidth: 260
                         font.pixelSize: 16
                         selectByMouse: true
                         onAccepted: root.checkoutRequested()
@@ -115,6 +123,7 @@ Rectangle {
                         text: "คืนหนังสือ (Return)"
                         onClicked: root.returnRequested()
                     }
+                    Item { Layout.fillWidth: true }
                 }
                 Text {
                     id: deskStatusText

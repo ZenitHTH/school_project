@@ -28,8 +28,9 @@ def get_activity_logs(
         params.append(action)
 
     if query:
-        conditions.append("detail LIKE ?")
-        params.append(f"%{query.strip()}%")
+        escaped_q = query.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        conditions.append("detail LIKE ? ESCAPE '\\'")
+        params.append(f"%{escaped_q}%")
 
     where = " WHERE " + " AND ".join(conditions) if conditions else ""
     sql = f"""

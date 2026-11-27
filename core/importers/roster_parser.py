@@ -5,6 +5,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 GRADE_SHEETS = ["ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"]
 PREFIXES = ["เด็กชาย", "เด็กหญิง", "นางสาว", "นาย", "นาง", "ด.ช.", "ด.ญ."]
+_SORTED_PREFIXES = sorted(PREFIXES, key=len, reverse=True)
 MALE_PREFIXES = {"เด็กชาย", "นาย", "ด.ช."}
 FEMALE_PREFIXES = {"เด็กหญิง", "นางสาว", "นาง", "ด.ญ."}
 
@@ -27,7 +28,7 @@ def split_name(raw_name):
     if not name:
         return None, None, None, None, None
     prefix, rest = None, name
-    for p in sorted(PREFIXES, key=len, reverse=True):
+    for p in _SORTED_PREFIXES:
         if name.startswith(p):
             prefix, rest = p, name[len(p):].strip()
             break

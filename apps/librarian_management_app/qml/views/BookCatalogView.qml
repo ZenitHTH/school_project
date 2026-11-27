@@ -49,35 +49,43 @@ Rectangle {
         anchors.margins: 24
         spacing: 16
 
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
+            columns: root.width >= 820 ? 2 : 1
+            columnSpacing: 12
+            rowSpacing: 8
             Text {
                 text: "แคตตาล็อกหนังสือ (Book Catalog)"
                 font.bold: true
                 font.pixelSize: 22
                 color: "#1e293b"
+                Layout.fillWidth: true
+                elide: Text.ElideRight
             }
-            Item { Layout.fillWidth: true }
-            StyledButton {
-                variant: StyledButton.Primary
-                id: btnDetectChulabook
-                objectName: "btnDetectChulabook"
-                text: "📕 ตรวจ Chulabook"
-                onClicked: root.detectChulabookRequested()
-            }
-            StyledButton {
-                variant: StyledButton.Primary
-                id: btnOpenGeneratorPage
-                objectName: "btnOpenGeneratorPage"
-                text: "📚 เพิ่มหนังสือ / หมวดหมู่"
-                onClicked: root.openGeneratorRequested()
-            }
-            StyledButton {
-                variant: StyledButton.Primary
-                id: btnOpenPrintPage
-                objectName: "btnOpenPrintPage"
-                text: "🏷️ พิมพ์สติกเกอร์บาร์โค้ด"
-                onClicked: root.openPrintPageRequested()
+            Flow {
+                Layout.fillWidth: root.width < 820
+                spacing: 8
+                StyledButton {
+                    variant: StyledButton.Primary
+                    id: btnDetectChulabook
+                    objectName: "btnDetectChulabook"
+                    text: "📕 ตรวจ Chulabook"
+                    onClicked: root.detectChulabookRequested()
+                }
+                StyledButton {
+                    variant: StyledButton.Primary
+                    id: btnOpenGeneratorPage
+                    objectName: "btnOpenGeneratorPage"
+                    text: "📚 เพิ่มหนังสือ / หมวดหมู่"
+                    onClicked: root.openGeneratorRequested()
+                }
+                StyledButton {
+                    variant: StyledButton.Primary
+                    id: btnOpenPrintPage
+                    objectName: "btnOpenPrintPage"
+                    text: "🏷️ พิมพ์สติกเกอร์บาร์โค้ด"
+                    onClicked: root.openPrintPageRequested()
+                }
             }
         }
 
@@ -115,7 +123,8 @@ Rectangle {
             visible: root.chulabookStatus !== ""
             color: text.startsWith("✗") ? "#dc2626" : "#0f766e"
             font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
-            Component.onCompleted: Typography.applyToItem(this)
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
         }
 
         ListView {
@@ -125,13 +134,13 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
             spacing: 4
-            onCountChanged: Qt.callLater(function() { if (typeof settingsView !== "undefined" && settingsView) settingsView.applySettingsToWindow() })
             model: ListModel { id: catalogModel; objectName: "catalogModel" }
             delegate: Rectangle {
                 id: catalogDelegate
                 width: catalogList.width
                 implicitHeight: Math.max(64, Math.round(catalogRowLayout.implicitHeight + 20))
                 height: implicitHeight
+                clip: true
                 border.color: "#e2e8f0"
                 color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
 
@@ -141,6 +150,7 @@ Rectangle {
                     id: catalogRowLayout
                     anchors.fill: parent
                     anchors.margins: 14
+                    spacing: 6
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 280
@@ -168,7 +178,9 @@ Rectangle {
                         text: "หมวดหมู่: " + (model.category_name || "-")
                         font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
                         color: "#475569"
-                        Layout.preferredWidth: Math.round(130 * (window.fontScale || 1.0))
+                        Layout.minimumWidth: 65
+                        Layout.preferredWidth: Math.round(115 * (window.fontScale || 1.0))
+                        elide: Text.ElideRight
                     }
                     Text {
                         text: "มีทั้งหมด: " + model.total_copies + " เล่ม (พร้อมยืม: " + model.available_copies + ")"
@@ -176,7 +188,9 @@ Rectangle {
                         color: "#059669"
                         font.bold: true
                         Layout.fillWidth: false
-                        Layout.preferredWidth: Math.round(220 * (window.fontScale || 1.0))
+                        Layout.minimumWidth: 95
+                        Layout.preferredWidth: Math.round(170 * (window.fontScale || 1.0))
+                        elide: Text.ElideRight
                     }
                     StyledButton {
                         variant: StyledButton.Primary
@@ -207,17 +221,17 @@ Rectangle {
         }
     }
 
-    Dialog {
+    StyledDialog {
         id: chulabookDialog
         objectName: "chulabookDialog"
         visible: root.chulabookDialogOpen
-        modal: true
-        implicitWidth: 560
-        implicitHeight: 440
+        standardButtons: Dialog.NoButton
+        width: Math.min(560, parent ? parent.width - 32 : 560)
         title: "พบ " + root.chulabookBooks.length + " เล่มที่พบเฉพาะใน Chulabook"
+        onClosed: root.chulabookDialogOpen = false
         ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 12
+            width: parent.width
+            height: Math.min(380, root.height > 200 ? root.height - 160 : 380)
             spacing: 10
             Text {
                 text: "ISBN ของหนังสือเหล่านี้ไม่พบในฐานข้อมูลมาตรฐาน (NLT / SE-ED / Open Library)"
@@ -225,7 +239,6 @@ Rectangle {
                 font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
-                Component.onCompleted: Typography.applyToItem(this)
             }
             ListView {
                 id: chulabookResultsList
@@ -236,15 +249,17 @@ Rectangle {
                 model: ListModel { id: chulabookResultsModel; objectName: "chulabookResultsModel" }
                 delegate: Rectangle {
                     width: chulabookResultsList.width
-                    implicitHeight: Math.max(34, Math.round(cbTitleText.implicitHeight + 14))
+                    implicitHeight: Math.max(48, Math.round(cbCol.implicitHeight + 16))
                     height: implicitHeight
+                    clip: true
                     color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
                     border.color: "#e2e8f0"
                     Component.onCompleted: Typography.applyToItem(this)
                     ColumnLayout {
+                        id: cbCol
                         anchors.fill: parent
                         anchors.margins: 8
-                        Layout.minimumWidth: 200
+                        spacing: 2
                         Text {
                             id: cbTitleText
                             text: model.title || "-"

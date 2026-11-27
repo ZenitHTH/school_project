@@ -5,6 +5,7 @@ import "Theme.js" as Theme
 
 ComboBox {
     id: control
+    font.pixelSize: 13
     implicitHeight: Math.max(38, Math.round(((font.pixelSize > 0 ? font.pixelSize : 14)) * 2.2))
 
     background: Rectangle {
@@ -17,10 +18,10 @@ ComboBox {
 
     contentItem: Text {
         leftPadding: 12
-        rightPadding: 24
+        rightPadding: control.indicator ? control.indicator.width + 12 : 24
         text: control.displayText
         color: control.enabled ? Theme.textPrimary : Theme.textFaint
-        font.pixelSize: 13
+        font: control.font
         horizontalAlignment: Text.AlignLeft
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
@@ -31,13 +32,16 @@ ComboBox {
         required property var model
         required property int index
         width: control.width
-        height: Math.max(36, Math.round(13 * 2.6))
+        implicitHeight: Math.max(36, Math.round(comboRowText.implicitHeight + 16))
+        height: implicitHeight
         padding: 12
+        font: control.font
         text: model[control.textRole]
         contentItem: Text {
+            id: comboRowText
             text: comboRow.text
             color: highlighted ? Theme.accentDeep : Theme.textPrimary
-            font.pixelSize: 13
+            font: comboRow.font
             horizontalAlignment: Text.AlignLeft
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight

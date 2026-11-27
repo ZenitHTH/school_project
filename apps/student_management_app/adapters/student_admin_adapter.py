@@ -1,7 +1,8 @@
+import os
 import json
 import sqlite3
 import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.shared.mock_qt import (
     QObject, Signal, Slot, HAVE_QT,
@@ -13,12 +14,83 @@ from core.shared.settings_adapter_mixin import SettingsAdapterMixin
 from core.importers.xlsx_validator import validate_xlsx_structure
 from core.student.services.student_service import StudentService
 from core.student.services.enrollment_service import EnrollmentService
+from data.paths import get_app_data_dir, get_default_documents_dir
 from data.repositories import log_repo
 from data.sync.export import export_snapshot
 from apps.student_management_app.adapters.roster_import_helper import (
     execute_safe_roster_import,
     execute_forced_roster_import,
 )
+
+
+def _active_db_realpath(conn: sqlite3.Connection) -> Optional[str]:
+    """Return canonical path of the main file-backed SQLite database, or None if in-memory."""
+    try:
+        for _seq, name, db_file in conn.execute("PRAGMA database_list;").fetchall():
+            if name == "main" and db_file:
+                return os.path.realpath(db_file)
+    except Exception:
+        pass
+    return None
+
+
+def _validate_input_path(
+    raw_path: str,
+    allowed_exts: Tuple[str, ...],
+    conn: sqlite3.Connection,
+) -> Tuple[Optional[str], Optional[str]]:
+    """Normalize and validate an input file path (regular file, allowed extension, not active DB)."""
+    clean = normalize_file_path(raw_path)
+    if not clean or "\x00" in clean:
+        return None, "Invalid file path."
+    if os.path.splitext(clean)[1].lower() not in allowed_exts:
+        return None, f"Unsupported file format. Allowed: {', '.join(allowed_exts)}"
+    if os.path.islink(clean):
+        return None, "Symbolic links are not allowed."
+    real_path = os.path.realpath(clean)
+    if os.path.splitext(real_path)[1].lower() not in allowed_exts:
+        return None, f"Unsupported target file format. Allowed: {', '.join(allowed_exts)}"
+    if not os.path.isfile(real_path):
+        return None, f"File not found: {clean}"
+    active_db = _active_db_realpath(conn)
+    if active_db and real_path == active_db:
+        return None, "Refusing to read the active application database."
+    return real_path, None
+
+
+def _validate_output_path(
+    raw_path: str,
+    allowed_exts: Tuple[str, ...],
+    conn: sqlite3.Connection,
+) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    """Normalize and validate an output path. Returns (normalized_path, real_path, error)."""
+    clean = normalize_file_path(raw_path)
+    if not clean or "\x00" in clean:
+        return None, None, "Invalid output file path."
+    if os.path.splitext(clean)[1].lower() not in allowed_exts:
+        return None, None, f"Unsupported output extension. Expected: {', '.join(allowed_exts)}"
+    if os.path.islink(clean):
+        return None, None, "Refusing to write to a symbolic link."
+    real_path = os.path.realpath(clean)
+    if os.path.splitext(real_path)[1].lower() not in allowed_exts:
+        return None, None, "Invalid resolved output extension."
+    if os.path.isdir(real_path):
+        return None, None, "Output path refers to a directory."
+    parent_dir = os.path.dirname(real_path)
+    if not parent_dir or not os.path.isdir(parent_dir):
+        return None, None, f"Output directory does not exist: {os.path.dirname(clean)}"
+    active_db = _active_db_realpath(conn)
+    if active_db and real_path == active_db:
+        return None, None, "Refusing to overwrite the active application database."
+    return clean, real_path, None
+
+
+def _default_snapshot_output_path() -> str:
+    """Resolve a safe user-writable default path for snapshot export."""
+    docs = get_default_documents_dir()
+    if docs.is_dir() and os.access(docs, os.W_OK):
+        return str(docs / "snapshot.sqlite")
+    return str(get_app_data_dir("SMTE-StudentManagement") / "snapshot.sqlite")
 
 
 class StudentAdminAdapter(QObject, SettingsAdapterMixin):
@@ -30,6 +102,7 @@ class StudentAdminAdapter(QObject, SettingsAdapterMixin):
         self.student_svc = StudentService(conn)
         self.enrollment_svc = EnrollmentService(conn)
         self.settings_svc = settings_service or SettingsService()
+        self._diff_cache: Optional[Tuple[str, int, int, int, Any]] = None
 
     @Slot(result=bool)
     def isFirstLaunch(self) -> bool:
@@ -118,10 +191,17 @@ class StudentAdminAdapter(QObject, SettingsAdapterMixin):
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
 
     @Slot(str, str, result=str)
-    def exportSnapshot(self, output_path: str, actor: str = "Admin") -> str:
+    def exportSnapshot(self, output_path: str = "", actor: str = "Admin") -> str:
         """Export snapshot for LINE sync."""
-        res = export_snapshot(self.conn, output_path, actor=actor)
-        return json.dumps({"ok": res.ok, "error": res.error, "data": res.data})
+        target = output_path if (output_path or "").strip() else _default_snapshot_output_path()
+        normalized, real_path, err = _validate_output_path(target, (".sqlite", ".db"), self.conn)
+        if err or not real_path or not normalized:
+            return json.dumps({"ok": False, "error": err or "Invalid snapshot output path.", "data": None})
+        res = export_snapshot(self.conn, real_path, actor=actor)
+        data = dict(res.data) if res.ok and isinstance(res.data, dict) else res.data
+        if res.ok and isinstance(data, dict):
+            data["output_path"] = normalized
+        return json.dumps({"ok": res.ok, "error": res.error, "data": data})
 
     @Slot(int, result=str)
     def getHistory(self, student_id: int) -> str:
@@ -132,30 +212,54 @@ class StudentAdminAdapter(QObject, SettingsAdapterMixin):
     @Slot(str, bool, str, result=str)
     def importXlsx(self, xlsx_path: str, force: bool = False, actor: str = "Admin") -> str:
         """Validate and import student roster xlsx with re-import safeguard."""
-        clean_path = normalize_file_path(xlsx_path)
+        clean_path, err = _validate_input_path(xlsx_path, (".xlsx", ".xls"), self.conn)
+        if err or not clean_path:
+            return json.dumps({"ok": False, "error": err or "Invalid Excel path."})
         if force:
             res = execute_forced_roster_import(self.conn, clean_path, actor=actor)
         else:
             res = execute_safe_roster_import(self.conn, clean_path, actor=actor)
         return json.dumps(res)
 
+    def _xlsx_cache_key(self, clean_path: str) -> Optional[Tuple[str, int, int, int]]:
+        try:
+            st = os.stat(clean_path)
+            return (clean_path, st.st_mtime_ns, st.st_size, self.conn.total_changes)
+        except OSError:
+            return None
+
     @Slot(str, result=str)
     def previewXlsxDiff(self, xlsx_path: str) -> str:
         """Preview categorized diff for recurring xlsx re-import / promotion."""
-        clean_path = normalize_file_path(xlsx_path)
+        clean_path, err = _validate_input_path(xlsx_path, (".xlsx", ".xls"), self.conn)
+        if err or not clean_path:
+            return json.dumps({"ok": False, "error": err or "Invalid Excel path."})
+        key = self._xlsx_cache_key(clean_path)
+        if key is not None and self._diff_cache is not None and self._diff_cache[:4] == key:
+            res = self._diff_cache[4]
+            return json.dumps({"ok": res.ok, "error": res.error, "data": res.data, "warnings": res.warnings})
         val_res = validate_xlsx_structure(clean_path)
         if not val_res.ok:
             return json.dumps({"ok": False, "error": val_res.error})
         from core.importers.xlsx_diff_importer import calculate_xlsx_diff
         res = calculate_xlsx_diff(self.conn, clean_path)
+        if res.ok and key is not None:
+            self._diff_cache = (*key, res)
         return json.dumps({"ok": res.ok, "error": res.error, "data": res.data, "warnings": res.warnings})
 
     @Slot(str, int, int, str, result=str)
     def applyXlsxDiff(self, xlsx_path: str, academic_year: int, semester: int, actor: str = "Admin") -> str:
         """Apply xlsx diff atomically inside one transaction."""
-        clean_path = normalize_file_path(xlsx_path)
+        clean_path, err = _validate_input_path(xlsx_path, (".xlsx", ".xls"), self.conn)
+        if err or not clean_path:
+            return json.dumps({"ok": False, "error": err or "Invalid Excel path.", "warnings": []})
         from core.importers.xlsx_diff_importer import calculate_xlsx_diff, apply_xlsx_diff
-        diff_res = calculate_xlsx_diff(self.conn, clean_path)
+        key = self._xlsx_cache_key(clean_path)
+        if key is not None and self._diff_cache is not None and self._diff_cache[:4] == key:
+            diff_res = self._diff_cache[4]
+        else:
+            diff_res = calculate_xlsx_diff(self.conn, clean_path)
+        self._diff_cache = None
         if not diff_res.ok:
             return json.dumps({"ok": False, "error": diff_res.error, "warnings": diff_res.warnings})
         res = apply_xlsx_diff(self.conn, diff_res.data, academic_year, semester, actor=actor)

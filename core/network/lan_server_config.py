@@ -66,4 +66,6 @@ def save_lan_server_config(path: str, cfg: Dict[str, Any]) -> Dict[str, Any]:
     normalized = _normalize_config(cfg)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(normalized, fh, indent=2, ensure_ascii=False)
+    if os.name == "posix":
+        os.chmod(path, 0o600)
     return normalized

@@ -18,6 +18,7 @@ import ssl
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 HOST = "api.chulabook.com"
@@ -57,7 +58,8 @@ def main() -> int:
                 return f"TLS {ssock.version()} — system CA store verified api.chulabook.com OK"
 
     def http():
-        url = f"https://{HOST}/products?search={isbn}&limit=5"
+        encoded_isbn = urllib.parse.quote(isbn, safe="")
+        url = f"https://{HOST}/products?search={encoded_isbn}&limit=5"
         req = urllib.request.Request(url, headers=HEADERS)
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode("utf-8", "replace"))

@@ -1,7 +1,37 @@
 import os
 import sqlite3
 from typing import Any, Dict, List
+from urllib.parse import quote
 from core.shared.result import Result
+
+_SNAPSHOT_REQUIRED_TABLES = ("snapshot_meta", "students", "enrollments", "student_id_changes")
+
+
+def _validate_snapshot_schema(snap_conn: sqlite3.Connection) -> None:
+    """Enforce trusted_schema=OFF and reject views, triggers, or virtual tables in untrusted snapshots."""
+    snap_conn.execute("PRAGMA trusted_schema = OFF;")
+    cur = snap_conn.cursor()
+    bad_objects = cur.execute(
+        "SELECT name, type FROM sqlite_master WHERE type IN ('view', 'trigger')"
+    ).fetchall()
+    if bad_objects:
+        names = ", ".join(f"{r['name']} ({r['type']})" for r in bad_objects)
+        raise ValueError(f"Unsafe snapshot schema objects rejected: {names}")
+
+    placeholders = ",".join("?" for _ in _SNAPSHOT_REQUIRED_TABLES)
+    rows = cur.execute(
+        f"SELECT name, type, sql FROM sqlite_master WHERE name IN ({placeholders})",
+        _SNAPSHOT_REQUIRED_TABLES,
+    ).fetchall()
+    found = {}
+    for r in rows:
+        sql_text = (r["sql"] or "").lstrip().upper()
+        if r["type"] != "table" or sql_text.startswith("CREATE VIRTUAL TABLE"):
+            raise ValueError(f"Snapshot object '{r['name']}' must be a regular table")
+        found[r["name"]] = r["type"]
+    missing = [t for t in _SNAPSHOT_REQUIRED_TABLES if t not in found]
+    if missing:
+        raise ValueError(f"Snapshot missing required table(s): {', '.join(missing)}")
 
 _LOCAL_STUDENTS_SQL = """
     SELECT s.*, e.grade_level, e.room, e.track
@@ -32,12 +62,14 @@ def _build_students_by_id(
 
 
 def load_snapshot_data(snapshot_path: str) -> Dict[str, Any]:
-    """Load snapshot metadata, tables, and latest-enrollment student map in one open."""
+    """Load snapshot metadata, tables, and latest-enrollment student map in one read-only open."""
     if not os.path.exists(snapshot_path):
         raise FileNotFoundError(f"Snapshot file not found: {snapshot_path}")
-    snap_conn = sqlite3.connect(snapshot_path)
+    uri = f"file:{quote(os.path.abspath(snapshot_path))}?mode=ro"
+    snap_conn = sqlite3.connect(uri, uri=True)
     snap_conn.row_factory = sqlite3.Row
     try:
+        _validate_snapshot_schema(snap_conn)
         cur = snap_conn.cursor()
         meta = cur.execute("SELECT * FROM snapshot_meta LIMIT 1").fetchone()
         students = [dict(r) for r in cur.execute("SELECT * FROM students").fetchall()]

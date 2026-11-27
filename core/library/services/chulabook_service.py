@@ -32,11 +32,11 @@ def _classify(row, cache, timeout: float):
     if not is_valid_isbn(isbn):
         return None
     try:
-        if not _fetch_chulabook(isbn, timeout):
-            logger.debug("book %s (%s): skip — not found in chulabook", book_id, isbn)
-            return None
         if isbn in cache:
             logger.debug("book %s (%s): skip — already in isbn_cache", book_id, isbn)
+            return None
+        if not _fetch_chulabook(isbn, timeout):
+            logger.debug("book %s (%s): skip — not found in chulabook", book_id, isbn)
             return None
         step = min(timeout, 2.0)
         if _fetch_primo(isbn, step) or _fetch_seed(isbn, step) or _fetch_openlibrary(isbn, timeout):

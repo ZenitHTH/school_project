@@ -8,6 +8,7 @@ StyledDialog {
     objectName: "lanSettingsDialog"
     title: "ตั้งค่าเซิร์ฟเวอร์ห้องสมุด (LAN)"
     standardButtons: Dialog.Ok | Dialog.Cancel
+    width: Math.min(480, parent ? parent.width - 40 : 440)
 
     property alias hostText: lanHostInput.text
     property alias portText: lanPortInput.text
@@ -64,24 +65,20 @@ StyledDialog {
             verticalAlignment: TextInput.AlignVCenter
         }
 
-        RowLayout {
+        StyledButton {
+            objectName: "btnAutoDiscover"
+            variant: StyledButton.Neutral
+            text: "🔍 ค้นหาอัตโนมัติ (Auto-Discover)"
+            onClicked: root.autoDiscoverRequested()
+        }
+        Text {
+            id: discoverStatusLabel
+            objectName: "discoverStatusLabel"
             Layout.fillWidth: true
-            spacing: 10
-            StyledButton {
-                objectName: "btnAutoDiscover"
-                variant: StyledButton.Neutral
-                text: "🔍 ค้นหาอัตโนมัติ (Auto-Discover)"
-                onClicked: root.autoDiscoverRequested()
-            }
-            Text {
-                id: discoverStatusLabel
-                objectName: "discoverStatusLabel"
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                font.pixelSize: 12
-                color: "#475569"
-                text: ""
-            }
+            wrapMode: Text.WordWrap
+            font.pixelSize: 12
+            color: "#475569"
+            text: ""
         }
     }
 }

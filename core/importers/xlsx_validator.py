@@ -1,9 +1,11 @@
 import os
 import sqlite3
 from typing import List, Optional, Tuple
+from urllib.parse import quote
 from core.shared.result import Result
 
 GRADE_SHEETS = ["ม.1", "ม.2", "ม.3", "ม.4", "ม.5", "ม.6"]
+_MAX_WORKBOOK_XML_BYTES = 10 * 1024 * 1024
 
 
 def validate_sqlite_file(file_path: str, conn: Optional[sqlite3.Connection] = None) -> Result:
@@ -14,15 +16,22 @@ def validate_sqlite_file(file_path: str, conn: Optional[sqlite3.Connection] = No
     close_after = False
     if conn is None:
         try:
-            conn = sqlite3.connect(file_path)
+            uri = f"file:{quote(os.path.abspath(file_path))}?mode=ro"
+            conn = sqlite3.connect(uri, uri=True)
             close_after = True
         except Exception as e:
             return Result.fail(f"Could not open SQLite database: {e}")
 
     try:
+        conn.execute("PRAGMA trusted_schema = OFF;")
         cur = conn.cursor()
-        cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = {row[0] for row in cur.fetchall()}
+        cur.execute("SELECT name, sql FROM sqlite_master WHERE type='table';")
+        table_rows = cur.fetchall()
+        tables = {
+            row[0]
+            for row in table_rows
+            if not (row[1] or "").lstrip().upper().startswith("CREATE VIRTUAL TABLE")
+        }
 
         required_tables = [
             "students", "enrollments", "room_changes", "transfers_out",
@@ -75,9 +84,14 @@ def validate_xlsx_structure(file_path: str) -> Result:
         import xml.etree.ElementTree as ET
         try:
             with zipfile.ZipFile(file_path, "r") as z:
-                with z.open("xl/workbook.xml") as f:
-                    tree = ET.parse(f)
-                    root = tree.getroot()
+                info = z.getinfo("xl/workbook.xml")
+                if info.file_size > _MAX_WORKBOOK_XML_BYTES:
+                    return Result.fail("Excel workbook.xml exceeds maximum allowed size (10 MB)")
+                with z.open(info) as f:
+                    raw_xml = f.read(_MAX_WORKBOOK_XML_BYTES + 1)
+                    if len(raw_xml) > _MAX_WORKBOOK_XML_BYTES:
+                        return Result.fail("Excel workbook.xml exceeds maximum allowed size (10 MB)")
+                    root = ET.fromstring(raw_xml)
                     ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
                     sheets_elem = root.find("main:sheets", ns)
                     sheet_names = [s.attrib["name"] for s in sheets_elem] if sheets_elem else []

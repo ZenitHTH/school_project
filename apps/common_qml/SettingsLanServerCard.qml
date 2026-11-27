@@ -71,7 +71,7 @@ Rectangle {
 
     component FormLabel: Text {
         font.bold: true; color: Theme.textStrong
-        Layout.minimumWidth: 160; Layout.preferredWidth: Math.max(180, implicitWidth)
+        Layout.minimumWidth: 110; Layout.preferredWidth: Math.max(130, Math.min(200, implicitWidth))
         wrapMode: Text.Wrap
     }
 
@@ -91,13 +91,16 @@ Rectangle {
             }
             Rectangle {
                 id: lanStatusBadge; objectName: "lanStatusBadge"; radius: 12
-                implicitWidth: lanStatusBadgeText.implicitWidth + 24
+                Layout.maximumWidth: Math.max(140, lanLayout.width * 0.45)
+                implicitWidth: Math.min(lanStatusBadgeText.implicitWidth + 24, Layout.maximumWidth)
                 implicitHeight: Math.max(28, Math.round(lanStatusBadgeText.implicitHeight + 12)); height: implicitHeight
                 color: lanCardRoot.serverRunning ? Theme.successBackground : (!lanCardRoot.serverEnabled ? Theme.surfaceHover : Theme.errorBackground)
                 border.color: lanCardRoot.serverRunning ? Theme.successBorder : (!lanCardRoot.serverEnabled ? Theme.borderDefault : Theme.errorBorder)
                 border.width: 1
                 Text {
-                    id: lanStatusBadgeText; objectName: "lanStatusBadgeText"; anchors.centerIn: parent
+                    id: lanStatusBadgeText; objectName: "lanStatusBadgeText"
+                    anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12
+                    horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
                     font.bold: true; font.pixelSize: 12
                     color: lanCardRoot.serverRunning ? Theme.successText : (!lanCardRoot.serverEnabled ? Theme.textSecondary : Theme.errorText)
                     text: lanCardRoot.serverRunning ? "● กำลังทำงาน (Online)" : (!lanCardRoot.serverEnabled ? "○ ปิดใช้งาน (Disabled)" : "✕ ไม่สามารถเริ่มเซิร์ฟเวอร์ (Error)")
@@ -116,8 +119,10 @@ Rectangle {
             ColumnLayout {
                 id: infoCol
                 anchors.fill: parent; anchors.margins: 12; spacing: 6
-                RowLayout {
-                    Layout.fillWidth: true; spacing: 10
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: lanInfoBox.width < 460 ? 2 : 4
+                    columnSpacing: 10; rowSpacing: 6
                     Text { text: "Server LAN IP:"; font.bold: true; color: Theme.accentDeep; wrapMode: Text.Wrap }
                     Text { id: lanIpValueText; objectName: "lanIpValueText"; text: lanCardRoot.serverIp || "-"; font.bold: true; color: Theme.textPrimary; wrapMode: Text.Wrap; Layout.fillWidth: true }
                     Text { text: "Discovery UDP Port:"; font.bold: true; color: Theme.accentDeep; wrapMode: Text.Wrap }
@@ -153,8 +158,10 @@ Rectangle {
             id: lanEnabledCheck; objectName: "lanEnabledCheck"; checked: true
             text: "เปิดให้บริการ LAN Server สำหรับเครื่อง Self-Service Booth"
             Layout.fillWidth: true
-            implicitHeight: Math.max(28, Math.round(contentItem.implicitHeight + 10)); height: implicitHeight
+            implicitHeight: Math.max(28, Math.round(lanCheckText.implicitHeight + 10)); height: implicitHeight
             contentItem: Text {
+                id: lanCheckText
+                width: lanEnabledCheck.availableWidth
                 text: lanEnabledCheck.text; font: lanEnabledCheck.font; color: Theme.textPrimary
                 verticalAlignment: Text.AlignVCenter; wrapMode: Text.Wrap
                 leftPadding: (lanEnabledCheck.indicator ? lanEnabledCheck.indicator.width : 20) + lanEnabledCheck.spacing
@@ -174,17 +181,33 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             FormLabel { text: "Token สำหรับเชื่อมต่อ (Booth):" }
-            StyledTextInput { id: lanTokenInput; objectName: "lanTokenInput"; Layout.fillWidth: true; text: "123456"; placeholderText: "123456"; horizontalAlignment: TextInput.AlignLeft; verticalAlignment: TextInput.AlignVCenter; leftPadding: 12 }
+            StyledTextInput {
+                id: lanTokenInput; objectName: "lanTokenInput"; Layout.fillWidth: true
+                property bool showToken: false
+                text: "123456"; placeholderText: "123456"
+                echoMode: showToken ? TextInput.Normal : TextInput.Password
+                horizontalAlignment: TextInput.AlignLeft; verticalAlignment: TextInput.AlignVCenter; leftPadding: 12
+            }
+            StyledButton {
+                id: btnToggleServerToken; objectName: "btnToggleServerToken"
+                variant: StyledButton.Neutral
+                text: lanTokenInput.showToken ? "ซ่อน" : "แสดง"
+                onClicked: lanTokenInput.showToken = !lanTokenInput.showToken
+            }
         }
 
-        RowLayout {
-            Layout.fillWidth: true; spacing: 10
+        GridLayout {
+            Layout.fillWidth: true
+            columns: lanLayout.width < 520 ? 1 : 3
+            columnSpacing: 10
+            rowSpacing: 8
             Text { id: lanSaveStatusText; objectName: "lanSaveStatusText"; text: lanCardRoot.saveFeedback; color: text.indexOf("✓") === 0 ? Theme.successDot : Theme.errorDot; font.bold: true; font.pixelSize: 13; wrapMode: Text.Wrap; Layout.fillWidth: true }
             StyledButton {
                 id: btnResetLanDefaults; objectName: "btnResetLanDefaults"; variant: StyledButton.Neutral; text: "คืนค่าเริ่มต้น LAN"
+                Layout.alignment: Qt.AlignRight
                 onClicked: { lanEnabledCheck.checked = true; lanPortInput.text = "8765"; lanDiscoveryPortInput.text = "8766"; lanTokenInput.text = "123456"; lanCardRoot.saveFeedback = "" }
             }
-            StyledButton { id: btnSaveLanConfig; objectName: "btnSaveLanConfig"; variant: StyledButton.Primary; text: "💾 บันทึกและใช้การตั้งค่า LAN"; onClicked: lanCardRoot.saveToAdapter() }
+            StyledButton { id: btnSaveLanConfig; objectName: "btnSaveLanConfig"; variant: StyledButton.Primary; text: "💾 บันทึกและใช้การตั้งค่า LAN"; Layout.alignment: Qt.AlignRight; onClicked: lanCardRoot.saveToAdapter() }
         }
     }
 }

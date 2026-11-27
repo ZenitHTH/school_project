@@ -34,17 +34,30 @@ ApplicationWindow {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            ColumnLayout {
-                anchors.centerIn: parent
-                width: Math.min(parent.width - 80, 700)
-                spacing: 18
+            ScrollView {
+                id: kioskScroll
+                anchors.fill: parent
+                contentWidth: availableWidth
+                clip: true
+
+                Item {
+                    width: kioskScroll.availableWidth
+                    implicitHeight: Math.max(kioskScroll.availableHeight, kioskHomeCol.implicitHeight + 32)
+
+                    ColumnLayout {
+                        id: kioskHomeCol
+                        anchors.centerIn: parent
+                        width: Math.min(parent.width - 48, 700)
+                        spacing: 18
 
         Text {
             text: "📖 บริการยืม-คืนหนังสือด้วยตนเอง"
             color: "#ffffff"
             font.bold: true
-            font.pixelSize: 28
-            Layout.alignment: Qt.AlignHCenter
+            font.pixelSize: Math.max(20, Math.round(28 * boothWindow.fontScale))
+            wrapMode: Text.Wrap
+            horizontalAlignment: Text.AlignHCenter
+            Layout.fillWidth: true
         }
 
         // LAN Connection Status Bar
@@ -52,8 +65,9 @@ ApplicationWindow {
             id: lanStatusBanner
             objectName: "lanStatusBanner"
             Layout.fillWidth: true
-            implicitHeight: Math.max(40, Math.round(lanStatusRow.implicitHeight + 16))
+            implicitHeight: Math.max(40, Math.round(lanStatusRow.implicitHeight + 20))
             height: implicitHeight
+            clip: true
             radius: 8
             color: connectionStatus.mode === "local"
                    ? "#1e293b"
@@ -62,18 +76,18 @@ ApplicationWindow {
                           ? "#334155"
                           : (connectionStatus.connected ? "#10b981" : "#ef4444")
 
-            RowLayout {
+            ColumnLayout {
                 id: lanStatusRow
                 anchors.fill: parent
                 anchors.margins: 10
-                spacing: 12
+                spacing: 8
 
                 Text {
                     id: lanStatusText
                     objectName: "lanStatusText"
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    font.pixelSize: 13
+                    font.pixelSize: Math.max(11, Math.round(13 * boothWindow.fontScale))
                     font.bold: true
                     color: connectionStatus.mode === "local"
                            ? "#cbd5e1"
@@ -85,27 +99,32 @@ ApplicationWindow {
                              : ("🔴 ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์" + (connectionStatus.error ? " (" + connectionStatus.error + ")" : "")))
                 }
 
-                StyledButton {
-                    id: btnOpenBookSearch
-                    objectName: "btnOpenBookSearch"
-                    variant: StyledButton.Neutral
-                    text: "🔍 ค้นหาหนังสือ"
-                    onClicked: openBookSearch()
-                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
 
-                StyledButton {
-                    objectName: "btnLanSettings"
-                    variant: StyledButton.Neutral
-                    text: "ตั้งค่าเซิร์ฟเวอร์"
-                    onClicked: openLanSettings()
-                }
+                    StyledButton {
+                        id: btnOpenBookSearch
+                        objectName: "btnOpenBookSearch"
+                        variant: StyledButton.Neutral
+                        text: "🔍 ค้นหาหนังสือ"
+                        onClicked: openBookSearch()
+                    }
 
-                StyledButton {
-                    id: btnOpenBoothSettings
-                    objectName: "btnOpenBoothSettings"
-                    variant: StyledButton.Primary
-                    text: "⚙️ ตั้งค่าระบบ"
-                    onClicked: openBoothSettings()
+                    StyledButton {
+                        objectName: "btnLanSettings"
+                        variant: StyledButton.Neutral
+                        text: "ตั้งค่าเซิร์ฟเวอร์"
+                        onClicked: openLanSettings()
+                    }
+
+                    StyledButton {
+                        id: btnOpenBoothSettings
+                        objectName: "btnOpenBoothSettings"
+                        variant: StyledButton.Primary
+                        text: "⚙️ ตั้งค่าระบบ"
+                        onClicked: openBoothSettings()
+                    }
                 }
             }
         }
@@ -115,8 +134,9 @@ ApplicationWindow {
             id: emptyDbWarningBanner
             objectName: "emptyDbWarningBanner"
             Layout.fillWidth: true
-            implicitHeight: Math.max(48, Math.round(emptyDbRow.implicitHeight + 20))
+            implicitHeight: Math.max(48, Math.round(emptyDbRow.implicitHeight + 24))
             height: implicitHeight
+            clip: true
             color: "#451a03"
             radius: 8
             border.color: "#b45309"
@@ -138,12 +158,14 @@ ApplicationWindow {
                         text: "ยังไม่มีข้อมูลในระบบ หรือฐานข้อมูลว่าง"
                         color: "#fde047"
                         font.bold: true
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(11, Math.round(13 * boothWindow.fontScale))
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
                     }
                     Text {
                         text: "กรุณาติดต่อบรรณารักษ์เพื่อทำการ Sync ข้อมูลนักเรียน/หนังสือเข้าระบบก่อนเริ่มใช้งาน"
                         color: "#fef08a"
-                        font.pixelSize: 11
+                        font.pixelSize: Math.max(10, Math.round(11 * boothWindow.fontScale))
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -169,15 +191,19 @@ ApplicationWindow {
                 Text {
                     text: "ขั้นตอนที่ 1: แตะบัตรหรือกรอกรหัสนักเรียน"
                     color: "#94a3b8"
-                    font.pixelSize: 14
+                    font.pixelSize: Math.max(12, Math.round(14 * boothWindow.fontScale))
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
                 }
 
                 RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
                     StyledSearchField {
                         id: studentIdInput
                         objectName: "studentIdInput"
                         placeholderText: "พิมพ์รหัสนักเรียน..."
-                        font.pixelSize: 18
+                        font.pixelSize: Math.max(14, Math.round(18 * boothWindow.fontScale))
                         horizontalAlignment: TextInput.AlignLeft
                         verticalAlignment: TextInput.AlignVCenter
                         Layout.fillWidth: true
@@ -198,7 +224,9 @@ ApplicationWindow {
                     text: boothWindow.identifiedStudent ? ("ยินดีต้อนรับ: " + boothWindow.identifiedStudent.full_name) : "ยังไม่ได้ระบุตัวตน"
                     color: boothWindow.identifiedStudent ? "#34d399" : "#64748b"
                     font.bold: true
-                    font.pixelSize: 15
+                    font.pixelSize: Math.max(13, Math.round(15 * boothWindow.fontScale))
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
                 }
             }
         }
@@ -221,14 +249,16 @@ ApplicationWindow {
                 Text {
                     text: "ขั้นตอนที่ 2: สแกนบาร์โค้ดหนังสือ"
                     color: "#94a3b8"
-                    font.pixelSize: 14
+                    font.pixelSize: Math.max(12, Math.round(14 * boothWindow.fontScale))
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
                 }
 
                 StyledSearchField {
                     id: bookBarcodeInput
                     objectName: "bookBarcodeInput"
                     placeholderText: "สแกนบาร์โค้ดหนังสือ..."
-                    font.pixelSize: 18
+                    font.pixelSize: Math.max(14, Math.round(18 * boothWindow.fontScale))
                     horizontalAlignment: TextInput.AlignLeft
                     verticalAlignment: TextInput.AlignVCenter
                     Layout.fillWidth: true
@@ -262,7 +292,7 @@ ApplicationWindow {
             id: feedbackBanner
             objectName: "feedbackBanner"
             Layout.fillWidth: true
-            font.pixelSize: 16
+            font.pixelSize: Math.max(13, Math.round(16 * boothWindow.fontScale))
             text: "กรุณาระบุตัวตนเพื่อเริ่มทำรายการ"
         }
 
@@ -279,8 +309,10 @@ ApplicationWindow {
                     feedbackBanner.text = "ขอบคุณที่ใช้บริการ"
                 }
             }
+                    }
+                }
+            }
         }
-    }
 
     ColumnLayout {
         id: boothSettingsPage
@@ -290,7 +322,7 @@ ApplicationWindow {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: Math.max(52, Math.round(settingsTopRow.implicitHeight + 20))
+            implicitHeight: Math.max(52, Math.round(settingsTopRow.implicitHeight + 24))
             height: implicitHeight
             color: "#1e293b"
 

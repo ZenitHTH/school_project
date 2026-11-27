@@ -16,6 +16,13 @@ _UPSERT_STUDENT_SQL = """
         full_name = excluded.full_name,
         gender = excluded.gender,
         status = excluded.status
+    WHERE students.national_id IS NOT excluded.national_id
+       OR students.prefix IS NOT excluded.prefix
+       OR students.first_name IS NOT excluded.first_name
+       OR students.last_name IS NOT excluded.last_name
+       OR students.full_name IS NOT excluded.full_name
+       OR students.gender IS NOT excluded.gender
+       OR students.status IS NOT excluded.status
 """
 
 _UPSERT_SYNC_STATE_SQL = """

@@ -241,7 +241,10 @@ def test_category_dropdown_renders_options(lib_ui):
     # Select the second option via a real click on its row
     row_y = 4 + 36 + 18  # popup padding + one row + half a row
     rowpos = popup.mapToGlobal(10, row_y)
-    QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, QPoint(int(rowpos.x()), int(rowpos.y())))
+    row_pt = QPoint(int(rowpos.x()), int(rowpos.y()))
+    QTest.mouseMove(window, row_pt)
+    process(app)
+    QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, row_pt)
     process(app)
     process(app)
     assert combo.property("currentIndex") == 1  # index 0 is the default row

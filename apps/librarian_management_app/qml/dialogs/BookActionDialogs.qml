@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../../common_qml"
+import "../../../common_qml/Typography.js" as Typography
 
 Item {
     id: root
@@ -10,6 +11,7 @@ Item {
 
     property var rootWindow: null
     property var dialogDuplicateBook: null
+    property bool _awaitingDialogIsbnFetch: false
 
     property alias addBookDialog: addBookDialog
     property alias newBookTitle: newBookTitle
@@ -116,7 +118,7 @@ Item {
         if (rootWindow) {
             rootWindow.searchBooks()
             rootWindow.loadBooksForExistingSelector()
-            if (typeof rootWindow.loadPrintableBooks === "function") {
+            if (rootWindow._printableBooksLoaded && typeof rootWindow.loadPrintableBooks === "function") {
                 rootWindow.loadPrintableBooks("")
             }
         }
@@ -136,7 +138,7 @@ Item {
             if (rootWindow) {
                 rootWindow.searchBooks()
                 rootWindow.loadBooksForExistingSelector()
-                if (typeof rootWindow.loadPrintableBooks === "function") {
+                if (rootWindow._printableBooksLoaded && typeof rootWindow.loadPrintableBooks === "function") {
                     rootWindow.loadPrintableBooks("")
                 }
             }
@@ -193,11 +195,9 @@ Item {
         executeDialogFetch(rawIsbn)
     }
 
-    function executeDialogFetch(rawIsbn) {
-        btnDialogFetchIsbn.enabled = false
-        addBookStatusText.text = "กำลังค้นหา..."
+    function _handleDialogIsbnResult(payload) {
         try {
-            var res = JSON.parse(librarianAdmin.fetchIsbnMetadata(rawIsbn))
+            var res = JSON.parse(payload)
             if (res.ok && res.data) {
                 applyDialogAutofill(res.data)
             } else {
@@ -206,8 +206,24 @@ Item {
         } catch (e) {
             addBookStatusText.text = "✗ cannot fetch data"
         } finally {
+            _awaitingDialogIsbnFetch = false
             btnDialogFetchIsbn.enabled = true
         }
+    }
+
+    Connections {
+        target: (typeof librarianAdmin !== "undefined" && librarianAdmin) ? librarianAdmin : null
+        function onIsbnLookupCompleted(payload) {
+            if (root._awaitingDialogIsbnFetch) {
+                root._handleDialogIsbnResult(payload)
+            }
+        }
+    }
+
+    function executeDialogFetch(rawIsbn) {
+        btnDialogFetchIsbn.enabled = false
+        addBookStatusText.text = "กำลังค้นหา..."
+        _handleDialogIsbnResult(librarianAdmin.fetchIsbnMetadata(rawIsbn))
     }
 
     Timer {
@@ -300,7 +316,7 @@ Item {
                     id: btnDialogFetchIsbn
                     objectName: "btnDialogFetchIsbn"
                     text: "🔍 ดึงข้อมูล"
-                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
+                    implicitHeight: Math.max(36, Math.round(contentItem.implicitHeight + 12))
                     onClicked: root.fetchDialogIsbnAndAutofill()
                 }
                 CheckBox {
@@ -369,7 +385,7 @@ Item {
                 if (rootWindow) {
                     rootWindow.searchBooks()
                     rootWindow.loadBooksForExistingSelector()
-                    if (typeof rootWindow.loadPrintableBooks === "function") {
+                    if (rootWindow._printableBooksLoaded && typeof rootWindow.loadPrintableBooks === "function") {
                         rootWindow.loadPrintableBooks("")
                     }
                 }
@@ -418,7 +434,7 @@ Item {
                 if (rootWindow) {
                     rootWindow.searchBooks()
                     rootWindow.loadBooksForExistingSelector()
-                    if (typeof rootWindow.loadPrintableBooks === "function") {
+                    if (rootWindow._printableBooksLoaded && typeof rootWindow.loadPrintableBooks === "function") {
                         rootWindow.loadPrintableBooks("")
                     }
                 }
@@ -444,16 +460,14 @@ Item {
                     text: "1"
                     Layout.fillWidth: true
                     selectByMouse: true
-                    padding: 8
                     enabled: !addCopiesDialog.isSubmitting
-                    background: Rectangle { border.color: parent.activeFocus ? "#2563eb" : "#cbd5e1"; radius: 4; color: "#ffffff" }
                     onAccepted: addCopiesDialog.executeAddCopies()
                 }
                 StyledButton {
                     variant: StyledButton.Neutral
                     text: "+1"
                     Layout.preferredWidth: 44
-                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
+                    implicitHeight: Math.max(36, Math.round(contentItem.implicitHeight + 12))
                     enabled: !addCopiesDialog.isSubmitting
                     onClicked: { var c = Math.min(99, (parseInt(addCopiesCountInput.text) || 1) + 1); addCopiesCountInput.text = c.toString(); }
                 }
@@ -461,7 +475,7 @@ Item {
                     variant: StyledButton.Neutral
                     text: "+4"
                     Layout.preferredWidth: 44
-                    implicitHeight: Math.max(36, Math.round(font.pixelSize * 2.2 || 36))
+                    implicitHeight: Math.max(36, Math.round(contentItem.implicitHeight + 12))
                     enabled: !addCopiesDialog.isSubmitting
                     onClicked: {
                         var cur = parseInt(addCopiesCountInput.text) || 1
@@ -511,22 +525,35 @@ Item {
             ListView {
                 id: barcodeConfirmList
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(180, barcodeConfirmModel.count * 34)
+                Layout.preferredHeight: Math.min(200, Math.max(60, barcodeConfirmList.contentHeight))
                 clip: true
                 model: ListModel { id: barcodeConfirmModel }
                 delegate: Rectangle {
                     id: barcodeConfirmDelegate
                     width: barcodeConfirmList.width
-                    implicitHeight: Math.max(30, Math.round(row.implicitHeight + 8))
+                    implicitHeight: Math.max(30, Math.round(row.implicitHeight + 10))
                     height: implicitHeight
+                    clip: true
                     color: index % 2 === 0 ? "#f8fafc" : "#ffffff"
                     border.color: "#e2e8f0"
+                    Component.onCompleted: Typography.applyToItem(this)
                     RowLayout {
                         id: row
                         anchors.fill: parent
                         anchors.margins: 6
-                        Text { text: "• เล่มที่ " + (index + 1) + ": "; font.bold: true }
-                        Text { text: model.barcode; font.family: "monospace"; color: "#0f766e" }
+                        Text {
+                            text: "• เล่มที่ " + (index + 1) + ": "
+                            font.bold: true
+                            font.pixelSize: Math.max(10, Math.round(12 * (typeof window !== "undefined" && window.fontScale ? window.fontScale : 1.0)))
+                        }
+                        Text {
+                            text: model.barcode
+                            font.family: "monospace"
+                            font.pixelSize: Math.max(10, Math.round(12 * (typeof window !== "undefined" && window.fontScale ? window.fontScale : 1.0)))
+                            color: "#0f766e"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
                     }
                 }
             }
@@ -536,9 +563,8 @@ Item {
                 highlighted: true
                 Layout.alignment: Qt.AlignRight
                 onClicked: {
-                    var outPath = "/tmp/library_labels_" + Date.now() + ".pdf"
                     var barcodes = (rootWindow && rootWindow.lastGeneratedBarcodes) ? rootWindow.lastGeneratedBarcodes : []
-                    var res = JSON.parse(librarianAdmin.exportLabelsPdf(JSON.stringify(barcodes), outPath))
+                    var res = JSON.parse(librarianAdmin.exportLabelsPdf(JSON.stringify(barcodes), ""))
                     if (res.ok) {
                         pdfExportStatusText.text = "✓ บันทึกไฟล์ PDF สำเร็จที่: " + res.data.output_path
                     } else {

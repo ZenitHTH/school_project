@@ -5,6 +5,7 @@ import sys
 from typing import List, Optional
 
 DEFAULT_VERSION = "1.1.0"
+_SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?\Z")
 
 
 def _resolve_version_file(repo_root: Optional[str] = None) -> str:
@@ -28,7 +29,7 @@ def get_version(repo_root: Optional[str] = None) -> str:
 def calculate_next_version(current: str, action: str) -> str:
     """Calculate next SemVer based on action ('patch', 'minor', 'major' or explicit 'X.Y.Z')."""
     act = action.strip().lstrip("v")
-    if re.match(r"^\d+\.\d+\.\d+", act):
+    if _SEMVER_RE.match(act):
         return act
     m = re.match(r"^(\d+)\.(\d+)\.(\d+)(.*)$", current.strip().lstrip("v"))
     if not m:
@@ -74,13 +75,16 @@ def _sync_inno_setup_iss(iss_path: str, target_ver: str) -> None:
 
 def update_version_files(target_ver: str, repo_root: Optional[str] = None) -> List[str]:
     """Synchronize target version into VERSION and Inno Setup script."""
+    clean_ver = target_ver.strip()
+    if not _SEMVER_RE.match(clean_ver):
+        raise ValueError(f"Invalid target version: '{target_ver}'")
     root = repo_root or os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
     version_file = os.path.join(root, "VERSION")
     with open(version_file, "w", encoding="utf-8") as f:
-        f.write(f"{target_ver.strip()}\n")
+        f.write(f"{clean_ver}\n")
 
     iss_file = os.path.join(root, "packaging", "installers", "windows", "installer.iss")
-    _sync_inno_setup_iss(iss_file, target_ver)
+    _sync_inno_setup_iss(iss_file, clean_ver)
     return [version_file, iss_file]
 
 

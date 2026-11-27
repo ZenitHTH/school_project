@@ -20,12 +20,14 @@ Rectangle {
         property string badgeText: ""
         property color textColor: "#cbd5e1"
         property bool boldText: false
-        property int padX: 16; property int padY: 8; property int minH: 24
-        implicitWidth: Math.round(label.implicitWidth + padX)
+        property int padX: 16; property int padY: 8; property int minH: 24; property int maxW: 320
+        implicitWidth: Math.min(maxW, Math.round(label.implicitWidth + padX))
         implicitHeight: Math.max(minH, Math.round(label.implicitHeight + padY))
-        height: implicitHeight; radius: 6
+        height: implicitHeight; radius: 6; clip: true
         Text {
             id: label; anchors.centerIn: parent; text: parent.badgeText; color: parent.textColor
+            width: Math.min(implicitWidth, parent.width - parent.padX)
+            elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter
             font.bold: parent.boldText; font.pixelSize: Math.max(10, Math.round(12 * root.fontScale))
         }
     }
@@ -77,11 +79,11 @@ Rectangle {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: Math.max(52, Math.round(topBarRow.implicitHeight + 20))
+            implicitHeight: Math.max(52, Math.round(topBarRow.implicitHeight + 24))
             height: implicitHeight; color: "#1e293b"
             RowLayout {
                 id: topBarRow; anchors.fill: parent; anchors.margins: 12; spacing: 12
-                Text { text: "🔍 ค้นหาหนังสือและตำแหน่งชั้นวาง"; color: "#ffffff"; font.bold: true; font.pixelSize: 18; wrapMode: Text.Wrap; Layout.fillWidth: true }
+                Text { text: "🔍 ค้นหาหนังสือและตำแหน่งชั้นวาง"; color: "#ffffff"; font.bold: true; font.pixelSize: Math.max(14, Math.round(18 * root.fontScale)); wrapMode: Text.Wrap; Layout.fillWidth: true }
                 StyledButton { id: btnBackFromBookSearch; objectName: "btnBackFromBookSearch"; variant: StyledButton.Neutral; text: "← กลับหน้าบริการ"; onClicked: root.backRequested() }
             }
         }
@@ -92,14 +94,14 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true; spacing: 10
                 StyledSearchField {
-                    id: searchInput; objectName: "boothBookSearchInput"; Layout.fillWidth: true
+                    id: searchInput; objectName: "boothBookSearchInput"; Layout.fillWidth: true; Layout.minimumWidth: 160
                     placeholderText: "ค้นหาชื่อหนังสือ ผู้แต่ง หรือ ISBN..."
                     horizontalAlignment: TextInput.AlignLeft; verticalAlignment: TextInput.AlignVCenter
                     onAccepted: root.performSearch()
                 }
                 StyledComboBox {
                     id: categoryFilterCombo; objectName: "boothCategoryFilter"; textRole: "name"
-                    Layout.preferredWidth: Math.max(180, Math.round(180 * root.fontScale))
+                    Layout.preferredWidth: Math.min(280, Math.max(180, Math.round(180 * root.fontScale)))
                     model: ListModel { id: categoryFilterModel; objectName: "boothCategoryFilterModel" }
                     onCurrentIndexChanged: if (!root._loadingCategories) root.performSearch()
                 }
@@ -109,7 +111,7 @@ Rectangle {
                 }
             }
 
-            Text { id: statusText; objectName: "boothBookSearchStatus"; Layout.fillWidth: true; color: "#cbd5e1"; font.pixelSize: 14; text: "พบ 0 รายการ" }
+            Text { id: statusText; objectName: "boothBookSearchStatus"; Layout.fillWidth: true; wrapMode: Text.Wrap; color: "#cbd5e1"; font.pixelSize: Math.max(12, Math.round(14 * root.fontScale)); text: "พบ 0 รายการ" }
 
             ListView {
                 id: resultsList; objectName: "boothBookResultsList"
@@ -120,7 +122,7 @@ Rectangle {
                     id: bookCard
                     width: resultsList.width
                     implicitHeight: Math.max(76, Math.round(cardCol.implicitHeight + 24))
-                    height: implicitHeight; radius: 10; color: "#1e293b"
+                    height: implicitHeight; radius: 10; color: "#1e293b"; clip: true
                     border.color: model.available_copies > 0 ? "#334155" : "#7f1d1d"
                     Component.onCompleted: Typography.applyToItem(this)
 
@@ -149,13 +151,15 @@ Rectangle {
                                     : ("ถูกยืมหมด (0 / " + model.total_copies + " เล่ม)")
                             }
                         }
-                        RowLayout {
+                        Flow {
                             Layout.fillWidth: true; spacing: 8
                             InfoBadge {
+                                maxW: Math.max(160, cardCol.width - 16)
                                 color: "#0f172a"; border.color: "#334155"; textColor: "#cbd5e1"
                                 badgeText: "🏷️ " + (model.category_name || "ไม่ระบุหมวดหมู่")
                             }
                             InfoBadge {
+                                maxW: Math.max(160, cardCol.width - 16)
                                 color: "#172554"; border.color: "#1d4ed8"; textColor: "#93c5fd"; boldText: true
                                 badgeText: "📍 ชั้นวาง: " + (model.shelf_location || "ไม่ระบุชั้นวาง")
                             }

@@ -7,9 +7,16 @@ Rectangle {
     id: barcodeGenScreen
     objectName: "barcodeGenScreen"
     color: "#f8fafc"
+    clip: true
 
     property int currentGenMode: 0 // 0: New Book, 1: Add Copies to Existing
     property var duplicateBook: null
+    property int _cachedPreviewBookId: -1
+    property int _cachedTargetBookId: 0
+    property int _cachedStartSeq: 1
+    property int _lastPreviewBookId: -1
+    property int _lastPreviewCount: -1
+    property bool _awaitingIsbnFetch: false
     onCurrentGenModeChanged: updateGenPreview()
 
     property alias btnModeNewBook: btnModeNewBook
@@ -98,6 +105,8 @@ Rectangle {
     }
 
     function initGeneratorPage() {
+        _cachedPreviewBookId = -1
+        _lastPreviewBookId = -1
         reloadCategories()
         loadBooksForExistingSelector()
         loadInventoryGrid()
@@ -216,21 +225,49 @@ Rectangle {
         previewBarcodesForBook(sel.book_id, count)
     }
 
+    function _padZero(num, width) {
+        var s = String(num)
+        while (s.length < width) s = "0" + s
+        return s
+    }
+
+    function _formatBarcode(bookId, seq) {
+        return "SMTE-" + _padZero(bookId, 5) + "-" + _padZero(seq, 2)
+    }
+
     function previewBarcodesForBook(bookId, count) {
+        if (bookId === _lastPreviewBookId && count === _lastPreviewCount) {
+            return
+        }
         try {
-            var res = JSON.parse(librarianAdmin.previewBarcodes(bookId, count))
-            if (res.ok && res.barcodes && res.barcodes.length > 0) {
-                var bcs = res.barcodes
-                incomingBarcodePreviewText.text = (bcs.length <= 4)
-                    ? bcs.join(", ")
-                    : (bcs[0] + " ... " + bcs[bcs.length - 1] + " (รวม " + bcs.length + " เล่ม)")
+            if (_cachedPreviewBookId !== bookId) {
+                var res = JSON.parse(librarianAdmin.previewBarcodes(bookId, 1))
+                if (!res.ok || !res.barcodes || res.barcodes.length === 0) return
+                _cachedPreviewBookId = bookId
+                _cachedTargetBookId = res.target_book_id
+                var parts = String(res.barcodes[0]).split("-")
+                _cachedStartSeq = parts.length >= 3 ? (parseInt(parts[parts.length - 1], 10) || 1) : 1
             }
+            if (count <= 4) {
+                var bcs = []
+                for (var i = 0; i < count; i++) {
+                    bcs.push(_formatBarcode(_cachedTargetBookId, _cachedStartSeq + i))
+                }
+                incomingBarcodePreviewText.text = bcs.join(", ")
+            } else {
+                var firstBc = _formatBarcode(_cachedTargetBookId, _cachedStartSeq)
+                var lastBc = _formatBarcode(_cachedTargetBookId, _cachedStartSeq + count - 1)
+                incomingBarcodePreviewText.text = firstBc + " ... " + lastBc + " (รวม " + count + " เล่ม)"
+            }
+            _lastPreviewBookId = bookId
+            _lastPreviewCount = count
         } catch (e) {}
     }
 
     function checkIsbnDuplicate(rawIsbn) {
         if (!rawIsbn || !rawIsbn.trim() || !isArabicIsbn(rawIsbn)) {
             duplicateBook = null
+            _lastPreviewBookId = -1
             if (genStatusMessage.text.indexOf("⚠️ พบหนังสือเดิมในระบบ") !== -1) genStatusMessage.text = ""
             updateGenPreview()
             return
@@ -239,11 +276,14 @@ Rectangle {
             var res = JSON.parse(librarianAdmin.checkBookByIsbn(rawIsbn.trim()))
             if (res.ok && res.exists && res.book) {
                 duplicateBook = res.book
+                _cachedPreviewBookId = -1
+                _lastPreviewBookId = -1
                 genStatusMessage.text = "⚠️ พบหนังสือเดิมในระบบ: '" + res.book.title + "' (มีอยู่แล้ว " + res.book.total_copies + " เล่ม) - จะเป็นการเพิ่มเล่มใหม่"
                 if (!genBookTitle.text.trim() && res.book.title) genBookTitle.text = res.book.title
                 if (!genBookAuthor.text.trim() && res.book.author) genBookAuthor.text = res.book.author
             } else {
                 duplicateBook = null
+                _lastPreviewBookId = -1
                 if (genStatusMessage.text.indexOf("⚠️ พบหนังสือเดิมในระบบ") !== -1) genStatusMessage.text = ""
             }
         } catch (e) {}
@@ -281,12 +321,9 @@ Rectangle {
         executeIsbnFetch(rawIsbn)
     }
 
-    function executeIsbnFetch(rawIsbn) {
-        btnFetchIsbn.enabled = false
-        btnExecuteGenerate.enabled = false
-        genStatusMessage.text = "กำลังค้นหา..."
+    function _handleIsbnLookupResult(payload) {
         try {
-            var res = JSON.parse(librarianAdmin.fetchIsbnMetadata(rawIsbn))
+            var res = JSON.parse(payload)
             if (!res.ok || !res.data) {
                 genStatusMessage.text = res.error === "ลืมเปลี่ยนภาษา" ? "✗ ลืมเปลี่ยนภาษา" : "✗ cannot fetch data"
                 return
@@ -295,9 +332,26 @@ Rectangle {
         } catch (e) {
             genStatusMessage.text = "✗ cannot fetch data"
         } finally {
+            _awaitingIsbnFetch = false
             btnFetchIsbn.enabled = true
             btnExecuteGenerate.enabled = true
         }
+    }
+
+    Connections {
+        target: (typeof librarianAdmin !== "undefined" && librarianAdmin) ? librarianAdmin : null
+        function onIsbnLookupCompleted(payload) {
+            if (barcodeGenScreen._awaitingIsbnFetch) {
+                barcodeGenScreen._handleIsbnLookupResult(payload)
+            }
+        }
+    }
+
+    function executeIsbnFetch(rawIsbn) {
+        btnFetchIsbn.enabled = false
+        btnExecuteGenerate.enabled = false
+        genStatusMessage.text = "กำลังค้นหา..."
+        _handleIsbnLookupResult(librarianAdmin.fetchIsbnMetadata(rawIsbn))
     }
 
     Timer {
@@ -318,6 +372,8 @@ Rectangle {
     }
 
     function clearRegistrationForm(savedBookId) {
+        _cachedPreviewBookId = -1
+        _lastPreviewBookId = -1
         genBookTitle.text = ""
         genBookAuthor.text = ""
         genBookIsbn.text = ""
@@ -420,6 +476,8 @@ Rectangle {
             return
         }
         genStatusMessage.text = "✓ เพิ่มเล่มหนังสือ '" + selBook.title + "' และสร้างบาร์โค้ดสำเร็จ " + res.data.barcodes.length + " เล่ม"
+        _cachedPreviewBookId = -1
+        _lastPreviewBookId = -1
         barcodeGenScreen.bookSaved()
         loadBooksForExistingSelector(selBook.book_id)
         loadInventoryGrid()
@@ -442,6 +500,8 @@ Rectangle {
                     font.bold: true
                     font.pixelSize: 20
                     color: "#0f172a"
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
                 }
                 Text {
                     text: "ลงทะเบียนหนังสือใหม่/เพิ่มเล่มพร้อมสร้างบาร์โค้ดลงฐานข้อมูลทันที (ด้านซ้าย) และจัดการหมวดหมู่หนังสือ (ด้านขวา)"
@@ -458,18 +518,22 @@ Rectangle {
             }
         }
 
-        // Main 2-column split view
-        RowLayout {
+        // Main responsive 2-column split (stacks vertically on narrow windows)
+        GridLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 16
+            columns: barcodeGenScreen.width >= 820 ? 2 : 1
+            columnSpacing: 16
+            rowSpacing: 14
 
             // Left Card: Add Book / Add Copies Form
             Rectangle {
-                Layout.fillHeight: true
-                Layout.preferredWidth: 420
-                Layout.maximumWidth: 460
-                Layout.minimumWidth: 350
+                Layout.fillHeight: barcodeGenScreen.width >= 820
+                Layout.fillWidth: barcodeGenScreen.width < 820
+                Layout.preferredWidth: barcodeGenScreen.width >= 820 ? 400 : -1
+                Layout.preferredHeight: barcodeGenScreen.width < 820 ? Math.min(380, Math.max(240, leftFormScroll.contentHeight + 32)) : -1
+                Layout.maximumWidth: barcodeGenScreen.width >= 820 ? 460 : 16777215
+                Layout.minimumWidth: barcodeGenScreen.width >= 820 ? 310 : 0
                 color: "#ffffff"
                 radius: 8
                 border.color: "#e2e8f0"
@@ -631,11 +695,13 @@ Rectangle {
                                 spacing: 10
                                 ColumnLayout {
                                     Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
                                     Text { text: "หมวดหมู่"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
                                     StyledComboBox {
                                         id: genCategoryCombo
                                         objectName: "genCategoryCombo"
                                         Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
                                         textRole: "name"
                                         model: ListModel { id: genCategoryModel; objectName: "genCategoryModel" }
                                         onCurrentIndexChanged: barcodeGenScreen.updateGenPreview()
@@ -643,11 +709,13 @@ Rectangle {
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
                                     Text { text: "ตำแหน่งชั้นวาง"; font.bold: true; color: "#1e293b"; font.pixelSize: 13 }
                                     StyledTextInput {
                                         id: genShelfLocation
                                         objectName: "genShelfLocation"
                                         Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
                                         placeholderText: "เช่น ชั้น A-01"
                                         selectByMouse: true
                                         onTextChanged: barcodeGenScreen.updateGenPreview()
@@ -764,7 +832,8 @@ Rectangle {
                 id: rightInventoryPane
                 Layout.fillHeight: true
                 Layout.fillWidth: true
-                Layout.minimumWidth: 400
+                Layout.minimumWidth: barcodeGenScreen.width >= 820 ? 320 : 0
+                Layout.minimumHeight: barcodeGenScreen.width < 820 ? 280 : 0
                 onAddNewCategoryRequested: barcodeGenScreen.addNewCategory()
                 onEditCategoryRequested: function(catId, catName) { barcodeGenScreen.editCategoryRequested(catId, catName) }
                 onDeleteCategoryRequested: function(catId, catName) { barcodeGenScreen.deleteCategoryRequested(catId, catName) }

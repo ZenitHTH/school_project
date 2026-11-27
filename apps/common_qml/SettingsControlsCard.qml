@@ -33,8 +33,8 @@ Rectangle {
                 text: "รูปแบบฟอนต์ (Font Family):"
                 font.bold: true
                 color: Theme.textStrong
-                Layout.minimumWidth: 160
-                Layout.preferredWidth: Math.max(180, implicitWidth)
+                Layout.minimumWidth: 120
+                Layout.preferredWidth: Math.max(140, Math.min(200, implicitWidth))
                 wrapMode: Text.Wrap
             }
             ComboBox {
@@ -65,8 +65,12 @@ Rectangle {
                 }
 
                 delegate: ItemDelegate {
+                    id: fontRow
                     width: fontFamilyCombo.width
+                    implicitHeight: Math.max(36, Math.round(fontRowText.implicitHeight + 16))
+                    height: implicitHeight
                     contentItem: Text {
+                        id: fontRowText
                         leftPadding: 12
                         text: modelData
                         font: fontFamilyCombo.font
@@ -86,15 +90,15 @@ Rectangle {
                 text: "ขนาดตัวอักษร (Font Size):"
                 font.bold: true
                 color: Theme.textStrong
-                Layout.minimumWidth: 160
-                Layout.preferredWidth: Math.max(180, implicitWidth)
+                Layout.minimumWidth: 120
+                Layout.preferredWidth: Math.max(140, Math.min(200, implicitWidth))
                 wrapMode: Text.Wrap
             }
             Button {
                 id: btnFontSizeMinus
                 objectName: "btnFontSizeMinus"
                 text: "−"
-                Layout.preferredWidth: 36
+                implicitWidth: Math.max(36, Math.round(contentItem.implicitWidth + 16))
                 onClicked: fontSizeSlider.value = Math.max(10, fontSizeSlider.value - 1)
             }
             Slider {
@@ -112,15 +116,17 @@ Rectangle {
                 id: btnFontSizePlus
                 objectName: "btnFontSizePlus"
                 text: "+"
-                Layout.preferredWidth: 36
+                implicitWidth: Math.max(36, Math.round(contentItem.implicitWidth + 16))
                 onClicked: fontSizeSlider.value = Math.min(24, fontSizeSlider.value + 1)
             }
             Rectangle {
-                Layout.preferredWidth: 60
-                height: 32
+                Layout.preferredWidth: Math.max(60, Math.round(fontPxBadge.implicitWidth + 16))
+                implicitHeight: Math.max(32, Math.round(fontPxBadge.implicitHeight + 12))
+                height: implicitHeight
                 radius: 6
                 color: Theme.surfaceHover
                 Text {
+                    id: fontPxBadge
                     anchors.centerIn: parent
                     text: Math.round(fontSizeSlider.value) + " px"
                     font.bold: true
@@ -136,8 +142,8 @@ Rectangle {
                 text: "มาตราส่วน (UI Scaling):"
                 font.bold: true
                 color: Theme.textStrong
-                Layout.minimumWidth: 160
-                Layout.preferredWidth: Math.max(180, implicitWidth)
+                Layout.minimumWidth: 120
+                Layout.preferredWidth: Math.max(140, Math.min(200, implicitWidth))
                 wrapMode: Text.Wrap
             }
             Slider {
@@ -152,11 +158,13 @@ Rectangle {
                 onValueChanged: controlsRoot.uiScaleChanged(Math.round(value) / 100.0)
             }
             Rectangle {
-                Layout.preferredWidth: 60
-                height: 32
+                Layout.preferredWidth: Math.max(60, Math.round(scalePctBadge.implicitWidth + 16))
+                implicitHeight: Math.max(32, Math.round(scalePctBadge.implicitHeight + 12))
+                height: implicitHeight
                 radius: 6
                 color: Theme.accentSurface
                 Text {
+                    id: scalePctBadge
                     anchors.centerIn: parent
                     text: Math.round(scaleSlider.value) + "%"
                     font.bold: true
@@ -169,13 +177,20 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            Item { Layout.preferredWidth: 180 }
-            Repeater {
-                model: [50, 75, 100, 125, 150]
-                Button {
-                    text: modelData === 100 ? "100% (ปกติ)" : (modelData + "%")
-                    highlighted: Math.round(scaleSlider.value) === modelData
-                    onClicked: scaleSlider.value = modelData
+            Item {
+                Layout.preferredWidth: 140
+                visible: controlsRoot.width >= 540
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 8
+                Repeater {
+                    model: [50, 75, 100, 125, 150]
+                    Button {
+                        text: modelData === 100 ? "100% (ปกติ)" : (modelData + "%")
+                        highlighted: Math.round(scaleSlider.value) === modelData
+                        onClicked: scaleSlider.value = modelData
+                    }
                 }
             }
         }

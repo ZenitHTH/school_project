@@ -45,6 +45,13 @@ Rectangle {
 
     property bool _reloadingFilter: false
 
+    Timer {
+        id: printSearchDebounce
+        interval: 180
+        repeat: false
+        onTriggered: barcodePrintScreen.loadPrintableBooks(barcodePrintSearchInput.text, true)
+    }
+
     function reloadCategoryFilter() {
         var prevName = (barcodeCategoryFilterCombo && barcodeCategoryFilterCombo.currentIndex > 0 && barcodeCategoryFilterCombo.currentIndex < barcodeCategoryFilterModel.count)
             ? barcodeCategoryFilterModel.get(barcodeCategoryFilterCombo.currentIndex).name
@@ -69,8 +76,10 @@ Rectangle {
         _reloadingFilter = false
     }
 
-    function loadPrintableBooks(query) {
-        reloadCategoryFilter()
+    function loadPrintableBooks(query, skipCategoryReload) {
+        if (!skipCategoryReload) {
+            reloadCategoryFilter()
+        }
         genBarcodesModel.clear()
         try {
             var q = (typeof query === "string") ? query : barcodePrintSearchInput.text
@@ -166,8 +175,7 @@ Rectangle {
             genPdfStatusText.text = "✗ กรุณาเลือกหนังสืออย่างน้อย 1 รายการเพื่อพิมพ์บาร์โค้ด"
             return
         }
-        var outPath = "/tmp/library_selected_labels_" + Date.now() + ".pdf"
-        var res = JSON.parse(librarianAdmin.exportLabelsPdf(JSON.stringify(barcodes), outPath))
+        var res = JSON.parse(librarianAdmin.exportLabelsPdf(JSON.stringify(barcodes), ""))
         if (res.ok) {
             barcodePrintScreen.lastPdfExported = res.data.output_path
             genPdfStatusText.text = "✓ บันทึกแผ่นพิมพ์สติกเกอร์ PDF A4 สำเร็จที่: " + res.data.output_path
@@ -191,8 +199,7 @@ Rectangle {
             genPdfStatusText.text = "✗ ไม่พบบาร์โค้ดสำหรับพิมพ์"
             return
         }
-        var outPath = "/tmp/library_all_labels_" + Date.now() + ".pdf"
-        var res = JSON.parse(librarianAdmin.exportLabelsPdf(JSON.stringify(barcodes), outPath))
+        var res = JSON.parse(librarianAdmin.exportLabelsPdf(JSON.stringify(barcodes), ""))
         if (res.ok) {
             barcodePrintScreen.lastPdfExported = res.data.output_path
             genPdfStatusText.text = "✓ บันทึกแผ่นพิมพ์สติกเกอร์ PDF A4 สำเร็จที่: " + res.data.output_path
@@ -243,10 +250,10 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: Math.max(52, Math.round(metricRow1.implicitHeight + 16))
-                height: implicitHeight
                 color: "#ffffff"
                 radius: 6
                 border.color: "#e2e8f0"
+                clip: true
                 RowLayout {
                     id: metricRow1
                     anchors.fill: parent
@@ -254,8 +261,9 @@ Rectangle {
                     spacing: 8
                     Text { text: "📚"; font.pixelSize: 18 }
                     ColumnLayout {
+                        Layout.fillWidth: true
                         spacing: 1
-                        Text { text: "หนังสือที่เลือกพิมพ์"; font.pixelSize: 10; color: "#64748b" }
+                        Text { text: "หนังสือที่เลือกพิมพ์"; font.pixelSize: 10; color: "#64748b"; Layout.fillWidth: true; elide: Text.ElideRight }
                         Text {
                             id: selectedBooksCountText
                             objectName: "selectedBooksCountText"
@@ -263,6 +271,8 @@ Rectangle {
                             font.bold: true
                             font.pixelSize: 14
                             color: "#0f172a"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
                         }
                     }
                 }
@@ -271,10 +281,10 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: Math.max(52, Math.round(metricRow2.implicitHeight + 16))
-                height: implicitHeight
                 color: "#ffffff"
                 radius: 6
                 border.color: "#86efac"
+                clip: true
                 RowLayout {
                     id: metricRow2
                     anchors.fill: parent
@@ -282,8 +292,9 @@ Rectangle {
                     spacing: 8
                     Text { text: "🏷️"; font.pixelSize: 18 }
                     ColumnLayout {
+                        Layout.fillWidth: true
                         spacing: 1
-                        Text { text: "สติกเกอร์บาร์โค้ดรวม"; font.pixelSize: 10; color: "#166534" }
+                        Text { text: "สติกเกอร์บาร์โค้ดรวม"; font.pixelSize: 10; color: "#166534"; Layout.fillWidth: true; elide: Text.ElideRight }
                         Text {
                             id: selectedStickersCountText
                             objectName: "selectedStickersCountText"
@@ -291,6 +302,8 @@ Rectangle {
                             font.bold: true
                             font.pixelSize: 14
                             color: "#166534"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
                         }
                     }
                 }
@@ -299,10 +312,10 @@ Rectangle {
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: Math.max(52, Math.round(metricRow3.implicitHeight + 16))
-                height: implicitHeight
                 color: "#ffffff"
                 radius: 6
                 border.color: "#93c5fd"
+                clip: true
                 RowLayout {
                     id: metricRow3
                     anchors.fill: parent
@@ -310,8 +323,9 @@ Rectangle {
                     spacing: 8
                     Text { text: "📄"; font.pixelSize: 18 }
                     ColumnLayout {
+                        Layout.fillWidth: true
                         spacing: 1
-                        Text { text: "ประมาณการกระดาษ A4"; font.pixelSize: 10; color: "#1d4ed8" }
+                        Text { text: "ประมาณการกระดาษ A4"; font.pixelSize: 10; color: "#1d4ed8"; Layout.fillWidth: true; elide: Text.ElideRight }
                         Text {
                             id: estimatedPagesText
                             objectName: "estimatedPagesText"
@@ -319,6 +333,8 @@ Rectangle {
                             font.bold: true
                             font.pixelSize: 14
                             color: "#1d4ed8"
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
                         }
                     }
                 }
@@ -328,15 +344,17 @@ Rectangle {
         // Toolbar Card (Search, Filter & Actions)
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: Math.max(60, Math.round(toolbarRow.implicitHeight + 16))
-            height: implicitHeight
+            implicitHeight: Math.max(60, Math.round(toolbarRow.implicitHeight + 20))
             color: "#ffffff"
             radius: 8
             border.color: "#e2e8f0"
+            clip: true
 
-            RowLayout {
+            Flow {
                 id: toolbarRow
-                anchors.fill: parent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
                 anchors.margins: 10
                 spacing: 10
 
@@ -344,21 +362,26 @@ Rectangle {
                     id: barcodePrintSearchInput
                     objectName: "barcodePrintSearchInput"
                     placeholderText: "🔍 ค้นหาชื่อหนังสือ / ผู้แต่ง..."
-                    Layout.fillWidth: true
+                    width: Math.max(180, Math.min(320, toolbarRow.width))
                     font.pixelSize: 12
                     selectByMouse: true
-                    onTextChanged: barcodePrintScreen.loadPrintableBooks(text)
+                    onTextEdited: printSearchDebounce.restart()
+                    onTextChanged: if (!activeFocus) barcodePrintScreen.loadPrintableBooks(text, true)
+                    onAccepted: {
+                        printSearchDebounce.stop()
+                        barcodePrintScreen.loadPrintableBooks(text, true)
+                    }
                 }
 
                 StyledComboBox {
                     id: barcodeCategoryFilterCombo
                     objectName: "barcodeCategoryFilterCombo"
-                    Layout.preferredWidth: Math.max(170, Math.round(170 * (window.fontScale || 1.0)))
+                    width: Math.max(160, Math.min(toolbarRow.width, Math.round(170 * (window.fontScale || 1.0))))
                     textRole: "name"
                     model: ListModel { id: barcodeCategoryFilterModel; objectName: "barcodeCategoryFilterModel" }
                     onCurrentIndexChanged: {
                         if (!barcodePrintScreen._reloadingFilter) {
-                            barcodePrintScreen.loadPrintableBooks()
+                            barcodePrintScreen.loadPrintableBooks(barcodePrintSearchInput.text, true)
                         }
                     }
                 }
@@ -395,8 +418,8 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: Math.max(32, Math.round(catHeaderRow.implicitHeight + 8))
-            height: implicitHeight
             Layout.preferredHeight: implicitHeight
+            clip: true
             color: "#f1f5f9"
             border.color: "#cbd5e1"
             radius: 4
@@ -407,13 +430,13 @@ Rectangle {
                 anchors.leftMargin: 12
                 anchors.rightMargin: 12
                 spacing: 8
-                Text { text: "เลือก"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0)) }
-                Text { text: "ID"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0)) }
-                Text { text: "ชื่อหนังสือ / ผู้แต่ง"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.fillWidth: true }
-                Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(100 * (window.fontScale || 1.0)) }
-                Text { text: "จำนวน"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(60 * (window.fontScale || 1.0)) }
-                Text { text: "รหัสบาร์โค้ดประจำเล่ม"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(260 * (window.fontScale || 1.0)) }
-                Text { text: "จัดการ"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(65 * (window.fontScale || 1.0)); horizontalAlignment: Text.AlignRight }
+                Text { text: "เลือก"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 32; Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                Text { text: "ID"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 32; Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                Text { text: "ชื่อหนังสือ / ผู้แต่ง"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.fillWidth: true; Layout.minimumWidth: 100; elide: Text.ElideRight }
+                Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 55; Layout.preferredWidth: Math.round(85 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                Text { text: "จำนวน"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 44; Layout.preferredWidth: Math.round(58 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                Text { text: "รหัสบาร์โค้ดประจำเล่ม"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 90; Layout.preferredWidth: Math.round(160 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                Text { text: "จัดการ"; font.bold: true; font.pixelSize: Math.max(11, Math.round(12 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 55; Layout.preferredWidth: Math.round(68 * (window.fontScale || 1.0)); horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
             }
         }
 
@@ -425,7 +448,6 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
             spacing: 4
-            onCountChanged: Qt.callLater(function() { if (typeof settingsView !== "undefined" && settingsView) settingsView.applySettingsToWindow() })
             model: ListModel { id: genBarcodesModel; objectName: "genBarcodesModel" }
 
             delegate: Rectangle {
@@ -433,6 +455,7 @@ Rectangle {
                 width: genBarcodesList.width
                 implicitHeight: Math.max(50, Math.round(barcodesRow.implicitHeight + 14))
                 height: implicitHeight
+                clip: true
                 color: model.selected ? "#f0fdf4" : (index % 2 === 0 ? "#ffffff" : "#f8fafc")
                 border.color: model.selected ? "#86efac" : "#e2e8f0"
                 border.width: model.selected ? 1.5 : 1
@@ -449,6 +472,7 @@ Rectangle {
 
                     CheckBox {
                         checked: model.selected
+                        Layout.minimumWidth: 32
                         Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0))
                         onClicked: {
                             genBarcodesModel.setProperty(index, "selected", checked)
@@ -461,11 +485,14 @@ Rectangle {
                         font.bold: true
                         font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                         color: "#0284c7"
+                        Layout.minimumWidth: 32
                         Layout.preferredWidth: Math.round(40 * (window.fontScale || 1.0))
+                        elide: Text.ElideRight
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 100
                         spacing: 1
                         Text {
                             id: catBookTitleText
@@ -490,9 +517,9 @@ Rectangle {
                     Rectangle {
                         id: categoryPillRect
                         objectName: "categoryPillRect"
-                        Layout.preferredWidth: Math.round(100 * (window.fontScale || 1.0))
+                        Layout.minimumWidth: 55
+                        Layout.preferredWidth: Math.round(85 * (window.fontScale || 1.0))
                         implicitHeight: Math.max(24, Math.round(categoryPillText.implicitHeight + 6))
-                        height: implicitHeight
                         Layout.preferredHeight: implicitHeight
                         radius: 4
                         color: "#f1f5f9"
@@ -513,9 +540,9 @@ Rectangle {
                     Rectangle {
                         id: copyCountPillRect
                         objectName: "copyCountPillRect"
-                        Layout.preferredWidth: Math.round(60 * (window.fontScale || 1.0))
+                        Layout.minimumWidth: 44
+                        Layout.preferredWidth: Math.round(58 * (window.fontScale || 1.0))
                         implicitHeight: Math.max(24, Math.round(copyCountPillText.implicitHeight + 6))
-                        height: implicitHeight
                         Layout.preferredHeight: implicitHeight
                         radius: 4
                         color: "#dcfce7"
@@ -538,7 +565,8 @@ Rectangle {
                         font.family: "monospace"
                         font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                         color: "#0f766e"
-                        Layout.preferredWidth: Math.round(260 * (window.fontScale || 1.0))
+                        Layout.minimumWidth: 90
+                        Layout.preferredWidth: Math.round(160 * (window.fontScale || 1.0))
                         elide: Text.ElideRight
                     }
 
@@ -548,8 +576,9 @@ Rectangle {
                         objectName: "btnAddCopiesRow"
                         text: "+ เล่ม"
                         font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: Math.max(55, Math.round(55 * (window.fontScale || 1.0)))
-                        implicitHeight: Math.max(28, Math.round(font.pixelSize + 14))
+                        Layout.minimumWidth: 55
+                        Layout.preferredWidth: Math.max(55, Math.round(contentItem.implicitWidth + 16))
+                        implicitHeight: Math.max(28, Math.round(contentItem.implicitHeight + 12))
                         Layout.preferredHeight: implicitHeight
                         onClicked: barcodePrintScreen.addCopiesRequested(model.book_id, model.title)
                     }
@@ -561,7 +590,6 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: Math.max(44, Math.round(pdfStatusRow.implicitHeight + 16))
-            height: implicitHeight
             radius: 6
             color: "#f1f5f9"
             border.color: "#e2e8f0"
@@ -586,7 +614,7 @@ Rectangle {
                     variant: StyledButton.Primary
                     text: "📂 เปิดไฟล์ PDF"
                     visible: barcodePrintScreen.lastPdfExported !== ""
-                    onClicked: Qt.openUrlExternally("file://" + barcodePrintScreen.lastPdfExported)
+                    onClicked: librarianAdmin.openLocalFile(barcodePrintScreen.lastPdfExported)
                 }
             }
         }

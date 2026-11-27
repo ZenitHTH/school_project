@@ -83,8 +83,7 @@ class StudentService:
 
     def get_status(self, student_id: int) -> Optional[str]:
         """Direct current status lookup used by library loan_service."""
-        row = student_repo.get_student(self.conn, student_id)
-        return row["status"] if row else None
+        return student_repo.get_student_status(self.conn, student_id)
 
     def update_status(
         self,
@@ -98,11 +97,10 @@ class StudentService:
         Enforces LEGAL_STATUS_TRANSITIONS state machine.
         """
         try:
-            current = student_repo.get_student(self.conn, student_id)
-            if not current:
+            old_status = student_repo.get_student_status(self.conn, student_id)
+            if not old_status:
                 return Result.fail(f"Student with ID {student_id} not found")
 
-            old_status = current["status"]
             if old_status == new_status:
                 return Result.fail(f"Student is already in '{new_status}' status")
 
@@ -133,8 +131,7 @@ class StudentService:
         if old_id == new_id:
             return Result.fail("New student ID must be different from current ID")
         try:
-            existing = student_repo.get_student(self.conn, new_id)
-            if existing:
+            if student_repo.student_exists(self.conn, new_id):
                 return Result.fail(f"Student ID {new_id} is already in use by another student")
 
             student_repo.change_student_id(

@@ -71,6 +71,12 @@ def test_circulation_desk_no_text_overlap(qapp, tmp_path):
     row = student_col.children()[1]
     name_lbl = win.findChild(object, "checkoutStudentName")
 
+    # Allow Qt Quick's offscreen layout polish frame (~5ms) to settle after tab switch
+    deadline = time.time() + 2.0
+    while name_lbl.property("y") == 0 and time.time() < deadline:
+        time.sleep(0.005)
+        _process_events(qapp)
+
     assert name_lbl.property("y") >= row.property("y") + row.property("height")
     conn.close()
 

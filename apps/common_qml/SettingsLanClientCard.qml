@@ -98,7 +98,7 @@ Rectangle {
 
     component ClientFormLabel: Text {
         font.bold: true; color: Theme.textStrong
-        Layout.minimumWidth: 160; Layout.preferredWidth: Math.max(180, implicitWidth)
+        Layout.minimumWidth: 110; Layout.preferredWidth: Math.max(130, Math.min(200, implicitWidth))
         wrapMode: Text.Wrap
     }
 
@@ -118,14 +118,17 @@ Rectangle {
             }
             Rectangle {
                 id: lanClientStatusBadge; objectName: "lanClientStatusBadge"; radius: 12
-                implicitWidth: lanClientStatusBadgeText.implicitWidth + 24
+                Layout.maximumWidth: Math.max(140, clientLayout.width * 0.45)
+                implicitWidth: Math.min(lanClientStatusBadgeText.implicitWidth + 24, Layout.maximumWidth)
                 implicitHeight: Math.max(28, Math.round(lanClientStatusBadgeText.implicitHeight + 12)); height: implicitHeight
                 color: clientCardRoot.connectionMode === "local" ? Theme.accentSurface : (clientCardRoot.clientConnected ? Theme.successBackground : Theme.errorBackground)
                 border.color: clientCardRoot.connectionMode === "local" ? Theme.borderLightBlue : (clientCardRoot.clientConnected ? Theme.successBorder : Theme.errorBorder)
                 border.width: 1
                 Text {
-                    id: lanClientStatusBadgeText; objectName: "lanClientStatusBadgeText"; anchors.centerIn: parent
-                    font.bold: true; font.pixelSize: 12; wrapMode: Text.Wrap
+                    id: lanClientStatusBadgeText; objectName: "lanClientStatusBadgeText"
+                    anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12
+                    horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; elide: Text.ElideRight
+                    font.bold: true; font.pixelSize: 12
                     color: clientCardRoot.connectionMode === "local" ? Theme.accentDeep : (clientCardRoot.clientConnected ? Theme.successText : Theme.errorText)
                     text: clientCardRoot.connectionMode === "local" ? "● โหมดในเครื่อง (Local)" : (clientCardRoot.clientConnected ? "● เชื่อมต่อแล้ว (Connected)" : "✕ ไม่สามารถเชื่อมต่อ (Disconnected)")
                 }
@@ -183,17 +186,33 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             ClientFormLabel { text: "Token:" }
-            StyledTextInput { id: lanClientTokenInput; objectName: "lanClientTokenInput"; Layout.fillWidth: true; placeholderText: "เว้นว่างเพื่อใช้ค่าเดิม (ค่าเริ่มต้น 123456)"; horizontalAlignment: TextInput.AlignLeft; verticalAlignment: TextInput.AlignVCenter; leftPadding: 12 }
+            StyledTextInput {
+                id: lanClientTokenInput; objectName: "lanClientTokenInput"; Layout.fillWidth: true
+                property bool showToken: false
+                placeholderText: "เว้นว่างเพื่อใช้ค่าเดิม (ค่าเริ่มต้น 123456)"
+                echoMode: showToken ? TextInput.Normal : TextInput.Password
+                horizontalAlignment: TextInput.AlignLeft; verticalAlignment: TextInput.AlignVCenter; leftPadding: 12
+            }
+            StyledButton {
+                id: btnToggleClientToken; objectName: "btnToggleClientToken"
+                variant: StyledButton.Neutral
+                text: lanClientTokenInput.showToken ? "ซ่อน" : "แสดง"
+                onClicked: lanClientTokenInput.showToken = !lanClientTokenInput.showToken
+            }
         }
 
-        RowLayout {
-            Layout.fillWidth: true; spacing: 10
+        GridLayout {
+            Layout.fillWidth: true
+            columns: clientLayout.width < 520 ? 1 : 3
+            columnSpacing: 10
+            rowSpacing: 8
             Text { id: lanClientSaveStatusText; objectName: "lanClientSaveStatusText"; text: clientCardRoot.statusFeedback; color: text.indexOf("✓") === 0 ? Theme.successDot : Theme.errorDot; font.bold: true; font.pixelSize: 13; wrapMode: Text.Wrap; Layout.fillWidth: true }
             StyledButton {
                 id: btnResetClientLan; objectName: "btnResetClientLan"; variant: StyledButton.Neutral; text: "ค่าเริ่มต้น"
+                Layout.alignment: Qt.AlignRight
                 onClicked: { lanClientHostInput.text = ""; lanClientPortInput.text = "8765"; lanClientTokenInput.text = ""; lanDiscoverFeedbackText.text = ""; clientCardRoot.statusFeedback = "" }
             }
-            StyledButton { id: btnConnectSwitchServer; objectName: "btnConnectSwitchServer"; variant: StyledButton.Primary; text: "🔌 เชื่อมต่อ / สลับเซิร์ฟเวอร์"; onClicked: clientCardRoot.connectAndSwitch() }
+            StyledButton { id: btnConnectSwitchServer; objectName: "btnConnectSwitchServer"; variant: StyledButton.Primary; text: "🔌 เชื่อมต่อ / สลับเซิร์ฟเวอร์"; Layout.alignment: Qt.AlignRight; onClicked: clientCardRoot.connectAndSwitch() }
         }
     }
 }

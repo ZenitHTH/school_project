@@ -2,6 +2,7 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import "../../../common_qml"
+import "../../../common_qml/Typography.js" as Typography
 
 Rectangle {
     id: root
@@ -27,15 +28,19 @@ Rectangle {
             font.bold: true
             font.pixelSize: 22
             color: "#1e293b"
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
         }
 
-        RowLayout {
+        Flow {
+            Layout.fillWidth: true
+            spacing: 10
             StyledTextInput {
                 id: snapshotPathInput
                 objectName: "snapshotPathInput"
                 text: "snapshot.sqlite"
                 placeholderText: "path ของไฟล์ snapshot.sqlite"
-                Layout.preferredWidth: 320
+                width: Math.min(320, parent.width)
                 selectByMouse: true
                 onAccepted: root.previewDiffRequested()
             }
@@ -63,6 +68,7 @@ Rectangle {
             color: "#f8fafc"
             border.color: "#e2e8f0"
             radius: 6
+            clip: true
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 16
@@ -74,6 +80,8 @@ Rectangle {
                     font.bold: true
                     font.pixelSize: 16
                     color: "#1e293b"
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
                 }
                 ListView {
                     id: diffDetailsList
@@ -83,10 +91,13 @@ Rectangle {
                     clip: true
                     model: ListModel { id: diffModel; objectName: "diffModel" }
                     delegate: Text {
+                        width: diffDetailsList.width
                         text: model.desc
                         color: model.is_status ? "#b91c1c" : "#1e293b"
                         font.bold: model.is_status
-                        font.pixelSize: 13
+                        font.pixelSize: Math.max(11, Math.round(13 * (window.fontScale || 1.0)))
+                        wrapMode: Text.Wrap
+                        Component.onCompleted: Typography.applyToItem(this)
                     }
                 }
             }

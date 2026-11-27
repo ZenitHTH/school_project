@@ -1,3 +1,4 @@
+import importlib.util
 import os
 import sys
 
@@ -8,20 +9,13 @@ if PROJECT_ROOT not in sys.path:
 
 from apps.common_linux_env import setup_linux_runtime_env
 
-setup_linux_runtime_env()
-
 import json
 from core.shared.version import APP_VERSION
 from data.db import get_connection
 from data.migrate import apply_migrations
 from apps.student_management_app.adapters.student_admin_adapter import StudentAdminAdapter
 
-try:
-    from PySide6.QtGui import QGuiApplication
-    from PySide6.QtQml import QQmlApplicationEngine
-    HAVE_QT = True
-except ImportError:
-    HAVE_QT = False
+HAVE_QT = importlib.util.find_spec("PySide6") is not None
 
 
 def run_cli_first_launch(adapter: StudentAdminAdapter) -> None:
@@ -70,14 +64,17 @@ def _run_cli_mode(conn, adapter: StudentAdminAdapter) -> None:
 
 
 def _run_gui_mode(conn, adapter: StudentAdminAdapter) -> int:
+    setup_linux_runtime_env()
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtQml import QQmlApplicationEngine
     from PySide6.QtQuickControls2 import QQuickStyle
-    from core.shared.mock_qt import apply_app_icon, register_bundled_fonts
+    from core.shared.mock_qt import apply_app_icon, register_startup_fonts
 
     QQuickStyle.setStyle("Fusion")
     app = QGuiApplication(sys.argv)
     app.setApplicationVersion(APP_VERSION)
     apply_app_icon(app, "studentmanagement")
-    register_bundled_fonts()
+    register_startup_fonts()
     engine = QQmlApplicationEngine()
     engine.rootContext().setContextProperty("studentAdmin", adapter)
     engine.rootContext().setContextProperty("searchStudents", adapter.searchStudents)

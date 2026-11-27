@@ -37,6 +37,13 @@ Rectangle {
     signal refreshInventoryRequested()
     signal goToPrintPageRequested()
 
+    Timer {
+        id: invSearchDebounce
+        interval: 180
+        repeat: false
+        onTriggered: rightPaneRoot.refreshInventoryRequested()
+    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 12
@@ -141,11 +148,9 @@ Rectangle {
                             }
                             Rectangle {
                                 id: incomingCopyCountBadge
-                                implicitHeight: Math.max(22, Math.round(incomingCopyCountText.implicitHeight + 4))
-                                height: implicitHeight
+                                implicitHeight: Math.max(24, Math.round(incomingCopyCountText.implicitHeight + 6))
                                 Layout.preferredHeight: implicitHeight
                                 implicitWidth: Math.round(incomingCopyCountText.implicitWidth + 12)
-                                width: implicitWidth
                                 Layout.preferredWidth: implicitWidth
                                 radius: 4
                                 color: "#dbeafe"
@@ -218,10 +223,10 @@ Rectangle {
                         Rectangle {
                             id: inventorySummaryBadge
                             objectName: "inventorySummaryBadge"
-                            implicitHeight: Math.max(22, Math.round(invCountText.implicitHeight + 4))
-                            height: implicitHeight
+                            implicitHeight: Math.max(24, Math.round(invCountText.implicitHeight + 6))
+                            Layout.preferredHeight: implicitHeight
                             implicitWidth: Math.max(40, Math.round(invCountText.implicitWidth + 12))
-                            width: implicitWidth
+                            Layout.preferredWidth: implicitWidth
                             radius: 4
                             color: "#f1f5f9"
                             border.color: "#cbd5e1"
@@ -246,7 +251,12 @@ Rectangle {
                             Layout.fillWidth: true
                             font.pixelSize: 11
                             selectByMouse: true
-                            onTextChanged: rightPaneRoot.refreshInventoryRequested()
+                            onTextEdited: invSearchDebounce.restart()
+                            onTextChanged: if (!activeFocus) rightPaneRoot.refreshInventoryRequested()
+                            onAccepted: {
+                                invSearchDebounce.stop()
+                                rightPaneRoot.refreshInventoryRequested()
+                            }
                         }
                         StyledButton {
                             variant: StyledButton.Ghost
@@ -263,8 +273,8 @@ Rectangle {
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: Math.max(28, Math.round(invHeaderRow.implicitHeight + 8))
-                    height: implicitHeight
                     Layout.preferredHeight: implicitHeight
+                    clip: true
                     color: "#f1f5f9"
                     border.color: "#cbd5e1"
                     radius: 4
@@ -275,12 +285,12 @@ Rectangle {
                         anchors.leftMargin: 8
                         anchors.rightMargin: 8
                         spacing: 6
-                        Text { text: "ID"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(32 * (window.fontScale || 1.0)) }
-                        Text { text: "ชื่อหนังสือ / ผู้แต่ง"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.fillWidth: true }
-                        Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(70 * (window.fontScale || 1.0)) }
-                        Text { text: "ชั้นวาง"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(50 * (window.fontScale || 1.0)) }
-                        Text { text: "จำนวน"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(55 * (window.fontScale || 1.0)) }
-                        Text { text: "จัดการ"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.preferredWidth: Math.round(76 * (window.fontScale || 1.0)); horizontalAlignment: Text.AlignRight }
+                        Text { text: "ID"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 24; Layout.preferredWidth: Math.round(32 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                        Text { text: "ชื่อหนังสือ / ผู้แต่ง"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.fillWidth: true; Layout.minimumWidth: 80; elide: Text.ElideRight }
+                        Text { text: "หมวดหมู่"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 45; Layout.preferredWidth: Math.round(70 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                        Text { text: "ชั้นวาง"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 36; Layout.preferredWidth: Math.round(50 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                        Text { text: "จำนวน"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 44; Layout.preferredWidth: Math.round(55 * (window.fontScale || 1.0)); elide: Text.ElideRight }
+                        Text { text: "จัดการ"; font.bold: true; font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0))); color: "#475569"; Layout.minimumWidth: 60; Layout.preferredWidth: Math.round(92 * (window.fontScale || 1.0)); horizontalAlignment: Text.AlignRight; elide: Text.ElideRight }
                     }
                 }
 
@@ -292,7 +302,6 @@ Rectangle {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 4
-                    onCountChanged: Qt.callLater(function() { if (typeof settingsView !== "undefined" && settingsView) settingsView.applySettingsToWindow() })
                     model: ListModel { id: inventoryBooksModel; objectName: "inventoryBooksModel" }
 
                     delegate: Rectangle {
@@ -301,6 +310,7 @@ Rectangle {
                         width: inventoryBooksList.width
                         implicitHeight: Math.max(48, Math.round(invRowContent.implicitHeight + 14))
                         height: implicitHeight
+                        clip: true
                         color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
                         border.color: "#e2e8f0"
                         radius: 4
@@ -319,11 +329,14 @@ Rectangle {
                                 font.bold: true
                                 font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                                 color: "#0284c7"
+                                Layout.minimumWidth: 24
                                 Layout.preferredWidth: Math.round(32 * (window.fontScale || 1.0))
+                                elide: Text.ElideRight
                             }
 
                             ColumnLayout {
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 80
                                 spacing: 1
                                 Text {
                                     id: invBookTitleText
@@ -348,6 +361,7 @@ Rectangle {
                                 text: model.category_name || "-"
                                 font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                                 color: "#475569"
+                                Layout.minimumWidth: 45
                                 Layout.preferredWidth: Math.round(70 * (window.fontScale || 1.0))
                                 elide: Text.ElideRight
                             }
@@ -356,20 +370,24 @@ Rectangle {
                                 text: model.shelf_location || "-"
                                 font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
                                 color: "#475569"
+                                Layout.minimumWidth: 36
                                 Layout.preferredWidth: Math.round(50 * (window.fontScale || 1.0))
                                 elide: Text.ElideRight
                             }
 
                             Rectangle {
+                                Layout.minimumWidth: 44
                                 Layout.preferredWidth: Math.round(55 * (window.fontScale || 1.0))
-                                implicitHeight: Math.max(22, Math.round(invTotalCopiesText.implicitHeight + 4))
-                                height: implicitHeight
+                                implicitHeight: Math.max(24, Math.round(invTotalCopiesText.implicitHeight + 6))
                                 Layout.preferredHeight: implicitHeight
                                 radius: 4
                                 color: "#dcfce7"
                                 Text {
                                     id: invTotalCopiesText
                                     anchors.centerIn: parent
+                                    width: parent.width - 6
+                                    horizontalAlignment: Text.AlignHCenter
+                                    elide: Text.ElideRight
                                     text: model.total_copies + " เล่ม"
                                     font.bold: true
                                     font.pixelSize: Math.max(10, Math.round(11 * (window.fontScale || 1.0)))
@@ -378,14 +396,16 @@ Rectangle {
                             }
 
                             RowLayout {
-                                Layout.preferredWidth: Math.round(76 * (window.fontScale || 1.0))
+                                id: invActionsRow
+                                Layout.preferredWidth: Math.max(92, Math.round(invActionsRow.implicitWidth))
                                 spacing: 2
                                 StyledButton {
                                     variant: StyledButton.Ghost
                                     text: "+"
                                     font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
-                                    Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
-                                    implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    implicitWidth: Math.max(28, Math.round(contentItem.implicitWidth + 12))
+                                    implicitHeight: Math.max(28, Math.round(contentItem.implicitHeight + 10))
+                                    Layout.preferredWidth: implicitWidth
                                     Layout.preferredHeight: implicitHeight
                                     onClicked: rightPaneRoot.addCopiesRequested(model.book_id, model.title)
                                 }
@@ -393,8 +413,9 @@ Rectangle {
                                     variant: StyledButton.Ghost
                                     text: "✏️"
                                     font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
-                                    Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
-                                    implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    implicitWidth: Math.max(28, Math.round(contentItem.implicitWidth + 12))
+                                    implicitHeight: Math.max(28, Math.round(contentItem.implicitHeight + 10))
+                                    Layout.preferredWidth: implicitWidth
                                     Layout.preferredHeight: implicitHeight
                                     onClicked: rightPaneRoot.editBookRequested(
                                         model.book_id,
@@ -410,8 +431,9 @@ Rectangle {
                                     variant: StyledButton.Ghost
                                     text: "🗑️"
                                     font.pixelSize: Math.max(10, Math.round(10 * (window.fontScale || 1.0)))
-                                    Layout.preferredWidth: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
-                                    implicitHeight: Math.max(24, Math.round(24 * (window.fontScale || 1.0)))
+                                    implicitWidth: Math.max(28, Math.round(contentItem.implicitWidth + 12))
+                                    implicitHeight: Math.max(28, Math.round(contentItem.implicitHeight + 10))
+                                    Layout.preferredWidth: implicitWidth
                                     Layout.preferredHeight: implicitHeight
                                     onClicked: rightPaneRoot.deleteBookRequested(model.book_id, model.title)
                                 }
@@ -499,11 +521,12 @@ Rectangle {
                                 color: "#1e293b"
                             }
                             Item {
-                                implicitWidth: 24
-                                implicitHeight: 24
-                                Layout.preferredWidth: 24
-                                Layout.preferredHeight: 24
+                                implicitWidth: Math.max(24, Math.round(editCatIcon.implicitWidth + 10))
+                                implicitHeight: Math.max(24, Math.round(editCatIcon.implicitHeight + 8))
+                                Layout.preferredWidth: implicitWidth
+                                Layout.preferredHeight: implicitHeight
                                 Text {
+                                    id: editCatIcon
                                     anchors.centerIn: parent
                                     text: "✏️"
                                     font.pixelSize: Math.max(9, Math.round(11 * (window.fontScale || 1.0)))
@@ -515,11 +538,12 @@ Rectangle {
                                 }
                             }
                             Item {
-                                implicitWidth: 24
-                                implicitHeight: 24
-                                Layout.preferredWidth: 24
-                                Layout.preferredHeight: 24
+                                implicitWidth: Math.max(24, Math.round(delCatIcon.implicitWidth + 10))
+                                implicitHeight: Math.max(24, Math.round(delCatIcon.implicitHeight + 8))
+                                Layout.preferredWidth: implicitWidth
+                                Layout.preferredHeight: implicitHeight
                                 Text {
+                                    id: delCatIcon
                                     anchors.centerIn: parent
                                     text: "❌"
                                     font.pixelSize: Math.max(8, Math.round(10 * (window.fontScale || 1.0)))

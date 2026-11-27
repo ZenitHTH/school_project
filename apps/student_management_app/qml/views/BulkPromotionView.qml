@@ -22,6 +22,8 @@ Rectangle {
             font.bold: true
             font.pixelSize: Math.max(20, Math.round(22 * (window.fontScale || 1.0)))
             color: "#0f172a"
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         Text {
@@ -51,6 +53,8 @@ Rectangle {
             objectName: "promoteResultText"
             font.pixelSize: Math.max(13, root.baseFontSize)
             color: "#059669"
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         Item { Layout.fillHeight: true }

@@ -24,26 +24,38 @@ Rectangle {
     signal requestChangeId()
     signal directLookupRequested(string query)
 
-    ColumnLayout {
+    ScrollView {
+        id: detailScroll
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 16
+        contentWidth: availableWidth
+        clip: true
+
+        Item {
+            width: detailScroll.availableWidth
+            implicitHeight: Math.max(detailScroll.availableHeight, detailCol.implicitHeight + 48)
+
+            ColumnLayout {
+                id: detailCol
+                anchors.fill: parent
+                anchors.margins: 24
+                spacing: 16
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: 12
             Text {
                 text: "ข้อมูลนักเรียนรายบุคคลและการจัดการ"
                 font.bold: true
                 font.pixelSize: Math.max(20, Math.round(22 * (window.fontScale || 1.0)))
                 color: "#0f172a"
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
             }
-            Item { Layout.fillWidth: true }
             StyledButton {
                 variant: StyledButton.Neutral
                 id: btnBackToSearch
                 text: "← กลับไปค้นหานักเรียน"
                 font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
-                implicitWidth: 160
                 onClicked: root.backToSearchRequested()
             }
         }
@@ -53,6 +65,7 @@ Rectangle {
             Layout.fillWidth: true
             implicitHeight: Math.max(160, Math.round(emptyStateContent.implicitHeight + 48))
             height: implicitHeight
+            clip: true
             color: "#f8fafc"
             border.color: "#cbd5e1"
             radius: 10
@@ -61,6 +74,7 @@ Rectangle {
             ColumnLayout {
                 id: emptyStateContent
                 anchors.centerIn: parent
+                width: Math.max(200, parent.width - 48)
                 spacing: 14
 
                 Text {
@@ -68,23 +82,27 @@ Rectangle {
                     font.bold: true
                     font.pixelSize: Math.max(16, Math.round(18 * (window.fontScale || 1.0)))
                     color: "#1e293b"
-                    Layout.alignment: Qt.AlignHCenter
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.fillWidth: true
                 }
                 Text {
                     text: "ท่านสามารถไปที่หน้าค้นหาแล้วกดปุ่ม 'ดูรายละเอียด' หรือพิมพ์รหัส/ชื่อนักเรียนด้านล่างนี้ได้เลย:"
                     color: "#64748b"
                     font.pixelSize: Math.max(13, root.baseFontSize)
-                    Layout.alignment: Qt.AlignHCenter
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    Layout.fillWidth: true
                 }
-                RowLayout {
+                Flow {
+                    Layout.fillWidth: true
                     spacing: 10
-                    Layout.alignment: Qt.AlignHCenter
                     StyledTextInput {
                         id: directIdInput
                         objectName: "directIdInput"
                         placeholderText: "พิมพ์รหัสนักเรียน หรือชื่อ..."
                         font.pixelSize: Math.max(13, root.baseFontSize)
-                        Layout.preferredWidth: 260
+                        width: Math.min(260, parent.width)
                         selectByMouse: true
                         onAccepted: {
                             if (directIdInput.text) {
@@ -97,8 +115,7 @@ Rectangle {
                         id: btnDirectOpen
                         text: "เปิดดูข้อมูล"
                         font.bold: true
-                        font.pixelSize: 13
-                        implicitWidth: 110
+                        font.pixelSize: Math.max(13, root.baseFontSize)
                         onClicked: {
                             if (directIdInput.text) {
                                 root.directLookupRequested(directIdInput.text)
@@ -109,8 +126,7 @@ Rectangle {
                         variant: StyledButton.Neutral
                         id: btnGoSearch
                         text: "🔍 ไปที่หน้ารายการค้นหา"
-                        font.pixelSize: 13
-                        implicitWidth: 170
+                        font.pixelSize: Math.max(13, root.baseFontSize)
                         onClicked: root.backToSearchRequested()
                     }
                 }
@@ -124,6 +140,7 @@ Rectangle {
             Layout.fillWidth: true
             implicitHeight: Math.max(140, Math.round(infoCardContent.implicitHeight + 32))
             height: implicitHeight
+            clip: true
             color: "#ffffff"
             border.color: "#e2e8f0"
             radius: 10
@@ -148,6 +165,7 @@ Rectangle {
                 spacing: 8
 
                 RowLayout {
+                    Layout.fillWidth: true
                     spacing: 12
                     Text {
                         id: detailName
@@ -155,14 +173,17 @@ Rectangle {
                         font.bold: true
                         font.pixelSize: Math.max(20, Math.round(22 * (window.fontScale || 1.0)))
                         color: "#0f172a"
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
                     }
                     Rectangle {
                         id: detailStatusBadge
                         objectName: "detailStatusBadge"
                         implicitHeight: Math.max(26, Math.round(detailStatusTxt.implicitHeight + 6))
                         height: implicitHeight
+                        clip: true
                         radius: 13
-                        Layout.preferredWidth: Math.max(80, Math.round(80 * (window.fontScale || 1.0)))
+                        Layout.preferredWidth: Math.max(80, Math.round(detailStatusTxt.implicitWidth + 24))
                         color: (root.selectedStudent && (!root.selectedStudent.status || root.selectedStudent.status === "active")) ? "#dcfce7" : (root.selectedStudent && root.selectedStudent.status === "on_leave" ? "#fef9c3" : (root.selectedStudent && root.selectedStudent.status === "transferred_out" ? "#fee2e2" : "#f1f5f9"))
                         Text {
                             id: detailStatusTxt
@@ -176,6 +197,7 @@ Rectangle {
                 }
 
                 RowLayout {
+                    Layout.fillWidth: true
                     spacing: 20
                     Text {
                         id: detailSub
@@ -186,6 +208,8 @@ Rectangle {
                             : ""
                         color: "#475569"
                         font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
                     }
                 }
 
@@ -195,6 +219,8 @@ Rectangle {
                         : ""
                     color: "#94a3b8"
                     font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
                 }
             }
         }
@@ -204,6 +230,8 @@ Rectangle {
             font.bold: true
             font.pixelSize: Math.max(14, Math.round(16 * (window.fontScale || 1.0)))
             color: "#334155"
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
             visible: root.selectedStudent !== null
         }
 
@@ -221,7 +249,6 @@ Rectangle {
                 font.bold: true
                 font.pixelSize: Math.max(13, root.baseFontSize)
                 enabled: root.selectedStudent !== null
-                implicitWidth: 160
                 onClicked: root.requestChangeRoom()
             }
 
@@ -234,7 +261,7 @@ Rectangle {
                 font.pixelSize: Math.max(13, root.baseFontSize)
                 enabled: root.selectedStudent !== null
                 background: Rectangle {
-                    implicitWidth: 150
+                    implicitWidth: Math.max(140, Math.round(btnStatus.contentItem.implicitWidth + 28))
                     implicitHeight: Math.max(40, Math.round(btnStatus.contentItem.implicitHeight + 14))
                     color: btnStatus.down ? "#b45309" : (btnStatus.hovered ? "#d97706" : "#f59e0b")
                     radius: 8
@@ -251,7 +278,7 @@ Rectangle {
                 font.pixelSize: Math.max(13, root.baseFontSize)
                 enabled: root.selectedStudent !== null
                 background: Rectangle {
-                    implicitWidth: 170
+                    implicitWidth: Math.max(150, Math.round(btnName.contentItem.implicitWidth + 28))
                     implicitHeight: Math.max(40, Math.round(btnName.contentItem.implicitHeight + 14))
                     color: btnName.down ? "#047857" : (btnName.hovered ? "#059669" : "#10b981")
                     radius: 8
@@ -268,7 +295,7 @@ Rectangle {
                 font.pixelSize: Math.max(13, root.baseFontSize)
                 enabled: root.selectedStudent !== null
                 background: Rectangle {
-                    implicitWidth: 175
+                    implicitWidth: Math.max(155, Math.round(btnId.contentItem.implicitWidth + 28))
                     implicitHeight: Math.max(40, Math.round(btnId.contentItem.implicitHeight + 14))
                     color: btnId.down ? "#6d28d9" : (btnId.hovered ? "#7c3aed" : "#8b5cf6")
                     radius: 8
@@ -280,8 +307,9 @@ Rectangle {
         // Action result feedback
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: actionFeedback.text ? Math.max(36, Math.round(actionFeedback.implicitHeight + 14)) : 0
+            implicitHeight: actionFeedback.text ? Math.max(36, Math.round(actionFeedback.implicitHeight + 16)) : 0
             height: implicitHeight
+            clip: true
             color: actionFeedback.isError ? "#fee2e2" : "#dcfce7"
             radius: 6
             visible: actionFeedback.text !== ""
@@ -290,6 +318,9 @@ Rectangle {
                 objectName: "actionFeedback"
                 property bool isError: false
                 anchors.centerIn: parent
+                width: Math.max(120, parent.width - 24)
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
                 text: ""
                 color: isError ? "#991b1b" : "#166534"
                 font.pixelSize: Math.max(13, root.baseFontSize)
@@ -298,5 +329,7 @@ Rectangle {
         }
 
         Item { Layout.fillHeight: true }
+            }
+        }
     }
 }

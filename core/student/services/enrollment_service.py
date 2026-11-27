@@ -1,6 +1,7 @@
+import datetime
 import re
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from core.shared.result import Result
 from data.repositories import enrollment_repo, student_repo
 
@@ -138,38 +139,48 @@ class EnrollmentService:
         if not students:
             return Result.fail(f"No active enrollments found for {source_year}/{source_semester}")
 
-        promoted_count = 0
-        graduated_count = 0
+        promo_rows: List[Tuple[int, int, int, str, int, Optional[str]]] = []
+        grad_ids: List[Tuple[int]] = []
+        activity_rows: List[Tuple[str, Optional[str], str, str, str, str]] = []
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        for s in students:
+            sid = s["student_id"]
+            curr_grade = s["grade_level"]
+            if curr_grade in GRADE_MAP:
+                next_grade = GRADE_MAP[curr_grade]
+                promo_rows.append((sid, target_year, target_semester, next_grade, s["room"], s["track"]))
+                activity_rows.append((
+                    now_iso, actor, "enrollment.enroll_period", "student", str(sid),
+                    f"Enrolled {next_grade}/{s['room']} year={target_year} sem={target_semester}",
+                ))
+            else:
+                # ม.6 graduates
+                grad_ids.append((sid,))
+                reason = f"Graduated from {curr_grade} at end of {source_year}/{source_semester}"
+                activity_rows.append((
+                    now_iso, actor, "student.update_status", "student", str(sid),
+                    f"status: {s['status']} -> graduated ({reason})",
+                ))
 
         with self.conn:
-            for s in students:
-                curr_grade = s["grade_level"]
-                if curr_grade in GRADE_MAP:
-                    next_grade = GRADE_MAP[curr_grade]
-                    enrollment_repo.enroll_next_period(
-                        self.conn,
-                        student_id=s["student_id"],
-                        academic_year=target_year,
-                        semester=target_semester,
-                        grade_level=next_grade,
-                        room=s["room"],
-                        track=s["track"],
-                        actor=actor,
-                    )
-                    promoted_count += 1
-                else:
-                    # ม.6 graduates
-                    student_repo.update_status(
-                        self.conn,
-                        student_id=s["student_id"],
-                        new_status="graduated",
-                        reason=f"Graduated from {curr_grade} at end of {source_year}/{source_semester}",
-                        actor=actor,
-                    )
-                    graduated_count += 1
+            if promo_rows:
+                cur.executemany(
+                    "INSERT INTO enrollments (student_id, academic_year, semester, grade_level, room, track) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    promo_rows,
+                )
+            if grad_ids:
+                cur.executemany("UPDATE students SET status = 'graduated' WHERE student_id = ?", grad_ids)
+            if activity_rows:
+                cur.executemany(
+                    "INSERT INTO activity_log (logged_at, actor, action, entity_type, entity_id, detail) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    activity_rows,
+                )
 
         return Result.success({
-            "promoted_count": promoted_count,
-            "graduated_count": graduated_count,
+            "promoted_count": len(promo_rows),
+            "graduated_count": len(grad_ids),
             "target_period": f"{target_year}/{target_semester}",
         })

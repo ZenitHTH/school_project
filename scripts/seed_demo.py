@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import sys
-sys.path.insert(0, "/Users/zenithth/Workspace/school_project")
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from data.db import get_connection
 from data.migrate import apply_migrations

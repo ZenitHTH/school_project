@@ -25,17 +25,22 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: 10
             Text {
                 text: "👁️ ตัวอย่างการแสดงผล (Live Visual Preview)"
                 font.bold: true
                 font.pixelSize: 15
                 color: Theme.textPrimary
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
             }
-            Item { Layout.fillWidth: true }
             Text {
                 text: "ฟอนต์: " + previewCard.currentFontFamily + " | ขนาด: " + previewCard.currentFontSize + "px | สเกล: " + Math.round(previewCard.currentUiScale * 100) + "%"
                 color: Theme.textMuted
                 font.pixelSize: 12
+                wrapMode: Text.Wrap
+                horizontalAlignment: Text.AlignRight
+                Layout.fillWidth: true
             }
         }
 
@@ -64,17 +69,24 @@ Rectangle {
             Layout.fillWidth: true
         }
 
-        RowLayout {
+        Flow {
+            Layout.fillWidth: true
             spacing: 12
             Rectangle {
                 radius: 6
                 color: Theme.successBackground
-                implicitWidth: badgeTxt.implicitWidth + 16
+                width: Math.min(badgeTxt.implicitWidth + 16, Math.max(80, prevCol.width))
+                implicitWidth: width
                 implicitHeight: Math.max(28, Math.round(badgeTxt.implicitHeight + 8))
                 height: implicitHeight
                 Text {
                     id: badgeTxt
-                    anchors.centerIn: parent
+                    anchors.fill: parent
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
                     text: "✓ ตัวอย่างสถานะ (Active)"
                     color: Theme.successText
                     font.pixelSize: Math.round(previewCard.currentFontSize * previewCard.currentUiScale)

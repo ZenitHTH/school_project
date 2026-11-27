@@ -1,7 +1,7 @@
 """Mock Qt types for non-Qt environments and shared adapter utilities."""
 
 import sys
-from typing import Any, List, Set
+from typing import Any, List, Optional, Set
 from urllib.parse import unquote, urlparse
 
 NUMERIC_KEYS: Set[str] = {
@@ -77,6 +77,8 @@ except ImportError:
     HAVE_QT = False
 
 _LOADED_FONTS: List[str] = []
+_LOADED_FONT_FILES: Set[str] = set()
+_SUBSTITUTIONS_CONFIGURED = False
 
 
 def get_bundled_fonts_dir() -> str:
@@ -91,36 +93,63 @@ def get_bundled_fonts_dir() -> str:
 
 def _setup_font_substitutions() -> None:
     """Configure font substitutions for cross-platform compatibility."""
+    global _SUBSTITUTIONS_CONFIGURED
+    if _SUBSTITUTIONS_CONFIGURED:
+        return
     from PySide6.QtGui import QFont
     QFont.insertSubstitution("Noto Sans", "Noto Sans Thai")
     QFont.insertSubstitution("Sarabun", "TH Sarabun New")
     QFont.insertSubstitution("Sarabun", "TH SarabunPSK")
+    _SUBSTITUTIONS_CONFIGURED = True
 
 
-def register_bundled_fonts() -> List[str]:
-    """Register all project bundled fonts with QFontDatabase."""
-    global _LOADED_FONTS
+def _load_font_files(prefixes: Optional[tuple] = None) -> List[str]:
+    """Load matching font files from bundled fonts dir without duplicating loaded files."""
     if not HAVE_QT:
         return []
-    if _LOADED_FONTS:
-        return list(_LOADED_FONTS)
-
     import os
     from PySide6.QtGui import QFontDatabase
+
     font_dir = get_bundled_fonts_dir()
     if not os.path.isdir(font_dir):
         return []
 
-    families = []
     for f in sorted(os.listdir(font_dir)):
-        if f.lower().endswith((".ttf", ".ttc", ".otf")):
-            fid = QFontDatabase.addApplicationFont(os.path.join(font_dir, f))
-            if fid >= 0:
-                families.extend(QFontDatabase.applicationFontFamilies(fid))
+        if not f.lower().endswith((".ttf", ".ttc", ".otf")):
+            continue
+        if prefixes and not any(f.lower().startswith(p) for p in prefixes):
+            continue
+        full_path = os.path.join(font_dir, f)
+        if full_path in _LOADED_FONT_FILES:
+            continue
+        fid = QFontDatabase.addApplicationFont(full_path)
+        _LOADED_FONT_FILES.add(full_path)
+        if fid >= 0:
+            for fam in QFontDatabase.applicationFontFamilies(fid):
+                if fam not in _LOADED_FONTS:
+                    _LOADED_FONTS.append(fam)
 
     _setup_font_substitutions()
-    _LOADED_FONTS = families
     return list(_LOADED_FONTS)
+
+
+def register_startup_fonts(preferred_family: str = "") -> List[str]:
+    """Register minimal startup fonts (Noto Sans Thai + configured family if any)."""
+    prefixes = ["notosansthai"]
+    fam_norm = (preferred_family or "").strip().lower().replace(" ", "")
+    if fam_norm and fam_norm != "systemdefault":
+        if "sarabun" in fam_norm:
+            prefixes.append("thsarabun")
+        elif "tahoma" in fam_norm:
+            prefixes.append("tahoma")
+        elif "sukhumvit" in fam_norm:
+            prefixes.append("sukhumvit")
+    return _load_font_files(tuple(prefixes))
+
+
+def register_bundled_fonts() -> List[str]:
+    """Register all project bundled fonts with QFontDatabase."""
+    return _load_font_files(None)
 
 
 def apply_qt_app_font(family: str, pixel_size: int) -> None:
@@ -132,7 +161,10 @@ def apply_qt_app_font(family: str, pixel_size: int) -> None:
         app = QGuiApplication.instance()
         if not app:
             return
-        register_bundled_fonts()
+        if family and family != "System Default":
+            register_bundled_fonts()
+        else:
+            register_startup_fonts(family)
         font = app.font()
         if family:
             font.setFamily(family)

@@ -7,7 +7,7 @@ StyledDialog {
     id: firstLaunchDialog
     objectName: "firstLaunchDialog"
     title: "🎉 เริ่มต้นใช้งานระบบ (First Launch Setup)"
-    width: 520
+    width: parent ? Math.min(520, Math.max(300, parent.width - 32)) : 520
     standardButtons: Dialog.NoButton
 
     property string bannerIcon: "🏫"
@@ -29,12 +29,15 @@ StyledDialog {
 
         Rectangle {
             Layout.fillWidth: true
-            height: 70
+            implicitHeight: Math.max(70, Math.round(bannerRow.implicitHeight + 24))
+            height: implicitHeight
+            clip: true
             color: Theme.accentSurface
             radius: 8
             border.color: Theme.borderLightBlue
 
             RowLayout {
+                id: bannerRow
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 12
@@ -45,6 +48,7 @@ StyledDialog {
                 }
 
                 ColumnLayout {
+                    Layout.fillWidth: true
                     spacing: 4
 
                     Text {
@@ -52,12 +56,16 @@ StyledDialog {
                         font.bold: true
                         font.pixelSize: 15
                         color: Theme.accentDeep
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
                     }
 
                     Text {
                         text: firstLaunchDialog.bannerSubtitle
                         font.pixelSize: 12
                         color: Theme.accentMid
+                        wrapMode: Text.Wrap
+                        Layout.fillWidth: true
                     }
                 }
             }
@@ -68,6 +76,8 @@ StyledDialog {
             font.bold: true
             font.pixelSize: 14
             color: Theme.textStrong
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         Text {

@@ -107,6 +107,7 @@ def test_sync_lifecycle_with_id_renumbering_and_loans(sync_env):
 
 def test_apply_sync_opens_snapshot_once(sync_env, monkeypatch):
     import sqlite3
+    from urllib.parse import unquote
     s_conn = sync_env["s_conn"]
     l_conn = sync_env["l_conn"]
     snap_path = sync_env["snapshot_path"]
@@ -119,7 +120,8 @@ def test_apply_sync_opens_snapshot_once(sync_env, monkeypatch):
     real_connect = sqlite3.connect
 
     def spy_connect(target, *args, **kwargs):
-        if str(target) == snap_path:
+        decoded = unquote(str(target))
+        if decoded == snap_path or decoded.startswith(f"file:{os.path.abspath(snap_path)}"):
             connect_calls.append(str(target))
         return real_connect(target, *args, **kwargs)
 

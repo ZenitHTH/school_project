@@ -34,6 +34,7 @@ Rectangle {
                 width: activeLoanList.width
                 implicitHeight: Math.max(54, Math.round(rowContent.implicitHeight + 16))
                 height: implicitHeight
+                clip: true
                 border.color: "#e2e8f0"
                 color: index % 2 === 0 ? "#ffffff" : "#f8fafc"
                 Component.onCompleted: Typography.applyToItem(this)
@@ -47,13 +48,15 @@ Rectangle {
                         text: model.barcode
                         font.bold: true
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: Math.max(120, Math.round(120 * (window.fontScale || 1.0)))
+                        Layout.minimumWidth: 80
+                        Layout.preferredWidth: Math.max(105, Math.round(115 * (window.fontScale || 1.0)))
+                        elide: Text.ElideRight
                         color: "#0f766e"
                     }
                     Text {
                         text: model.title
                         font.pixelSize: Math.max(11, Math.round(14 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: 280
+                        Layout.minimumWidth: 110
                         Layout.fillWidth: true
                         elide: Text.ElideRight
                         color: "#1e293b"
@@ -61,7 +64,8 @@ Rectangle {
                     Text {
                         text: model.full_name + " (" + model.student_id + ")"
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
-                        Layout.preferredWidth: Math.max(200, Math.round(200 * (window.fontScale || 1.0)))
+                        Layout.minimumWidth: 90
+                        Layout.preferredWidth: Math.max(140, Math.round(160 * (window.fontScale || 1.0)))
                         elide: Text.ElideRight
                         color: "#334155"
                     }
@@ -69,7 +73,9 @@ Rectangle {
                         text: "กำหนดคืน: " + (model.due_at ? model.due_at.substring(0, 10) : "-")
                         font.pixelSize: Math.max(10, Math.round(13 * (window.fontScale || 1.0)))
                         color: "#dc2626"
-                        Layout.preferredWidth: Math.max(160, Math.round(160 * (window.fontScale || 1.0)))
+                        Layout.minimumWidth: 90
+                        Layout.preferredWidth: Math.max(120, Math.round(140 * (window.fontScale || 1.0)))
+                        elide: Text.ElideRight
                     }
                 }
             }

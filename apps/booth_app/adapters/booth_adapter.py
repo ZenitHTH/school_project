@@ -1,5 +1,6 @@
 """Qt/QML bridge for the Self-Service Booth kiosk (LAN client + legacy local DB)."""
 
+import inspect
 import json
 import sqlite3
 from typing import Any, Dict, Optional
@@ -157,9 +158,23 @@ class BoothAdapter(QObject, SettingsAdapterMixin):
         res = self.loan_svc.return_book(row[0], actor="Booth:Return")  # type: ignore[union-attr]
         return _format_res(res.ok, res.data, res.error)
 
+    def _call_discover_librarian(self, timeout: Optional[float] = None) -> Optional[Dict[str, Any]]:
+        """Invoke discover_librarian passing token/timeout only when accepted by its signature."""
+        kwargs: Dict[str, Any] = {}
+        try:
+            params = inspect.signature(discover_librarian).parameters
+            has_varkw = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
+            if timeout is not None and (has_varkw or "timeout" in params):
+                kwargs["timeout"] = timeout
+            if has_varkw or "token" in params:
+                kwargs["token"] = self._existing_token()
+        except (TypeError, ValueError):
+            pass
+        return discover_librarian(**kwargs)
+
     def _try_rediscover(self) -> Optional[Dict[str, Any]]:
         """Probe LAN discovery and swap client if a healthy server responds."""
-        found = discover_librarian(timeout=0.4)
+        found = self._call_discover_librarian(timeout=0.4)
         if not found or not found.get("host"):
             return None
         new_host = str(found["host"])
@@ -212,7 +227,7 @@ class BoothAdapter(QObject, SettingsAdapterMixin):
     @Slot(result=str)
     def discoverServer(self) -> str:
         """Broadcast UDP discovery for Librarian Management server."""
-        found = discover_librarian()
+        found = self._call_discover_librarian()
         if not found:
             return json.dumps({"ok": False, "host": "", "port": 0})
         payload = {

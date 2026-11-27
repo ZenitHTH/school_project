@@ -3,10 +3,12 @@ import "Theme.js" as Theme
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 
-RowLayout {
+GridLayout {
     id: footerRoot
     Layout.fillWidth: true
-    spacing: 12
+    columns: width < 520 ? 1 : 3
+    columnSpacing: 12
+    rowSpacing: 8
 
     property alias saveStatusText: statusLabel
     property alias btnResetSettings: btnReset
@@ -22,14 +24,15 @@ RowLayout {
         color: text.startsWith("✓") ? Theme.successDot : Theme.errorDot
         font.bold: true
         font.pixelSize: 13
+        wrapMode: Text.Wrap
+        Layout.fillWidth: true
     }
-
-    Item { Layout.fillWidth: true }
 
     Button {
         id: btnReset
         objectName: "btnResetSettings"
         text: "🔄 คืนค่าเริ่มต้น (Reset to Defaults)"
+        Layout.alignment: Qt.AlignRight
         onClicked: footerRoot.resetClicked()
     }
 
@@ -38,6 +41,7 @@ RowLayout {
         objectName: "btnSaveSettings"
         text: "💾 บันทึกการตั้งค่า (Save Settings)"
         highlighted: true
+        Layout.alignment: Qt.AlignRight
         onClicked: footerRoot.saveClicked()
     }
 }

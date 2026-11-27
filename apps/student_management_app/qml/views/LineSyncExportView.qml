@@ -22,12 +22,16 @@ Rectangle {
             font.bold: true
             font.pixelSize: Math.max(20, Math.round(22 * (window.fontScale || 1.0)))
             color: "#0f172a"
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         Text {
             text: "สร้างไฟล์ snapshot.sqlite เพื่อส่งต่อให้ผู้ดูแลห้องสมุดนำเข้าสู่ระบบ"
             color: "#64748b"
             font.pixelSize: Math.max(12, Math.round(13 * (window.fontScale || 1.0)))
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         StyledButton {
@@ -37,7 +41,7 @@ Rectangle {
             text: "สร้างไฟล์ Snapshot ทันที"
             highlighted: true
             onClicked: {
-                var res = JSON.parse(studentAdmin.exportSnapshot("snapshot.sqlite", "Admin"))
+                var res = JSON.parse(studentAdmin.exportSnapshot("", "Admin"))
                 exportStatusText.text = res.ok
                     ? ("สร้างไฟล์สำเร็จ: มีนักเรียน " + res.data.student_count + " คน ใน " + res.data.output_path)
                     : ("เกิดข้อผิดพลาด: " + res.error)
@@ -49,6 +53,8 @@ Rectangle {
             objectName: "exportStatusText"
             font.pixelSize: Math.max(13, root.baseFontSize)
             color: "#2563eb"
+            wrapMode: Text.Wrap
+            Layout.fillWidth: true
         }
 
         Item { Layout.fillHeight: true }

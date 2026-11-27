@@ -30,6 +30,8 @@ Button {
         control.variant === StyledButton.Neutral ? Theme.borderDefault : "transparent"
 
     contentItem: Text {
+        leftPadding: 12
+        rightPadding: 12
         text: control.text
         color: control.enabled ? control.buttonTextColor : Theme.textFaint
         font: control.font

@@ -12,9 +12,9 @@ Dialog {
     bottomPadding: 16
     leftPadding: 16
     rightPadding: 16
-    implicitWidth: 440
+    implicitWidth: parent ? Math.min(440, Math.max(280, parent.width - 32)) : 440
 
-    onAboutToShow: {
+    function _updateImplicitHeight() {
         var ch = 0
         for (var i = 0; i < contentChildren.length; ++i) {
             ch = Math.max(ch, contentChildren[i].implicitHeight, contentChildren[i].height)
@@ -22,6 +22,16 @@ Dialog {
         var hh = (title !== "" && header) ? header.implicitHeight : 0
         var fh = ((standardButtons & (Dialog.Ok | Dialog.Cancel)) !== 0 && footer) ? footer.implicitHeight : 0
         implicitHeight = Math.max(120, hh + ch + fh + topPadding + bottomPadding)
+    }
+
+    onAboutToShow: _updateImplicitHeight()
+
+    Connections {
+        target: root.contentItem
+        ignoreUnknownSignals: true
+        function onChildrenRectChanged() {
+            if (root.opened) root._updateImplicitHeight()
+        }
     }
 
     background: Rectangle {
@@ -42,7 +52,6 @@ Dialog {
         font.bold: true
         font.pixelSize: 16
         wrapMode: Text.Wrap
-        elide: Text.ElideRight
     }
 
     footer: Item {
@@ -51,6 +60,7 @@ Dialog {
 
         RowLayout {
             id: footerRow
+            width: Math.min(implicitWidth, Math.max(0, parent.width - 32))
             anchors.right: parent.right
             anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter

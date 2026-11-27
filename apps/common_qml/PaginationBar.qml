@@ -6,7 +6,9 @@ import QtQuick.Layouts 1.15
 Rectangle {
     id: root
     Layout.fillWidth: true
-    height: 48
+    implicitHeight: visible ? Math.max(48, Math.round(pagRow.implicitHeight + 16)) : 0
+    height: implicitHeight
+    clip: true
     color: Theme.surfaceSubtle
     border.color: Theme.borderSubtle
     border.width: 1
@@ -47,16 +49,22 @@ Rectangle {
     }
 
     RowLayout {
-        anchors.centerIn: parent
-        spacing: 8
+        id: pagRow
+        anchors.fill: parent
+        anchors.leftMargin: 8
+        anchors.rightMargin: 8
+        spacing: 6
+
+        Item { Layout.fillWidth: true }
 
         // First page button
         Button {
             id: btnFirstPage
             enabled: root.currentPage > 1
-            implicitWidth: 36
-            implicitHeight: 32
+            implicitWidth: Math.max(34, Math.round(firstTxt.implicitWidth + 16))
+            implicitHeight: Math.max(32, Math.round(firstTxt.implicitHeight + 10))
             contentItem: Text {
+                id: firstTxt
                 text: "«"
                 font.pixelSize: 14
                 font.bold: true
@@ -76,9 +84,10 @@ Rectangle {
         Button {
             id: btnPrevPage
             enabled: root.currentPage > 1
-            implicitWidth: 70
-            implicitHeight: 32
+            implicitWidth: Math.max(64, Math.round(prevTxt.implicitWidth + 18))
+            implicitHeight: Math.max(32, Math.round(prevTxt.implicitHeight + 10))
             contentItem: Text {
+                id: prevTxt
                 text: "‹ ก่อนหน้า"
                 font.pixelSize: 12
                 font.bold: true
@@ -100,14 +109,16 @@ Rectangle {
 
             delegate: Rectangle {
                 id: pageBtnRect
-                implicitWidth: modelData === "..." ? 28 : 34
-                implicitHeight: 32
+                implicitWidth: Math.max(modelData === "..." ? 24 : 32, Math.round(pageBtnTxt.implicitWidth + 14))
+                implicitHeight: Math.max(32, Math.round(pageBtnTxt.implicitHeight + 10))
+                height: implicitHeight
                 radius: 6
                 color: modelData === root.currentPage.toString() ? Theme.accentPrimary : (pageMouse.containsMouse && modelData !== "..." ? Theme.accentSurface : Theme.surfaceWhite)
                 border.color: modelData === root.currentPage.toString() ? Theme.accentPrimary : (modelData === "..." ? "transparent" : Theme.borderDefault)
                 border.width: 1
 
                 Text {
+                    id: pageBtnTxt
                     anchors.centerIn: parent
                     text: modelData
                     font.bold: modelData === root.currentPage.toString()
@@ -133,9 +144,10 @@ Rectangle {
         Button {
             id: btnNextPage
             enabled: root.currentPage < root.totalPages
-            implicitWidth: 70
-            implicitHeight: 32
+            implicitWidth: Math.max(64, Math.round(nextTxt.implicitWidth + 18))
+            implicitHeight: Math.max(32, Math.round(nextTxt.implicitHeight + 10))
             contentItem: Text {
+                id: nextTxt
                 text: "ถัดไป ›"
                 font.pixelSize: 12
                 font.bold: true
@@ -155,9 +167,10 @@ Rectangle {
         Button {
             id: btnLastPage
             enabled: root.currentPage < root.totalPages
-            implicitWidth: 36
-            implicitHeight: 32
+            implicitWidth: Math.max(34, Math.round(lastTxt.implicitWidth + 16))
+            implicitHeight: Math.max(32, Math.round(lastTxt.implicitHeight + 10))
             contentItem: Text {
+                id: lastTxt
                 text: "»"
                 font.pixelSize: 14
                 font.bold: true
@@ -178,7 +191,12 @@ Rectangle {
             text: "หน้า " + root.currentPage + " จาก " + root.totalPages + " (" + root.totalCount + " " + root.countUnit + ")"
             color: Theme.textMuted
             font.pixelSize: 12
-            Layout.leftMargin: 8
+            elide: Text.ElideRight
+            Layout.leftMargin: 6
+            Layout.maximumWidth: implicitWidth
+            Layout.fillWidth: true
         }
+
+        Item { Layout.fillWidth: true }
     }
 }

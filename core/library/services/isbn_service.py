@@ -37,6 +37,14 @@ __all__ = [
 class IsbnLookupService:
     """Lookup ISBN metadata via authoritative catalog, local cache, and chained remote providers."""
 
+    _executor: Optional[ThreadPoolExecutor] = None
+
+    @classmethod
+    def _get_executor(cls) -> ThreadPoolExecutor:
+        if cls._executor is None:
+            cls._executor = ThreadPoolExecutor(max_workers=2)
+        return cls._executor
+
     def __init__(self, conn: sqlite3.Connection, timeout: float = 5.0) -> None:
         self.conn = conn
         self.timeout = timeout
@@ -61,7 +69,7 @@ class IsbnLookupService:
         try:
             sql = (
                 "SELECT title, author, publisher FROM books "
-                "WHERE REPLACE(REPLACE(UPPER(isbn), '-', ''), ' ', '') = ? "
+                "WHERE UPPER(REPLACE(REPLACE(isbn, '-', ''), ' ', '')) = ? "
                 "AND title IS NOT NULL AND title != '' "
                 "ORDER BY active DESC, book_id DESC LIMIT 1"
             )
@@ -74,22 +82,24 @@ class IsbnLookupService:
     def _wait_for_future(self, future: concurrent.futures.Future) -> Optional[Dict[str, str]]:
         deadline = time.monotonic() + self.timeout
         while time.monotonic() < deadline:
+            remaining = max(0.0, deadline - time.monotonic())
+            t0 = time.monotonic()
             try:
-                return future.result(timeout=min(0.02, max(0.0, deadline - time.monotonic())))
+                return future.result(timeout=remaining)
             except concurrent.futures.TimeoutError:
-                time.sleep(0.005)
+                if time.monotonic() - t0 < 0.005:
+                    time.sleep(0.005)
         return None
 
     def _fetch_remote(self, isbn: str) -> Optional[Dict[str, str]]:
-        executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(fetch_remote_providers, isbn, timeout=self.timeout)
+        future = self._get_executor().submit(fetch_remote_providers, isbn, timeout=self.timeout)
         try:
             return self._wait_for_future(future)
         except Exception as exc:
             logger.warning("remote lookup failed for %s: %s", isbn, exc)
             return None
         finally:
-            executor.shutdown(wait=False, cancel_futures=True)
+            future.cancel()
 
     def _save_metadata(self, meta: Dict[str, str]) -> None:
         sql = "INSERT OR REPLACE INTO isbn_cache (isbn, title, author, publisher, published_year) VALUES (?, ?, ?, ?, ?)"

@@ -1,8 +1,9 @@
 """Qt QPdfWriter renderer for barcode label sheets with Unicode (Thai) book titles."""
 
+import functools
 import math
 import os
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from PySide6.QtCore import QMarginsF, QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QFontMetricsF, QGuiApplication, QPageLayout, QPageSize, QPainter, QPdfWriter, QPen
@@ -36,16 +37,17 @@ def _draw_code128_bars(
             m += 1
 
 
-def _tokenize_title(title: str) -> List[str]:
+@functools.lru_cache(maxsize=512)
+def _tokenize_title(title: str) -> Tuple[str, ...]:
     """Segment Thai/mixed text into word tokens via PyThaiNLP newmm, with char fallback."""
     try:
         from pythainlp.tokenize import word_tokenize
-        return word_tokenize(title, engine="newmm")
+        return tuple(word_tokenize(title, engine="newmm"))
     except Exception:
-        return list(title)
+        return tuple(title)
 
 
-def _wrap_tokens(tokens: List[str], fm: QFontMetricsF, max_w: float, max_lines: int) -> List[str]:
+def _wrap_tokens(tokens: Tuple[str, ...], fm: QFontMetricsF, max_w: float, max_lines: int) -> List[str]:
     """Pack word tokens into up to max_lines; elide final line if tokens remain."""
     lines: List[str] = []
     idx = 0
@@ -66,18 +68,32 @@ def _wrap_tokens(tokens: List[str], fm: QFontMetricsF, max_w: float, max_lines: 
     return [ln for ln in lines if ln]
 
 
-def _fit_title_lines(title: str, max_w: float, max_lines: int = 4) -> Tuple[List[str], float]:
-    """Fit title into 1..4 word-wrapped lines, stepping font size down for longer titles."""
+def _build_title_metrics(max_lines: int = 4) -> List[Tuple[float, int, QFontMetricsF]]:
+    specs: List[Tuple[float, int, QFontMetricsF]] = []
     for pt_size, limit in ((7.5, 1), (6.5, 2), (6.0, 3), (5.5, max_lines)):
         font = QFont()
         font.setPointSizeF(pt_size)
-        fm = QFontMetricsF(font)
+        specs.append((pt_size, limit, QFontMetricsF(font)))
+    return specs
+
+
+def _fit_title_lines(
+    title: str,
+    max_w: float,
+    max_lines: int = 4,
+    metrics: Optional[List[Tuple[float, int, QFontMetricsF]]] = None,
+) -> Tuple[List[str], float]:
+    """Fit title into 1..4 word-wrapped lines, stepping font size down for longer titles."""
+    specs = metrics if metrics is not None else _build_title_metrics(max_lines)
+    tokens: Optional[Tuple[str, ...]] = None
+    for pt_size, limit, fm in specs:
         if limit == 1 and fm.horizontalAdvance(title) <= max_w:
             return [title], pt_size
         if limit > 1:
-            tokens = _tokenize_title(title)
+            if tokens is None:
+                tokens = _tokenize_title(title)
             lines = _wrap_tokens(tokens, fm, max_w, limit)
-            if len(lines) <= limit and not lines[-1].endswith("…"):
+            if len(lines) <= limit and (not lines or not lines[-1].endswith("…")):
                 return lines, pt_size
             if limit == max_lines:
                 return lines, pt_size
@@ -93,6 +109,7 @@ def _draw_qt_label_cell(
     cell_w: float,
     cell_h: float,
     encode_bits: Callable[[str], str],
+    title_metrics: Optional[List[Tuple[float, int, QFontMetricsF]]] = None,
 ) -> None:
     # 1. Dashed cut guide
     pen = QPen(QColor(179, 179, 179), 0.5, Qt.DashLine)
@@ -106,7 +123,7 @@ def _draw_qt_label_cell(
     title_zone_y = cell_y + _PADDING + 1.5
     title_zone_h = 32.0
     if title:
-        title_lines, pt_size = _fit_title_lines(title, inner_w)
+        title_lines, pt_size = _fit_title_lines(title, inner_w, metrics=title_metrics)
         title_font = QFont()
         title_font.setPointSizeF(pt_size)
         painter.setFont(title_font)
@@ -154,6 +171,7 @@ def export_label_sheet_qt_pdf(
     per_page = cols * rows
     total_pages = math.ceil(len(items) / per_page)
 
+    title_metrics = _build_title_metrics()
     painter = QPainter(writer)
     try:
         for page_idx in range(total_pages):
@@ -165,6 +183,6 @@ def export_label_sheet_qt_pdf(
                 cell_x = _MARGIN + (pos % cols) * cell_w
                 cell_y = _MARGIN + (pos // cols) * cell_h
                 barcode_str, title = items[idx]
-                _draw_qt_label_cell(painter, barcode_str, title, cell_x, cell_y, cell_w, cell_h, encode_bits)
+                _draw_qt_label_cell(painter, barcode_str, title, cell_x, cell_y, cell_w, cell_h, encode_bits, title_metrics)
     finally:
         painter.end()
