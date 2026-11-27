@@ -17,11 +17,15 @@ Rectangle {
     property var targetWindow: null
     property bool showLanServerCard: false
     property bool showLanClientCard: false
+    property bool showBookTransferCard: false
     property bool _loadingSettings: false
 
     signal settingsChanged()
     signal resetRequested()
     signal lanConnectionUpdated(var status)
+    signal bookTransferExportRequested(string path, string fmt)
+    signal bookTransferPreviewRequested(string path, string mode)
+    signal bookTransferImportRequested(string path, string mode)
 
     property alias fontFamilyCombo: controlsCard.fontFamilyCombo
     property alias fontSizeSlider: controlsCard.fontSizeSlider
@@ -33,6 +37,7 @@ Rectangle {
     property alias previewCard: previewCard
     property alias lanServerCard: lanServerCard
     property alias lanClientCard: lanClientCard
+    property alias bookTransferCard: bookTransferCard
 
     function refreshLanServerInfo() { if (showLanServerCard) lanServerCard.refreshFromAdapter() }
     function refreshLanClientInfo() { if (showLanClientCard) lanClientCard.refreshFromAdapter() }
@@ -225,6 +230,15 @@ Rectangle {
                 objectName: "lanClientCard"
                 visible: settingsRoot.showLanClientCard
                 onConnectionUpdated: (st) => settingsRoot.lanConnectionUpdated(st)
+            }
+
+            DatabaseTransferCard {
+                id: bookTransferCard
+                objectName: "bookTransferCard"
+                visible: settingsRoot.showBookTransferCard
+                onExportRequested: (path, fmt) => settingsRoot.bookTransferExportRequested(path, fmt)
+                onPreviewRequested: (path, mode) => settingsRoot.bookTransferPreviewRequested(path, mode)
+                onImportRequested: (path, mode) => settingsRoot.bookTransferImportRequested(path, mode)
             }
         }
     }

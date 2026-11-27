@@ -124,3 +124,40 @@ Detects catalog books that exist only in the Chulabook store (ศูนย์ห
 - **Detection rule (`detect_chulabook_books(conn, timeout=5.0, workers=8) -> Result[list[dict], str]`)**: a book row is flagged iff `_fetch_chulabook(isbn)` hits **and** the normalized ISBN is absent from `isbn_cache` **and** all three standard providers miss. Invalid/Thai-digit ISBNs are skipped silently; per-row exceptions skip that row; `Err` only when the `books` table is missing. Rows: `{book_id, isbn (normalized), title, author}`.
 - **Librarian UI**: `LibrarianAdminAdapter.detectChulabookBooks()` slot (`chulabookCheckStarted`/`chulabookCheckCompleted` signals, `_sanitize_for_qml` on `books[]`) drives the `📕 ตรวจ Chulabook` button in `BookCatalogView.qml` (Tab 0) — status line `chulabookStatusText` + results `Dialog` (`chulabookResultsModel`) listing flagged books. Wired via `window.detectChulabook()` in `Main.qml`. Synchronous slot (house pattern); ~30–60 s for a 200-book catalog.
 
+---
+
+## 9. Book Database Export & Import (`core.shared.db_transfer` & `book_transfer_service`)
+Provides checksummed `.sqlite` and `.xlsx` export, diff preview, and atomic `merge` / `replace` import for the library book catalog, with pre-import backups and active-circulation safety guards.
+
+### Shared Bundle Primitives (`core/shared/db_transfer/`)
+- **`manifest.py`**:
+  - `compute_tables_checksum(tables)`: computes a canonical JSON (`sort_keys=True`, UTF-8) SHA-256 hex digest over sorted table rows.
+  - `build_manifest(domain, schema_version, tables)`: generates `{domain, schema_version, checksum, row_counts, created_at}` metadata.
+  - `verify_manifest(manifest, expected_domain, tables)`: verifies bundle domain (`"books"`) and SHA-256 checksum via `Result[dict[str, Any], str]`.
+- **`sqlite_io.py`**:
+  - `write_sqlite_bundle(output_path, manifest, schemas, rows_by_table)`: validates non-symlink/non-directory targets, normalizes `file://` URLs (`normalize_file_path`), writes `transfer_manifest` + parameterized domain tables into a temporary `.sqlite` file, and atomically swaps via `os.replace`.
+  - `read_sqlite_bundle(input_path, expected_domain, required_tables)`: opens untrusted bundles read-only via `file:<abspath>?mode=ro` (`uri=True`), enforces `PRAGMA trusted_schema = OFF;`, rejects any `VIEW`, `TRIGGER`, or `CREATE VIRTUAL TABLE` in `sqlite_master`, verifies required tables, and validates the manifest domain & SHA-256 checksum.
+- **`xlsx_io.py`**:
+  - `write_xlsx_bundle(output_path, sheets)`: atomically writes multi-sheet `.xlsx` workbooks using `openpyxl.Workbook(write_only=True)` + `os.replace`.
+  - `read_xlsx_bundle(input_path, required_sheets, max_rows_per_sheet=100_000)`: enforces zip-bomb bounds (`xl/workbook.xml` `<= 10 MB`), streams sheets with `openpyxl.load_workbook(..., read_only=True, data_only=True)`, and validates required sheets.
+- **`backup.py`**:
+  - `create_pre_import_backup(conn, db_path)`: creates a timestamped backup using SQLite's online `conn.backup()` API under `<db_dir>/backups/<stem>.pre_import_<ts>.sqlite` (copying `.salt` if present).
+
+### Book Transfer Orchestrator (`core.library.services.book_transfer_service`)
+- **`export_books_db(conn, output_path, fmt, include_circulation=False) -> Result[dict[str, Any], str]`**:
+  - Exports `_CORE_TABLES` (`categories`, `books`, `book_copies`)—plus `_CIRC_TABLES` (`loans`, `reservations`, `fines`, `book_copy_status_log`) when `include_circulation=True`—to `.sqlite` (domain `"books"`, schema v10) or `.xlsx`. Rejects overwriting the active application DB (`PRAGMA database_list` + `os.path.realpath`).
+- **`preview_books_import(conn, input_path, mode="merge") -> Result[dict[str, Any], str]`**:
+  - Loads `.sqlite`/`.db` or `.xlsx` bundles read-only and computes non-mutating diff counts (`new_categories`, `new_books`, `updated_books`, `new_copies`, `skipped_copies`, `total_source_books`, `total_source_copies`, `can_apply`, `blocked_reason`, `format`).
+  - Matches books by normalized ISBN (`_normalize_isbn`) or fallback `(title, author)` key, and matches copies by normalized barcode (`_norm_barcode`).
+- **`apply_books_import(conn, input_path, mode="merge", db_path="", actor="ADMIN") -> Result[dict[str, Any], str]`**:
+  - **`merge` mode**: Upserts categories, books, and copies inside a single `with conn:` transaction; preserves any copy whose local status is `on_loan` and recomputes `books.total_copies`.
+  - **`replace` mode**: Blocked (`_check_replace_blockers`) if any active/overdue `loans`, unpaid `fines` (`paid = 0`), or `waiting`/`ready` `reservations` exist; otherwise clears library tables before importing.
+  - Creates a pre-import backup via `create_pre_import_backup` when `db_path != ":memory:"` and logs `library.import_<mode>` via `record_activity`.
+
+### Librarian Adapter & UI Integration
+- **`LibrarianAdminAdapter`** (`apps/librarian_management_app/adapters/librarian_admin_adapter.py`):
+  - Exposes `@Slot`s `exportBooksDatabase(output_path, fmt, include_circulation=False)`, `previewBooksImport(input_path, mode="merge")`, and `applyBooksImport(input_path, mode="merge", actor="LIBRARIAN")` returning `_sanitize_for_qml` JSON (`{"ok", "data", "error"}`) with path validation against active DB overwrites and symlinks.
+- **`DatabaseTransferCard.qml`** (`apps/common_qml/DatabaseTransferCard.qml`):
+  - Reusable card integrated into `SettingsView.qml` (`showBookTransferCard`, enabled in `apps/librarian_management_app/qml/Main.qml`) with format/mode `StyledComboBox` selectors, native `FileDialog` save/open pickers, preview-gated Apply button (`btnApplyImportDb`), diff summary box, and `ActionFeedbackBanner`.
+
+

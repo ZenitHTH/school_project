@@ -28,18 +28,20 @@ GridLayout {
         Layout.fillWidth: true
     }
 
-    Button {
+    StyledButton {
         id: btnReset
         objectName: "btnResetSettings"
         text: "🔄 คืนค่าเริ่มต้น (Reset to Defaults)"
+        variant: StyledButton.Neutral
         Layout.alignment: Qt.AlignRight
         onClicked: footerRoot.resetClicked()
     }
 
-    Button {
+    StyledButton {
         id: btnSave
         objectName: "btnSaveSettings"
         text: "💾 บันทึกการตั้งค่า (Save Settings)"
+        variant: StyledButton.Primary
         highlighted: true
         Layout.alignment: Qt.AlignRight
         onClicked: footerRoot.saveClicked()

@@ -19,6 +19,11 @@ from core.library.services.isbn_service import IsbnLookupService
 from core.library.services.chulabook_service import detect_chulabook_books
 from core.library.services.loan_service import LoanService
 from core.library.services.reservation_service import ReservationService
+from core.library.services.book_transfer_service import (
+    apply_books_import,
+    export_books_db,
+    preview_books_import,
+)
 from core.student.services.student_service import StudentService
 from data.repositories import book_repo, log_repo
 from data.sync.diff import compute_diff
@@ -723,6 +728,64 @@ class LibrarianAdminAdapter(QObject, SettingsAdapterMixin):
             return json.dumps(result)
         except Exception as exc:
             return json.dumps({"ok": False, "error": str(exc)})
+
+    def _active_db_realpath(self) -> Optional[str]:
+        """Return canonical file path of the active SQLite database if file-backed."""
+        return _active_db_realpath(self.conn)
+
+    @staticmethod
+    def _serialize_transfer_result(res: Any) -> str:
+        payload = {
+            "ok": bool(res.ok),
+            "error": res.error,
+            "data": _sanitize_for_qml(res.data) if res.ok else None,
+        }
+        return json.dumps(payload)
+
+    @Slot(str, str, bool, result=str)
+    def exportBooksDatabase(
+        self, output_path: str, fmt: str = "sqlite", include_circulation: bool = False
+    ) -> str:
+        """Export catalog and copies (plus optional circulation) to .sqlite or .xlsx."""
+        if fmt not in ("sqlite", "xlsx"):
+            return json.dumps({"ok": False, "error": f"Unsupported export format: {fmt}", "data": None})
+        exts = (".sqlite", ".db") if fmt == "sqlite" else (".xlsx",)
+        normalized, real_path, err = _validate_output_path(output_path, exts, self.conn)
+        if err or not real_path or not normalized:
+            return json.dumps({"ok": False, "error": err or "Invalid export path.", "data": None})
+        res = export_books_db(
+            self.conn, real_path, fmt=fmt, include_circulation=bool(include_circulation)
+        )
+        if res.ok and isinstance(res.data, dict):
+            data = dict(res.data)
+            data["output_path"] = normalized
+            return json.dumps({"ok": True, "error": None, "data": _sanitize_for_qml(data)})
+        return self._serialize_transfer_result(res)
+
+    @Slot(str, str, result=str)
+    def previewBooksImport(self, input_path: str, mode: str = "merge") -> str:
+        """Preview diff for importing a books .sqlite or .xlsx bundle."""
+        clean_path, err = _validate_input_path(input_path, (".sqlite", ".db", ".xlsx"), self.conn)
+        if err or not clean_path:
+            return json.dumps({"ok": False, "error": err or "Invalid import path.", "data": None})
+        return self._serialize_transfer_result(preview_books_import(self.conn, clean_path, mode=mode))
+
+    @Slot(str, str, str, result=str)
+    def applyBooksImport(
+        self, input_path: str, mode: str = "merge", actor: str = "LIBRARIAN"
+    ) -> str:
+        """Apply validated books .sqlite or .xlsx bundle in merge or replace mode."""
+        clean_path, err = _validate_input_path(input_path, (".sqlite", ".db", ".xlsx"), self.conn)
+        if err or not clean_path:
+            return json.dumps({"ok": False, "error": err or "Invalid import path.", "data": None})
+        res = apply_books_import(
+            self.conn,
+            clean_path,
+            mode=mode,
+            db_path=self._active_db_realpath() or "",
+            actor=actor,
+        )
+        return self._serialize_transfer_result(res)
 
 
 

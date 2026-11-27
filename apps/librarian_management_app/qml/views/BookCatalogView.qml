@@ -150,7 +150,7 @@ Rectangle {
                     id: catalogRowLayout
                     anchors.fill: parent
                     anchors.margins: 14
-                    spacing: 6
+                    spacing: 12
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 280
@@ -178,9 +178,12 @@ Rectangle {
                         text: "หมวดหมู่: " + (model.category_name || "-")
                         font.pixelSize: Math.max(10, Math.round(12 * (window.fontScale || 1.0)))
                         color: "#475569"
-                        Layout.minimumWidth: 65
-                        Layout.preferredWidth: Math.round(115 * (window.fontScale || 1.0))
+                        Layout.minimumWidth: 100
+                        Layout.preferredWidth: Math.round(180 * (window.fontScale || 1.0))
+                        Layout.maximumWidth: Math.round(220 * (window.fontScale || 1.0))
+                        maximumLineCount: 1
                         elide: Text.ElideRight
+                        clip: true
                     }
                     Text {
                         text: "มีทั้งหมด: " + model.total_copies + " เล่ม (พร้อมยืม: " + model.available_copies + ")"
@@ -188,9 +191,12 @@ Rectangle {
                         color: "#059669"
                         font.bold: true
                         Layout.fillWidth: false
-                        Layout.minimumWidth: 95
-                        Layout.preferredWidth: Math.round(170 * (window.fontScale || 1.0))
+                        Layout.minimumWidth: 120
+                        Layout.preferredWidth: Math.round(185 * (window.fontScale || 1.0))
+                        Layout.maximumWidth: Math.round(220 * (window.fontScale || 1.0))
+                        maximumLineCount: 1
                         elide: Text.ElideRight
+                        clip: true
                     }
                     StyledButton {
                         variant: StyledButton.Primary

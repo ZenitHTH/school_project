@@ -157,7 +157,7 @@ def apply_qt_app_font(family: str, pixel_size: int) -> None:
     if not HAVE_QT:
         return
     try:
-        from PySide6.QtGui import QGuiApplication
+        from PySide6.QtGui import QFontDatabase, QGuiApplication
         app = QGuiApplication.instance()
         if not app:
             return
@@ -165,9 +165,14 @@ def apply_qt_app_font(family: str, pixel_size: int) -> None:
             register_bundled_fonts()
         else:
             register_startup_fonts(family)
+        resolved_family = family
+        if family == "Noto Sans":
+            families = set(QFontDatabase.families())
+            if "Noto Sans" not in families and "Noto Sans Thai" in families:
+                resolved_family = "Noto Sans Thai"
         font = app.font()
-        if family:
-            font.setFamily(family)
+        if resolved_family:
+            font.setFamily(resolved_family)
         if pixel_size > 0:
             font.setPixelSize(pixel_size)
         app.setFont(font)

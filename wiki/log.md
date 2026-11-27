@@ -558,3 +558,13 @@ All architectural updates, refactorings, and knowledge ingestions are tracked he
 - `apps/booth_app/adapters/booth_adapter.py`: added `listCategories()` and `searchBooks(query, category_id=0, limit=50, offset=0)` Qt slots supporting both LAN client and local SQLite `CatalogService` with `_sanitize_for_qml` (`b09f64d`).
 - `apps/booth_app/qml/BookSearchView.qml` & `apps/booth_app/qml/Main.qml`: added self-service book search and shelf locator page at `kioskStack` index `2` (`btnOpenBookSearch`, `boothBookSearchView`, `boothBookSearchInput`, `boothCategoryFilter`, `boothBookResultsList`) with responsive card heights, `Typography.applyToItem`, fallback category/shelf badges, and copy availability indicators (`44bd603`).
 - Updated `wiki/apps/booth-app.md` and `wiki/log.md`; verified full suite (`465 passed` across `tests/test_booth_lan.py`, `tests/test_booth_adapter_lan.py`, `tests/test_ui_booth.py`, and all existing tests).
+
+## [2026-11-27] feat | Book Database Export & Import System (SQLite + XLSX)
+- **`core/shared/db_transfer/`** (new shared primitives):
+  - `manifest.py`: canonical JSON SHA-256 digest (`compute_tables_checksum`), `build_manifest`, and `verify_manifest`.
+  - `sqlite_io.py`: atomic temp+`os.replace` `write_sqlite_bundle` and hardened `read_sqlite_bundle` (`file:...?mode=ro`, `PRAGMA trusted_schema = OFF;`, `VIEW`/`TRIGGER`/`VIRTUAL TABLE` rejection, domain & SHA-256 verification).
+  - `xlsx_io.py`: streaming `write_xlsx_bundle` and bounded `read_xlsx_bundle` (`<= 10 MB` `xl/workbook.xml` zip-bomb check, `read_only=True`).
+  - `backup.py`: `create_pre_import_backup` using SQLite online `conn.backup()` (plus `.salt` copy).
+- **`core/library/services/book_transfer_service.py`** (new): `export_books_db`, `preview_books_import`, and `apply_books_import` supporting `.sqlite`/`.xlsx` round-trips, `merge` (preserving `on_loan` copies) and guarded `replace` (blocked on active loans, unpaid fines, or active reservations), active-DB/symlink rejection, pre-import backup, and `activity_log` audit recording.
+- **Adapter & UI**: `LibrarianAdminAdapter` transfer slots (`exportBooksDatabase`, `previewBooksImport`, `applyBooksImport`), reusable `apps/common_qml/DatabaseTransferCard.qml` (`qmldir`), `SettingsView.showBookTransferCard`, and Librarian `Main.qml` wiring/refresh.
+- Updated `wiki/services/library-services.md` (§9) and `wiki/log.md`.

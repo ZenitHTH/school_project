@@ -13,6 +13,8 @@ Rectangle {
     property var targetWindow: null
     readonly property real fontScale: (targetWindow && targetWindow.fontScale) ? targetWindow.fontScale : 1.0
     property bool _loadingCategories: false
+    property int pageSize: 50
+    property bool hasMore: false
 
     signal backRequested()
 
@@ -21,12 +23,12 @@ Rectangle {
         property color textColor: "#cbd5e1"
         property bool boldText: false
         property int padX: 16; property int padY: 8; property int minH: 24; property int maxW: 320
-        implicitWidth: Math.min(maxW, Math.round(label.implicitWidth + padX))
+        implicitWidth: Math.min(maxW, Math.ceil(label.implicitWidth) + padX + 4)
         implicitHeight: Math.max(minH, Math.round(label.implicitHeight + padY))
         height: implicitHeight; radius: 6; clip: true
         Text {
             id: label; anchors.centerIn: parent; text: parent.badgeText; color: parent.textColor
-            width: Math.min(implicitWidth, parent.width - parent.padX)
+            width: Math.min(Math.ceil(implicitWidth), Math.max(0, parent.width - parent.padX))
             elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter
             font.bold: parent.boldText; font.pixelSize: Math.max(10, Math.round(12 * root.fontScale))
         }
@@ -50,8 +52,11 @@ Rectangle {
         _loadingCategories = false
     }
 
-    function performSearch() {
-        bookResultsModel.clear()
+    function performSearch(append) {
+        if (!append) {
+            bookResultsModel.clear()
+            root.hasMore = false
+        }
         if (typeof boothAdapter === "undefined" || boothAdapter === null || !boothAdapter.searchBooks) {
             statusText.text = "ไม่พบหนังสือที่ตรงกับการค้นหา"
             return
@@ -59,8 +64,10 @@ Rectangle {
         var idx = categoryFilterCombo.currentIndex
         var catId = (idx >= 0 && idx < categoryFilterModel.count) ? (categoryFilterModel.get(idx).category_id || 0) : 0
         try {
-            var rows = JSON.parse(boothAdapter.searchBooks(searchInput.text, catId, 50, 0))
-            for (var i = 0; i < rows.length; i++) {
+            var rows = JSON.parse(boothAdapter.searchBooks(searchInput.text, catId, root.pageSize + 1, bookResultsModel.count))
+            root.hasMore = rows.length > root.pageSize
+            var count = Math.min(rows.length, root.pageSize)
+            for (var i = 0; i < count; i++) {
                 var r = rows[i]
                 bookResultsModel.append({
                     "book_id": Number(r.book_id || 0), "title": String(r.title || ""),
@@ -70,7 +77,13 @@ Rectangle {
                 })
             }
         } catch (e) {}
-        statusText.text = bookResultsModel.count > 0 ? ("พบ " + bookResultsModel.count + " รายการ") : "ไม่พบหนังสือที่ตรงกับการค้นหา"
+        if (bookResultsModel.count === 0) {
+            statusText.text = "ไม่พบหนังสือที่ตรงกับการค้นหา"
+        } else if (root.hasMore) {
+            statusText.text = "แสดง " + bookResultsModel.count + " รายการ (ยังมีเพิ่มเติม)"
+        } else {
+            statusText.text = "พบ " + bookResultsModel.count + " รายการ"
+        }
     }
 
     ColumnLayout {
@@ -143,6 +156,8 @@ Rectangle {
                             }
                             InfoBadge {
                                 padX: 20; padY: 10; minH: 26; boldText: true
+                                Layout.minimumWidth: implicitWidth
+                                Layout.preferredWidth: implicitWidth
                                 color: model.available_copies > 0 ? Theme.successBackground : Theme.errorBackground
                                 border.color: model.available_copies > 0 ? Theme.successBorder : Theme.errorBorder
                                 textColor: model.available_copies > 0 ? Theme.successText : Theme.errorText
@@ -164,6 +179,20 @@ Rectangle {
                                 badgeText: "📍 ชั้นวาง: " + (model.shelf_location || "ไม่ระบุชั้นวาง")
                             }
                         }
+                    }
+                }
+
+                footer: Item {
+                    width: resultsList.width
+                    height: root.hasMore ? Math.max(48, btnLoadMoreBooks.implicitHeight + 16) : 0
+                    visible: root.hasMore
+                    StyledButton {
+                        id: btnLoadMoreBooks
+                        objectName: "btnLoadMoreBooks"
+                        anchors.centerIn: parent
+                        variant: StyledButton.Neutral
+                        text: "โหลดเพิ่มอีก " + root.pageSize + " รายการ"
+                        onClicked: root.performSearch(true)
                     }
                 }
             }

@@ -1,6 +1,7 @@
 import QtQuick 2.15
 import "Theme.js" as Theme
 import QtQuick.Controls 2.15
+import QtQuick.Templates as T
 import QtQuick.Layouts 1.15
 
 Rectangle {
@@ -74,12 +75,35 @@ Rectangle {
                         leftPadding: 12
                         text: modelData
                         font: fontFamilyCombo.font
-                        color: highlighted ? Theme.accentPrimary : Theme.textPrimary
+                        color: highlighted ? Theme.accentDeep : Theme.textPrimary
                         verticalAlignment: Text.AlignVCenter
                         horizontalAlignment: Text.AlignLeft
                         elide: Text.ElideRight
                     }
+                    background: Rectangle {
+                        color: highlighted ? Theme.accentSurface : (hovered ? Theme.surfaceHover : "transparent")
+                    }
                     highlighted: fontFamilyCombo.highlightedIndex === index
+                }
+
+                popup: Popup {
+                    y: fontFamilyCombo.height + 4
+                    width: fontFamilyCombo.width
+                    implicitHeight: Math.min(implicitContentHeight + padding * 2, 240)
+                    padding: 4
+                    background: Rectangle {
+                        color: Theme.surfaceWhite
+                        border.color: Theme.borderDefault
+                        radius: 6
+                    }
+                    contentItem: ListView {
+                        clip: true
+                        implicitHeight: contentHeight
+                        model: fontFamilyCombo.delegateModel
+                        currentIndex: fontFamilyCombo.highlightedIndex
+                        highlightMoveDuration: 0
+                        T.ScrollBar.vertical: ScrollBar { }
+                    }
                 }
             }
         }
@@ -94,10 +118,11 @@ Rectangle {
                 Layout.preferredWidth: Math.max(140, Math.min(200, implicitWidth))
                 wrapMode: Text.Wrap
             }
-            Button {
+            StyledButton {
                 id: btnFontSizeMinus
                 objectName: "btnFontSizeMinus"
                 text: "−"
+                variant: StyledButton.Neutral
                 implicitWidth: Math.max(36, Math.round(contentItem.implicitWidth + 16))
                 onClicked: fontSizeSlider.value = Math.max(10, fontSizeSlider.value - 1)
             }
@@ -112,10 +137,11 @@ Rectangle {
                 Layout.minimumHeight: 24
                 onValueChanged: controlsRoot.fontSizeChanged(Math.round(value))
             }
-            Button {
+            StyledButton {
                 id: btnFontSizePlus
                 objectName: "btnFontSizePlus"
                 text: "+"
+                variant: StyledButton.Neutral
                 implicitWidth: Math.max(36, Math.round(contentItem.implicitWidth + 16))
                 onClicked: fontSizeSlider.value = Math.min(24, fontSizeSlider.value + 1)
             }
@@ -186,8 +212,9 @@ Rectangle {
                 spacing: 8
                 Repeater {
                     model: [50, 75, 100, 125, 150]
-                    Button {
+                    StyledButton {
                         text: modelData === 100 ? "100% (ปกติ)" : (modelData + "%")
+                        variant: Math.round(scaleSlider.value) === modelData ? StyledButton.Primary : StyledButton.Neutral
                         highlighted: Math.round(scaleSlider.value) === modelData
                         onClicked: scaleSlider.value = modelData
                     }

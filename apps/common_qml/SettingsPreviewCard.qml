@@ -93,8 +93,9 @@ Rectangle {
                     font.family: previewCard.activeFontFamily
                 }
             }
-            Button {
+            StyledButton {
                 text: "ปุ่มตัวอย่าง (Sample Button)"
+                variant: StyledButton.Neutral
                 font.family: previewCard.activeFontFamily
                 font.pixelSize: Math.round(previewCard.currentFontSize * previewCard.currentUiScale)
             }

@@ -42,7 +42,7 @@ ApplicationWindow {
 
                 Item {
                     width: kioskScroll.availableWidth
-                    implicitHeight: Math.max(kioskScroll.availableHeight, kioskHomeCol.implicitHeight + 32)
+                    implicitHeight: Math.max(kioskScroll.height, kioskHomeCol.implicitHeight + 32)
 
                     ColumnLayout {
                         id: kioskHomeCol

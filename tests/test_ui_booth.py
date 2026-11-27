@@ -469,3 +469,36 @@ def test_lan_settings_dialog_height_wraps_content(booth_ui):
     process(booth_ui["app"])
 
 
+def test_booth_book_search_loads_beyond_50_items(booth_ui):
+    """When more than 50 books match, Load More appends remaining pages beyond 50."""
+    window = booth_ui["window"]
+    conn = booth_ui["conn"]
+
+    for i in range(55):
+        bid = book_repo.add_book(conn, title=f"คณิตเพิ่มเติม {i:03d}")
+        book_repo.add_copies(conn, bid, barcodes=[f"MATH-{i:03d}"])
+
+    find(window, "btnOpenBookSearch").clicked.emit()
+    process(booth_ui["app"])
+
+    search_input = find(window, "boothBookSearchInput")
+    search_input.setProperty("text", "คณิตเพิ่มเติม")
+    find(window, "btnBoothSearchBooks").clicked.emit()
+    process(booth_ui["app"])
+
+    results_list = find(window, "boothBookResultsList")
+    status_text = find(window, "boothBookSearchStatus")
+    load_more_btn = find(window, "btnLoadMoreBooks")
+    assert results_list.property("count") == 50
+    assert "ยังมีเพิ่มเติม" in status_text.property("text")
+    assert load_more_btn is not None and load_more_btn.property("visible") is True
+
+    load_more_btn.clicked.emit()
+    process(booth_ui["app"])
+
+    assert results_list.property("count") == 55
+    assert "พบ 55 รายการ" in status_text.property("text")
+    assert load_more_btn.property("visible") is False
+
+
+

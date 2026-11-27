@@ -444,6 +444,22 @@ ApplicationWindow {
                 objectName: "settingsView"
                 targetWindow: window
                 showLanServerCard: true
+                showBookTransferCard: true
+                onBookTransferExportRequested: function(path, fmt) {
+                    var res = JSON.parse(librarianAdmin.exportBooksDatabase(path, fmt, settingsView.bookTransferCard.includeCirculation))
+                    settingsView.bookTransferCard.setExportResult(res)
+                }
+                onBookTransferPreviewRequested: function(path, mode) {
+                    var res = JSON.parse(librarianAdmin.previewBooksImport(path, mode))
+                    settingsView.bookTransferCard.setPreviewResult(res)
+                }
+                onBookTransferImportRequested: function(path, mode) {
+                    var res = JSON.parse(librarianAdmin.applyBooksImport(path, mode, "Librarian"))
+                    settingsView.bookTransferCard.setImportResult(res)
+                    if (res.ok) {
+                        window.refreshAfterBookTransfer()
+                    }
+                }
             }
         }
     }
@@ -675,6 +691,15 @@ ApplicationWindow {
     // Forwarding to Category Management View & Dialogs
     function loadCategoriesList() {
         barcodeGenView.loadCategoriesList()
+    }
+
+    function refreshAfterBookTransfer() {
+        catalogView.loadCategories()
+        searchBooks()
+        barcodeGenView.loadCategoriesList()
+        if (window._printableBooksLoaded || stackLayout.currentIndex === 7) {
+            loadPrintableBooks()
+        }
     }
 
     function addNewCategory() {
